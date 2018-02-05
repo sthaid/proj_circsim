@@ -28,10 +28,22 @@
 #define MAX_GRID_Y      26
 #define MAX_COMPONENT  100
 
-#define COMP_POWER       1
-#define COMP_RESISTOR    2
-#define COMP_WIRE        3
-#define COMP_SWITCH      4
+#define COMP_RESISTOR    0
+#define COMP_CAPACITOR   1
+#define COMP_DIODE       2
+#define COMP_OPEN_SWITCH 3
+#define COMP_CLOSED_SWITCH 4
+#define COMP_DC_POWER      5
+#define COMP_WIRE          10
+
+//#define COMP_POWER       1
+//#define COMP_WIRE        3
+//#define COMP_SWITCH      4
+
+//#define GRID_DIR_UP      0
+//#define GRID_DIR_RIGHT   1
+//#define GRID_DIR_DOWN    2
+//#define GRID_DIR_LEFT    3
 
 //
 // typedefs
@@ -42,9 +54,9 @@ struct component_s;
 typedef struct {
     struct component_s * component;
     int32_t term_id;
-    int32_t grid_row;
-    int32_t grid_col;
-    int32_t grid_dir;
+    int32_t grid_x;
+    int32_t grid_y;   
+    //int32_t grid_dir;
 } terminal_t;
 
 typedef struct component_s {
@@ -61,7 +73,9 @@ typedef struct {
 // 
 
 grid_t grid[MAX_GRID_X][MAX_GRID_Y];
-component_t componet[MAX_COMPONENT];
+component_t component[MAX_COMPONENT];
+
+int32_t max_component;
 
 
 #endif

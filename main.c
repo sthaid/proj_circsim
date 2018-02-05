@@ -52,6 +52,74 @@ int32_t main(int32_t argc, char ** argv)
         }
     }
 
+    // XXX init component
+    component[0].type = COMP_RESISTOR;
+    component[0].term[0].component = &component[0];
+    component[0].term[0].term_id   = 0;
+    component[0].term[0].grid_y    = 1;
+    component[0].term[0].grid_x    = 1;
+    component[0].term[1].term_id   = 1;
+    component[0].term[1].grid_y    = 1;
+    component[0].term[1].grid_x    = 2;
+
+    component[1].type = COMP_CAPACITOR;
+    component[1].term[0].component = &component[0]; //xxx
+    component[1].term[0].term_id   = 0;
+    component[1].term[0].grid_y    = 1;
+    component[1].term[0].grid_x    = 1;
+    component[1].term[1].term_id   = 1;
+    component[1].term[1].grid_y    = 1;
+    component[1].term[1].grid_x    = 0;
+
+    component[2].type = COMP_DIODE;
+    component[2].term[0].component = &component[0]; //xxx
+    component[2].term[0].term_id   = 0;
+    component[2].term[0].grid_y    = 1;
+    component[2].term[0].grid_x    = 1;
+    component[2].term[1].term_id   = 1;
+    component[2].term[1].grid_y    = 2;
+    component[2].term[1].grid_x    = 1;
+
+    component[3].type = COMP_OPEN_SWITCH;
+    component[3].term[0].component = &component[0]; //xxx
+    component[3].term[0].term_id   = 0;
+    component[3].term[0].grid_y    = 3;
+    component[3].term[0].grid_x    = 5;
+    component[3].term[1].term_id   = 1;
+    component[3].term[1].grid_y    = 3;
+    component[3].term[1].grid_x    = 6;
+
+    component[4].type = COMP_CLOSED_SWITCH;
+    component[4].term[0].component = &component[0]; //xxx
+    component[4].term[0].term_id   = 0;
+    component[4].term[0].grid_y    = 3;
+    component[4].term[0].grid_x    = 6;
+    component[4].term[1].term_id   = 1;
+    component[4].term[1].grid_y    = 3;
+    component[4].term[1].grid_x    = 7;
+
+    component[5].type = COMP_DC_POWER;
+    component[5].term[0].component = &component[0]; //xxx
+    component[5].term[0].term_id   = 0;
+    component[5].term[0].grid_y    = 4;
+    component[5].term[0].grid_x    = 4;
+    component[5].term[1].term_id   = 1;
+    component[5].term[1].grid_y    = 5;
+    component[5].term[1].grid_x    = 4;
+
+    component[6].type = COMP_WIRE;
+    component[6].term[0].component = &component[0]; //xxx
+    component[6].term[0].term_id   = 0;
+    component[6].term[0].grid_y    = 5;
+    component[6].term[0].grid_x    = 1;
+    component[6].term[1].term_id   = 1;
+    component[6].term[1].grid_y    = 5;
+    component[6].term[1].grid_x    = 6;
+
+    max_component = 7;
+
+
+
     // create thread for cli
     pthread_create(&thread_id, NULL, cli_thread, NULL);
 
@@ -176,6 +244,57 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
     #define FONT_ID 1
 
+    typedef struct {
+        struct {
+            int32_t x;
+            int32_t y;
+        } points[20][20];
+    } component_image_t;
+
+    static component_image_t resistor_image = 
+        { { { {0,0}, {200,0}, {250,-50}, {350,50}, {450,-50}, {550,50}, {650,-50}, {750,50}, {800,0}, {1000,0}, {-1,-1} },
+            { {-1,-1} } } };
+
+    static component_image_t capacitor_image = 
+        { { { {0,0}, {450,0}, {-1,-1} },
+            { {550,0}, {1000,0}, {-1,-1} },
+            { {450,-70}, {450,70}, {-1,-1} },
+            { {550,-70}, {550,70}, {-1,-1} },
+            { {-1,-1} } } };
+
+    static component_image_t diode_image = 
+        { { { {0,0}, {450,0}, {-1,-1} },
+            { {450,-71}, {450,71}, {-1,-1} },
+            { {450,-71}, {550,0}, {-1,-1} },
+            { {450,71}, {550,0}, {-1,-1} },
+            { {550,71}, {550,-71}, {-1,-1} },
+            { {550,0}, {1000,0}, {-1,-1} },
+            { {-1,-1} } } };
+
+    static component_image_t open_switch = 
+        { { { {0,0}, {350,0}, {-1,-1} },
+            { {350,0}, {560,-160}, {-1,-1} },
+            { {650,0}, {1000,0}, {-1,-1} },
+            { {-1,-1} } } };
+
+    static component_image_t closed_switch = 
+        { { { {0,0}, {350,0}, {-1,-1} },
+            { {350,0}, {640,-20}, {-1,-1} },
+            { {650,0}, {1000,0}, {-1,-1} },
+            { {-1,-1} } } };
+
+    static component_image_t dc_power = 
+        { { { {0,0}, {300,0}, {-1,-1} },
+            { {300,0}, {358,142}, {500,200}, {642,142}, {700,0,}, {642,-142}, {500,-200}, {358,-142}, {300,0}, {-1,-1} },
+            { {350,0}, {400, 0}, {-1,-1} },
+            { {375,25}, {375, -25}, {-1,-1} },
+            { {625,25}, {625, -25}, {-1,-1} },
+            { {700,0}, {1000,0}, {-1,-1} },
+            { {-1,-1} } } };
+
+    static component_image_t * component_image[] = { &resistor_image, &capacitor_image, &diode_image ,
+                                 &open_switch, &closed_switch, &dc_power };
+
     struct {
         int32_t grid_xoff;  // xxx name
         int32_t grid_yoff;
@@ -201,9 +320,10 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
     if (request == PANE_HANDLER_REQ_RENDER) {
         // if grid is enabled then draw it
+        int32_t i, j, k, x, y, count;
+        point_t points[26*50]; //xxx
+
         if (1) {
-            int32_t i, j, x, y, count=0;
-            point_t points[26*50]; //xxx
             // x labelling
             for (i = 0; i < MAX_GRID_X; i++) {
                 x = i * vars->grid_scale + vars->grid_xoff - sdl_font_char_width(FONT_ID)/2;
@@ -215,6 +335,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 sdl_render_printf(pane, 0, y, FONT_ID, WHITE, BLACK, "%c", 'A'+j);
             }
             // points
+            count = 0;
             for (i = 0; i < MAX_GRID_X; i++) {
                 for (j = 0; j < MAX_GRID_Y; j++) {
                     x = i * vars->grid_scale + vars->grid_xoff;
@@ -227,6 +348,65 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             sdl_render_points(pane, points, count, WHITE, 2);
         }
 
+        // draw components
+        for (i = 0; i < max_component; i++) {
+            component_t * c  = &component[i];
+
+            switch (c->type) {
+            case COMP_RESISTOR:
+            case COMP_CAPACITOR:
+            case COMP_DIODE:
+            case COMP_OPEN_SWITCH:
+            case COMP_CLOSED_SWITCH:
+            case COMP_DC_POWER: {
+                component_image_t * ci = component_image[c->type];
+                x = c->term[0].grid_x * vars->grid_scale + vars->grid_xoff;
+                y = c->term[0].grid_y * vars->grid_scale + vars->grid_yoff;
+                for (j = 0; ci->points[j][0].x != -1; j++) {
+                    for (k = 0; ci->points[j][k].x != -1; k++) {
+                        if (c->term[1].grid_x == c->term[0].grid_x + 1) {
+                            points[k].x = x + ci->points[j][k].x * vars->grid_scale / 1000;  // right
+                            points[k].y = y + ci->points[j][k].y * vars->grid_scale / 1000;
+                        } else if (c->term[1].grid_x == c->term[0].grid_x - 1) {
+                            points[k].x = x - ci->points[j][k].x * vars->grid_scale / 1000;  // leftt
+                            points[k].y = y + ci->points[j][k].y * vars->grid_scale / 1000;
+                        } else if (c->term[1].grid_y == c->term[0].grid_y + 1) {
+                            points[k].x = x + ci->points[j][k].y * vars->grid_scale / 1000;
+                            points[k].y = y + ci->points[j][k].x * vars->grid_scale / 1000;  // down
+                        } else if (c->term[1].grid_y == c->term[0].grid_y - 1) {
+                            points[k].x = x + ci->points[j][k].y * vars->grid_scale / 1000;
+                            points[k].y = y - ci->points[j][k].x * vars->grid_scale / 1000;  // up
+                        } else {
+                            FATAL("xxxx\n");
+                        }
+                    }
+                    sdl_render_lines(pane, points, k, RED);
+                }
+                x = c->term[0].grid_x * vars->grid_scale + vars->grid_xoff;  // xxx need larger pt size
+                y = c->term[0].grid_y * vars->grid_scale + vars->grid_yoff;
+                sdl_render_point(pane, x, y, RED, 2);
+                x = c->term[1].grid_x * vars->grid_scale + vars->grid_xoff;
+                y = c->term[1].grid_y * vars->grid_scale + vars->grid_yoff;
+                sdl_render_point(pane, x, y, RED, 2);
+                break; }
+            case COMP_WIRE: {
+                int32_t x1 = c->term[0].grid_x * vars->grid_scale + vars->grid_xoff;
+                int32_t y1 = c->term[0].grid_y * vars->grid_scale + vars->grid_yoff;
+                int32_t x2 = c->term[1].grid_x * vars->grid_scale + vars->grid_xoff;
+                int32_t y2 = c->term[1].grid_y * vars->grid_scale + vars->grid_yoff;
+                sdl_render_line(pane, x1, y1, x2, y2, RED);
+                break; }
+            default:
+                FATAL("xxx\n");
+                break;
+            }
+        }
+
+
+
+
+
+        // XXX comments
         rect_t locf = {0,0,pane->w,pane->h};
         sdl_register_event(pane, &locf, SDL_EVENT_MOUSE_MOTION, SDL_EVENT_TYPE_MOUSE_MOTION, pane_cx);
         sdl_register_event(pane, &locf, SDL_EVENT_MOUSE_WHEEL, SDL_EVENT_TYPE_MOUSE_WHEEL, pane_cx);
