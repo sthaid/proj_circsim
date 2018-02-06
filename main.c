@@ -1,4 +1,32 @@
+#if 0
+
+clear
+read
+save
+add-resistor A1 A2 1000
+add A1 A2 resistor 10000
+add A1 A2 power    dc,5
+add A1 A2 switch   open
+add A1 A5 wire
+del A1 A2
+show
+
+reset
+run
+stop
+open and close switches
+change values of components
+
+
+// xxx don't know if I like all the time tags on the prints
+#endif
+
+
 #include "common.h"
+
+#include <readline/readline.h>
+#include <readline/history.h>
+
 
 //
 // defines
@@ -19,10 +47,20 @@
 // prototypes
 //
 
-static void read_cmds_from_file(char *filename);
 static void help(void);
+
 static void * cli_thread(void * cx);
-static void process_cmd(char * cmdline);
+static int32_t process_cmd(char * cmdline);
+static int32_t cmd_help(char *arg1, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_clear(char *arg1, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_save(char *filename, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_add_resistor(char *loc0, char *loc1, char *ohms, char *arg4);
+static int32_t cmd_add_capacitor(char *loc0, char *loc1, char *uF, char *arg4);
+static int32_t cmd_show(char *arg1, char *arg2, char *arg3, char *arg4);
+static int32_t add_component(int32_t type, char *loc0, char *loc1, char *valstr);
+static char * term2locstr(terminal_t * term);
+
 static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event);
 
 // -----------------  MAIN  -----------------------------------------------
@@ -31,6 +69,7 @@ int32_t main(int32_t argc, char ** argv)
 {
     int32_t win_width, win_height;
     pthread_t thread_id;
+    int32_t rc;
 
     // get and process options
     // -f <file> : read commands from file
@@ -41,7 +80,10 @@ int32_t main(int32_t argc, char ** argv)
         }
         switch (opt_char) {
         case 'f':
-            read_cmds_from_file(optarg);
+            rc = cmd_read(optarg,NULL,NULL,NULL);
+            if (rc < 0) {
+                exit(1);
+            }
             break;
         case 'h':
             help();
@@ -52,6 +94,7 @@ int32_t main(int32_t argc, char ** argv)
         }
     }
 
+#if 0
     // XXX init component
     component[0].type = COMP_RESISTOR;
     component[0].term[0].component = &component[0];
@@ -117,8 +160,7 @@ int32_t main(int32_t argc, char ** argv)
     component[6].term[1].grid_x    = 6;
 
     max_component = 7;
-
-
+#endif
 
     // create thread for cli
     pthread_create(&thread_id, NULL, cli_thread, NULL);
@@ -141,27 +183,9 @@ int32_t main(int32_t argc, char ** argv)
     return 0;
 }
 
-static void read_cmds_from_file(char *filename)
-{
-    FILE * fp;
-    char s[200];
-
-    fp = fopen(filename, "r");
-    if (fp == NULL) {
-        FATAL("failed to open %s, %s\n", filename, strerror(errno));
-    }
-
-    memset(s,0,sizeof(s));
-    while (fgets(s, sizeof(s), fp) != NULL) {
-        process_cmd(s);
-    }
-
-    fclose(fp);
-}
-
 static void help(void)
 {
-    INFO("HELP TBD\n");
+    INFO("HELP XXX TBD\n");
     exit(0);
 }
 
@@ -169,40 +193,47 @@ static void help(void)
 
 static void * cli_thread(void * cx)
 {
-    char s[200];
+    char *cmd_str = NULL;
 
-    memset(s,0,sizeof(s));
-    while (fgets(s, sizeof(s), stdin) != NULL) {
-        process_cmd(s);
+    while (true) {
+        free(cmd_str);
+        if ((cmd_str = readline("> ")) == NULL) {
+            break;
+        }
+        if (cmd_str[0] != '\0') {
+            add_history(cmd_str);
+        }
+
+        process_cmd(cmd_str);
     }
 
-    // xxx this may not be a proper way to exit
+    // xxx still not sure about this, may need to signal main thread
     exit(0);
 }
 
-#if 0
-clear
-read
-save
+static struct {
+    char * name;
+    int32_t (*proc)(char *arg1, char *arg2, char *arg3, char *arg4);
+    int32_t min_args;
+    int32_t max_args;
+    char * usage;
+} cmd_tbl[] = {
+    { "help",          cmd_help,          0, 1, ""                     },
+    { "clear",         cmd_clear,         0, 0, ""                     },
+    { "read",          cmd_read,          1, 1, "<filename>"           },
+    { "save",          cmd_save,          0, 1, "[<filename>]"         },
+    { "add-resistor",  cmd_add_resistor,  3, 3, "<loc0> <loc1> <ohms>" },
+    { "add-capacitor", cmd_add_capacitor, 3, 3, "<loc0> <loc1> <uF>"   },
+    { "show"         , cmd_show         , 0, 0, ""                     },
+                    };
 
-add A1 A2 resistor 10000
-add A1 A2 power  dc  5
-add A1 A2 switch open
-add A1 A5 wire
-del A1 A2
+#define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
 
-reset
-run
-stop
-
-open and close switches
-change values of components
-#endif
-
-static void process_cmd(char * cmdline)
+static int32_t process_cmd(char * cmdline)
 {
     char *comment_char;
-    char *cmd, *arg1, *arg2, *arg3;
+    char *cmd, *arg1, *arg2, *arg3, *arg4;  // xxx do we need arg4
+    int32_t i, rc, arg_count=0;
 
     // terminate cmdline at the comment ('#') character, if any
     comment_char = strchr(cmdline,'#');
@@ -215,14 +246,190 @@ static void process_cmd(char * cmdline)
     arg1 = strtok(NULL, " \n");
     arg2 = strtok(NULL, " \n");
     arg3 = strtok(NULL, " \n");
+    arg4 = strtok(NULL, " \n");
+    if (arg1) arg_count++;
+    if (arg2) arg_count++;
+    if (arg3) arg_count++;
+    if (arg4) arg_count++;
 
-    // if no cmd then return
+    // if no cmd then return success
     if (cmd == NULL) {
-        return;
+        return 0;
     }
 
-    // XXX for now just print them cmd
-    printf("CMD '%s %s %s %s'\n", cmd, arg1, arg2, arg3);
+    // find cmd in cmd_tbl
+    //INFO("CMD '%s %s %s %s %s'\n", cmd, arg1, arg2, arg3, arg4);  // xxx temp
+    for (i = 0; i < MAX_CMD_TBL; i++) {
+        if (strcmp(cmd, cmd_tbl[i].name) == 0) {
+            if (arg_count < cmd_tbl[i].min_args || arg_count > cmd_tbl[i].max_args) {
+                ERROR("incorrect number of args\n");
+                rc = -1;
+            } else {
+                rc = cmd_tbl[i].proc(arg1,arg2,arg3,arg4);
+            }
+            if (rc != 0) {
+                ERROR("failed: '%s'\n", cmdline);
+                return rc;
+            }
+            break;
+        }
+    } 
+    if (i == MAX_CMD_TBL) {
+        ERROR("not found: '%s'\n", cmdline);
+        return rc;
+    }
+
+    // return success
+    return 0;
+}
+
+static int32_t cmd_help(char *arg1, char *arg2, char *arg3, char *arg4)
+{
+    int32_t i;
+
+    for (i = 0; i < MAX_CMD_TBL; i++) {
+        INFO("%-16s %s\n", cmd_tbl[i].name, cmd_tbl[i].usage);
+    }
+    return 0;
+}
+
+static int32_t cmd_clear(char *arg1, char *arg2, char *arg3, char *arg4)
+{
+    max_component = 0;
+    return 0;
+}
+
+static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4)
+{
+    FILE * fp;
+    char s[200];
+    int32_t rc;
+
+    fp = fopen(filename, "r");
+    if (fp == NULL) {
+        ERROR("unable to open '%s', %s\n", filename, strerror(errno));
+        return -1;
+    }
+
+    while (fgets(s, sizeof(s), fp) != NULL) {
+        rc = process_cmd(s);
+        if (rc != 0) {
+// XXX print file line
+            ERROR("aborting read of command from '%s'\n", filename);
+            return rc;
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+static int32_t cmd_save(char *filename, char *arg2, char *arg3, char *arg4)
+{
+    // xxx tbd
+    return 0;
+}
+
+static int32_t cmd_add_resistor(char *loc0, char *loc1, char *ohms, char *arg4)
+{
+    return add_component(COMP_RESISTOR, loc0, loc1, ohms);
+}
+
+static int32_t cmd_add_capacitor(char *loc0, char *loc1, char *uF, char *arg4)
+{
+    // xxx tbd
+    return 0;
+}
+
+static int32_t cmd_show(char *arg1, char *arg2, char *arg3, char *arg4)
+{
+    int32_t i;
+    char *loc0, *loc1;
+
+    for (i = 0; i < max_component; i++) {
+        component_t * c = &component[i];
+        if (c->type == COMP_NONE) {
+            continue;
+        }
+        loc0 = term2locstr(&c->term[0]);
+        loc1 = term2locstr(&c->term[1]);
+        switch (c->type) {
+        case COMP_RESISTOR:
+            INFO("RESISTOR  %-3s %-3s ohms=%f\n",
+                 loc0, loc1, c->resistor.ohms);
+            break;
+        }
+    }
+    return 0;
+}
+
+// XXXX component utils
+
+static int32_t add_component(int32_t type, char *loc0, char *loc1, char *valstr)
+{
+    component_t * c = &component[max_component];
+
+    // xxx since we're deleting components, could scan for an empty slot
+
+    #define ADD_TERM(_id,_loc) \
+        do { \
+            int32_t grid_x=-1, grid_y=-1; \
+            sscanf((_loc)+1, "%d", &grid_x); \
+            grid_y = (_loc)[0] - 'A'; \
+            if (grid_x < 0 || grid_x >= MAX_GRID_X || grid_y < 0 || grid_y >= MAX_GRID_Y) { \
+                ERROR("invalid loc '%s'\n", (_loc)); \
+                return -1; \
+            } \
+            c->term[_id].component = (c); \
+            c->term[_id].id = (_id); \
+            c->term[_id].grid_x = grid_x; \
+            c->term[_id].grid_y = grid_y; \
+        } while (0)
+
+    // verify there is room for more components
+    if (max_component == MAX_COMPONENT) {
+        ERROR("too many components, max allowed = %d\n", MAX_COMPONENT);
+        return -1;
+    }
+        
+    // store the component type and terminal locations
+    c->type = type;
+    ADD_TERM(0,loc0);
+    ADD_TERM(1,loc1);
+
+    // xxx verify adjacnet loc
+
+    // store component specific values
+    switch (type) {
+    case COMP_RESISTOR: {
+        float ohms;
+        if (valstr == NULL || sscanf(valstr, "%f", &ohms) != 1 || ohms <= 0) {
+            ERROR("ohms '%s' invalid\n", valstr);
+            return -1;
+        }
+        c->resistor.ohms = ohms;
+        break; }
+    default:
+        FATAL("invalid type %d\n", type);
+        break;
+    }
+
+    // commit the new component
+    max_component++;
+
+    // return success
+    return 0;
+}
+
+static char * term2locstr(terminal_t * term)
+{
+    static char s[8][20];
+    static int32_t static_idx;
+    int32_t idx;
+
+    idx = __sync_fetch_and_add(&static_idx,1) % 8;
+    sprintf(s[idx], "%c%d", term->grid_y+'A', term->grid_x);
+    return s[idx];
 }
 
 // -----------------  PANE HANDLERS  --------------------------------------
@@ -323,7 +530,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         int32_t i, j, k, x, y, count;
         point_t points[26*50]; //xxx
 
-        if (1) {
+        if (1) {  // xxx grid on/off, cmd and/or click
             // x labelling
             for (i = 0; i < MAX_GRID_X; i++) {
                 x = i * vars->grid_scale + vars->grid_xoff - sdl_font_char_width(FONT_ID)/2;
@@ -357,7 +564,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             case COMP_CAPACITOR:
             case COMP_DIODE:
             case COMP_OPEN_SWITCH:
-            case COMP_CLOSED_SWITCH:
+            case COMP_CLOSED_SWITCH:  // xxx should be just one switch
             case COMP_DC_POWER: {
                 component_image_t * ci = component_image[c->type];
                 x = c->term[0].grid_x * vars->grid_scale + vars->grid_xoff;
@@ -401,10 +608,6 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 break;
             }
         }
-
-
-
-
 
         // XXX comments
         rect_t locf = {0,0,pane->w,pane->h};

@@ -24,7 +24,7 @@ DEP=$(SRC_CIRSIM:.c=.d)
 all: $(TARGETS)
 
 circsim: $(OBJ_CIRSIM) 
-	$(CC) -pthread -lrt -lm -lpng -ljpeg -lSDL2 -lSDL2_ttf -lSDL2_mixer $(CFLAGS_PROFILING) \
+	$(CC) -pthread -lrt -lm -lreadline -lpng -ljpeg -lSDL2 -lSDL2_ttf -lSDL2_mixer $(CFLAGS_PROFILING) \
               -o $@ $(OBJ_CIRSIM)
 
 -include $(DEP)

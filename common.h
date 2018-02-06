@@ -28,10 +28,11 @@
 #define MAX_GRID_Y      26
 #define MAX_COMPONENT  100
 
+#define COMP_NONE        99
 #define COMP_RESISTOR    0
 #define COMP_CAPACITOR   1
 #define COMP_DIODE       2
-#define COMP_OPEN_SWITCH 3
+#define COMP_OPEN_SWITCH 3     // xxx dont want 2 components
 #define COMP_CLOSED_SWITCH 4
 #define COMP_DC_POWER      5
 #define COMP_WIRE          10
@@ -53,15 +54,19 @@ struct component_s;
 
 typedef struct {
     struct component_s * component;
-    int32_t term_id;
+    int32_t id;
     int32_t grid_x;
     int32_t grid_y;   
-    //int32_t grid_dir;
 } terminal_t;
 
 typedef struct component_s {
     int32_t type;
     terminal_t term[2];
+    union {
+        struct {
+            float ohms;
+        } resistor;
+    };
 } component_t;
 
 typedef struct {

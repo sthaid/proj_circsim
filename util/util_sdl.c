@@ -1127,12 +1127,14 @@ rect_t sdl_render_text(rect_t * pane, int32_t x, int32_t y, int32_t font_id, cha
     // determine the location within the pane that this
     // texture is to be rendered, if x or y is negative then
     // wrap to other end of the pane
+#if 0 // XXX
     if (x < 0) {
         x += pane->w;
     }
     if (y < 0) {
         y += pane->h;
     }
+#endif
     loc.x = x;
     loc.y = y; 
     loc.w = width;
