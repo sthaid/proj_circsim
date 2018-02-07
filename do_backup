@@ -1,0 +1,23 @@
+#!/bin/bash
+
+savedir=$1
+if [ "$savedir" = "" ]; then
+  echo "saveN expected"
+  exit
+fi
+
+fullsavedir=save/$1
+if [ -e $fullsavedir ]; then
+  echo "$fullsavedir already exists"
+  exit
+fi
+
+echo "making $fullsavedir and copying files to it"
+mkdir $fullsavedir
+cp *.[ch] Makefile $fullsavedir
+
+echo "creating /tmp/circsim.tar"
+tar -cf /tmp/circsim.tar .
+
+echo "send /tmp/circsim.tar to gcloud backup"
+backup_files  /tmp/circsim.tar

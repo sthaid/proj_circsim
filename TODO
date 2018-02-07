@@ -1,0 +1,41 @@
+-O0 optimization
+
+-----------------
+clear
+read
+save
+add-resistor A1 A2 1000
+add A1 A2 resistor 10000
+add A1 A2 power    dc,5
+add A1 A2 switch   open
+add A1 A5 wire
+del A1 A2
+show
+
+reset
+run
+stop
+open and close switches
+change values of components
+
+// xxx don't know if I like all the time tags on the prints
+
+XXX TODO
+- add dcpower
+- add-connection A1 Z9
+- make simple test circuit
+
+- cmd to set stuff
+    switch    1   open
+    resistor  7   100 ohm
+    capacitor 3   20 uf  OR 5 v
+
+- improve the display of components,  add point and other capabilities
+  - larger points
+- display voltage at every grid location
+- graphical display of voltage
+
+- start cirsim file
+  - populate grid
+  - analyze grid to create nodes without wires
+

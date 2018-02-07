@@ -1,32 +1,4 @@
-#if 0
-
-clear
-read
-save
-add-resistor A1 A2 1000
-add A1 A2 resistor 10000
-add A1 A2 power    dc,5
-add A1 A2 switch   open
-add A1 A5 wire
-del A1 A2
-show
-
-reset
-run
-stop
-open and close switches
-change values of components
-
-
-// xxx don't know if I like all the time tags on the prints
-#endif
-
-
 #include "common.h"
-
-#include <readline/readline.h>
-#include <readline/history.h>
-
 
 //
 // defines
@@ -35,6 +7,8 @@ change values of components
 #define DEFAULT_WIN_WIDTH  1900
 #define DEFAULT_WIN_HEIGHT 1000
 
+#define MB 0x100000
+
 //
 // typedefs
 //
@@ -42,6 +16,8 @@ change values of components
 //
 // variables
 //
+
+char last_filename_used[200];
 
 //
 // prototypes
@@ -54,22 +30,32 @@ static int32_t process_cmd(char * cmdline);
 static int32_t cmd_help(char *arg1, char *arg2, char *arg3, char *arg4);
 static int32_t cmd_clear(char *arg1, char *arg2, char *arg3, char *arg4);
 static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_save(char *filename, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_add_resistor(char *loc0, char *loc1, char *ohms, char *arg4);
-static int32_t cmd_add_capacitor(char *loc0, char *loc1, char *uF, char *arg4);
+static int32_t cmd_write(char *filename, char *arg2, char *arg3, char *arg4);
 static int32_t cmd_show(char *arg1, char *arg2, char *arg3, char *arg4);
-static int32_t add_component(int32_t type, char *loc0, char *loc1, char *valstr);
-static char * term2locstr(terminal_t * term);
+static int32_t cmd_add(char *type, char *gl0, char *gl1, char *value);
+static int32_t cmd_del(char *compid, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_ground(char *gl, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_prep(char *arg1, char *arg2, char *arg3, char *arg4);
 
-static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event);
+static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
+static int32_t del_component(char * compid_str);
+static int32_t make_gridloc(char *glstr, gridloc_t * gl);
+static char * make_gridloc_str(gridloc_t * gl);
+static char * make_component_definition_str(component_t * c);
+static char * component_type_str(int32_t type);
+static int32_t component_num_values(int32_t type);
 
 // -----------------  MAIN  -----------------------------------------------
 
 int32_t main(int32_t argc, char ** argv)
 {
-    int32_t win_width, win_height;
     pthread_t thread_id;
     int32_t rc;
+
+    // xxx
+    INFO("sizeof(component) = %ld MB\n", sizeof(component)/MB);
+    INFO("sizeof(grid)      = %ld MB\n", sizeof(grid)/MB);
+    INFO("sizeof(node)      = %ld MB\n", sizeof(node)/MB);
 
     // get and process options
     // -f <file> : read commands from file
@@ -94,90 +80,11 @@ int32_t main(int32_t argc, char ** argv)
         }
     }
 
-#if 0
-    // XXX init component
-    component[0].type = COMP_RESISTOR;
-    component[0].term[0].component = &component[0];
-    component[0].term[0].term_id   = 0;
-    component[0].term[0].grid_y    = 1;
-    component[0].term[0].grid_x    = 1;
-    component[0].term[1].term_id   = 1;
-    component[0].term[1].grid_y    = 1;
-    component[0].term[1].grid_x    = 2;
-
-    component[1].type = COMP_CAPACITOR;
-    component[1].term[0].component = &component[0]; //xxx
-    component[1].term[0].term_id   = 0;
-    component[1].term[0].grid_y    = 1;
-    component[1].term[0].grid_x    = 1;
-    component[1].term[1].term_id   = 1;
-    component[1].term[1].grid_y    = 1;
-    component[1].term[1].grid_x    = 0;
-
-    component[2].type = COMP_DIODE;
-    component[2].term[0].component = &component[0]; //xxx
-    component[2].term[0].term_id   = 0;
-    component[2].term[0].grid_y    = 1;
-    component[2].term[0].grid_x    = 1;
-    component[2].term[1].term_id   = 1;
-    component[2].term[1].grid_y    = 2;
-    component[2].term[1].grid_x    = 1;
-
-    component[3].type = COMP_OPEN_SWITCH;
-    component[3].term[0].component = &component[0]; //xxx
-    component[3].term[0].term_id   = 0;
-    component[3].term[0].grid_y    = 3;
-    component[3].term[0].grid_x    = 5;
-    component[3].term[1].term_id   = 1;
-    component[3].term[1].grid_y    = 3;
-    component[3].term[1].grid_x    = 6;
-
-    component[4].type = COMP_CLOSED_SWITCH;
-    component[4].term[0].component = &component[0]; //xxx
-    component[4].term[0].term_id   = 0;
-    component[4].term[0].grid_y    = 3;
-    component[4].term[0].grid_x    = 6;
-    component[4].term[1].term_id   = 1;
-    component[4].term[1].grid_y    = 3;
-    component[4].term[1].grid_x    = 7;
-
-    component[5].type = COMP_DC_POWER;
-    component[5].term[0].component = &component[0]; //xxx
-    component[5].term[0].term_id   = 0;
-    component[5].term[0].grid_y    = 4;
-    component[5].term[0].grid_x    = 4;
-    component[5].term[1].term_id   = 1;
-    component[5].term[1].grid_y    = 5;
-    component[5].term[1].grid_x    = 4;
-
-    component[6].type = COMP_WIRE;
-    component[6].term[0].component = &component[0]; //xxx
-    component[6].term[0].term_id   = 0;
-    component[6].term[0].grid_y    = 5;
-    component[6].term[0].grid_x    = 1;
-    component[6].term[1].term_id   = 1;
-    component[6].term[1].grid_y    = 5;
-    component[6].term[1].grid_x    = 6;
-
-    max_component = 7;
-#endif
-
     // create thread for cli
     pthread_create(&thread_id, NULL, cli_thread, NULL);
 
-    // use sdl to display the schematic
-    win_width  = DEFAULT_WIN_WIDTH;
-    win_height = DEFAULT_WIN_HEIGHT;
-    if (sdl_init(&win_width, &win_height, true, false) < 0) {
-        FATAL("sdl_init %dx%d failed\n", win_width, win_height);
-    }
-    sdl_pane_manager(
-        NULL,           // context
-        NULL,           // called prior to pane handlers
-        NULL,           // called after pane handlers
-        50000,          // 0=continuous, -1=never, else us 
-        1,              // number of pane handler varargs that follow
-        pane_hndlr_schematic, NULL, 0, 0, 1600, 1000, PANE_BORDER_STYLE_MINIMAL);
+    // call display handler
+    display_handler();
 
     // done
     return 0;
@@ -185,7 +92,7 @@ int32_t main(int32_t argc, char ** argv)
 
 static void help(void)
 {
-    INFO("HELP XXX TBD\n");
+    INFO("HELP xxx TBD\n");
     exit(0);
 }
 
@@ -218,13 +125,15 @@ static struct {
     int32_t max_args;
     char * usage;
 } cmd_tbl[] = {
-    { "help",          cmd_help,          0, 1, ""                     },
-    { "clear",         cmd_clear,         0, 0, ""                     },
-    { "read",          cmd_read,          1, 1, "<filename>"           },
-    { "save",          cmd_save,          0, 1, "[<filename>]"         },
-    { "add-resistor",  cmd_add_resistor,  3, 3, "<loc0> <loc1> <ohms>" },
-    { "add-capacitor", cmd_add_capacitor, 3, 3, "<loc0> <loc1> <uF>"   },
-    { "show"         , cmd_show         , 0, 0, ""                     },
+    { "help",     cmd_help,    0, 1, ""                           },
+    { "clear",    cmd_clear,   0, 0, ""                           },
+    { "read",     cmd_read,    1, 1, "<filename>"                 },
+    { "write",    cmd_write,   0, 1, "[<filename>]"               },
+    { "show",     cmd_show,    0, 0, ""                           },
+    { "add",      cmd_add,     3, 4, "<type> <gl0> <gl1> <value>" },
+    { "del",      cmd_del,     1, 1, "<compid>"                   },
+    { "ground",   cmd_ground,  1, 1, "<gl>"                       },
+    { "prep",     cmd_prep,    0, 0, ""                           },  // XXX temp
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -232,7 +141,7 @@ static struct {
 static int32_t process_cmd(char * cmdline)
 {
     char *comment_char;
-    char *cmd, *arg1, *arg2, *arg3, *arg4;  // xxx do we need arg4
+    char *cmd, *arg1, *arg2, *arg3, *arg4;
     int32_t i, rc, arg_count=0;
 
     // terminate cmdline at the comment ('#') character, if any
@@ -258,25 +167,24 @@ static int32_t process_cmd(char * cmdline)
     }
 
     // find cmd in cmd_tbl
-    //INFO("CMD '%s %s %s %s %s'\n", cmd, arg1, arg2, arg3, arg4);  // xxx temp
     for (i = 0; i < MAX_CMD_TBL; i++) {
         if (strcmp(cmd, cmd_tbl[i].name) == 0) {
             if (arg_count < cmd_tbl[i].min_args || arg_count > cmd_tbl[i].max_args) {
                 ERROR("incorrect number of args\n");
-                rc = -1;
-            } else {
-                rc = cmd_tbl[i].proc(arg1,arg2,arg3,arg4);
+                return -1;
             }
-            if (rc != 0) {
+
+            rc = cmd_tbl[i].proc(arg1,arg2,arg3,arg4);
+            if (rc < 0) {
                 ERROR("failed: '%s'\n", cmdline);
-                return rc;
+                return -1;
             }
             break;
         }
     } 
     if (i == MAX_CMD_TBL) {
         ERROR("not found: '%s'\n", cmdline);
-        return rc;
+        return -1;
     }
 
     // return success
@@ -296,6 +204,10 @@ static int32_t cmd_help(char *arg1, char *arg2, char *arg3, char *arg4)
 static int32_t cmd_clear(char *arg1, char *arg2, char *arg3, char *arg4)
 {
     max_component = 0;
+    memset(component,0,sizeof(component));
+
+    memset(&ground, 0, sizeof(ground));
+    ground_is_set = false;
     return 0;
 }
 
@@ -303,7 +215,7 @@ static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4)
 {
     FILE * fp;
     char s[200];
-    int32_t rc;
+    int32_t rc, fileline=0;
 
     fp = fopen(filename, "r");
     if (fp == NULL) {
@@ -311,12 +223,14 @@ static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4)
         return -1;
     }
 
+    strcpy(last_filename_used, filename);
+
     while (fgets(s, sizeof(s), fp) != NULL) {
+        fileline++;
         rc = process_cmd(s);
-        if (rc != 0) {
-// XXX print file line
-            ERROR("aborting read of command from '%s'\n", filename);
-            return rc;
+        if (rc < 0) {
+            ERROR("aborting read of command from '%s', line %d\n", filename, fileline);
+            return -1;
         }
     }
 
@@ -324,343 +238,291 @@ static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4)
     return 0;
 }
 
-static int32_t cmd_save(char *filename, char *arg2, char *arg3, char *arg4)
+static int32_t cmd_write(char *filename, char *arg2, char *arg3, char *arg4)
 {
-    // xxx tbd
-    return 0;
-}
+    FILE * fp;
+    int32_t i;
 
-static int32_t cmd_add_resistor(char *loc0, char *loc1, char *ohms, char *arg4)
-{
-    return add_component(COMP_RESISTOR, loc0, loc1, ohms);
-}
+    if (filename == NULL) {
+        filename = last_filename_used;
+        if (filename[0] == '\0') {
+            ERROR("no filename\n");
+            return -1;
+        }
+    }
 
-static int32_t cmd_add_capacitor(char *loc0, char *loc1, char *uF, char *arg4)
-{
-    // xxx tbd
+    fp = fopen(filename, "w");
+    if (fp == NULL) {
+        ERROR("unable to open '%s', %s\n", filename, strerror(errno));
+        return -1;
+    }
+
+    INFO("saving to file '%s'\n", filename);
+
+    if (filename != last_filename_used) {
+        strcpy(last_filename_used, filename);
+    }
+
+    fprintf(fp, "clear\n");
+
+    for (i = 0; i < max_component; i++) {
+        component_t *c = &component[i];
+        if (c->type == COMP_NONE) {
+            continue;
+        }
+        fprintf(fp, "add %s\n", make_component_definition_str(c));
+    }
+
+    if (ground_is_set) {
+        fprintf(fp, "ground %s\n", make_gridloc_str(&ground));
+    }
+
+    fclose(fp);
     return 0;
 }
 
 static int32_t cmd_show(char *arg1, char *arg2, char *arg3, char *arg4)
 {
     int32_t i;
-    char *loc0, *loc1;
 
     for (i = 0; i < max_component; i++) {
         component_t * c = &component[i];
         if (c->type == COMP_NONE) {
             continue;
         }
-        loc0 = term2locstr(&c->term[0]);
-        loc1 = term2locstr(&c->term[1]);
-        switch (c->type) {
-        case COMP_RESISTOR:
-            INFO("RESISTOR  %-3s %-3s ohms=%f\n",
-                 loc0, loc1, c->resistor.ohms);
+        INFO("%-3d %s\n", i, make_component_definition_str(c));
+    }
+
+    if (ground_is_set) {
+        INFO("ground %s\n", make_gridloc_str(&ground));
+    }
+    return 0;
+}
+
+static int32_t cmd_add(char *type, char *gl0, char *gl1, char *value)
+{
+    return add_component(type, gl0, gl1, value);
+}
+
+static int32_t cmd_del(char *compid, char *arg2, char *arg3, char *arg4)
+{
+    return del_component(compid);
+}
+
+static int32_t cmd_ground(char *gl, char *arg2, char *arg3, char *arg4)
+{
+    int32_t rc;
+
+    rc = make_gridloc(gl, &ground);
+    if (rc < 0) {
+        ERROR("invalid gridloc '%s'\n", gl);
+        ground_is_set = false;
+        memset(&ground, 0, sizeof(ground));
+        return -1;
+    }
+
+    ground_is_set = true;
+    return 0;
+}
+
+static int32_t cmd_prep(char *arg1, char *arg2, char *arg3, char *arg4) // XXX temp
+{
+    return cs_prep();
+}
+
+// -----------------  UTILS  ----------------------------------------------
+
+static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str)
+{
+    component_t new_comp;
+    int32_t compid, x0, y0, x1, y1, i, rc, type;
+    char *gl_str;
+    bool ok;
+    float value;
+
+    // convert type_str to type
+    for (i = 0; i <= COMP_LAST; i++) {
+        if (strcasecmp(component_type_str(i), type_str) == 0) {
+            type = i;
             break;
         }
     }
-    return 0;
-}
 
-// XXXX component utils
-
-static int32_t add_component(int32_t type, char *loc0, char *loc1, char *valstr)
-{
-    component_t * c = &component[max_component];
-
-    // xxx since we're deleting components, could scan for an empty slot
-
-    #define ADD_TERM(_id,_loc) \
-        do { \
-            int32_t grid_x=-1, grid_y=-1; \
-            sscanf((_loc)+1, "%d", &grid_x); \
-            grid_y = (_loc)[0] - 'A'; \
-            if (grid_x < 0 || grid_x >= MAX_GRID_X || grid_y < 0 || grid_y >= MAX_GRID_Y) { \
-                ERROR("invalid loc '%s'\n", (_loc)); \
-                return -1; \
-            } \
-            c->term[_id].component = (c); \
-            c->term[_id].id = (_id); \
-            c->term[_id].grid_x = grid_x; \
-            c->term[_id].grid_y = grid_y; \
-        } while (0)
-
-    // verify there is room for more components
-    if (max_component == MAX_COMPONENT) {
+    // find the first available component tbl entry
+    for (compid = 0; compid < MAX_COMPONENT; compid++) {
+        if (component[compid].type == COMP_NONE) {
+            break;
+        }        
+    }
+    if (compid == MAX_COMPONENT) {
         ERROR("too many components, max allowed = %d\n", MAX_COMPONENT);
         return -1;
     }
-        
-    // store the component type and terminal locations
-    c->type = type;
-    ADD_TERM(0,loc0);
-    ADD_TERM(1,loc1);
 
-    // xxx verify adjacnet loc
-
-    // store component specific values
-    switch (type) {
-    case COMP_RESISTOR: {
-        float ohms;
-        if (valstr == NULL || sscanf(valstr, "%f", &ohms) != 1 || ohms <= 0) {
-            ERROR("ohms '%s' invalid\n", valstr);
+    // init new_comp ...
+    // - zero new_comp struct
+    memset(&new_comp, 0, sizeof(new_comp));
+    // - set type
+    new_comp.type = type;
+    // - set term
+    for (i = 0; i < 2; i++) {
+        new_comp.term[i].component = &component[compid];
+        new_comp.term[i].id = i;
+        gl_str = (i == 0 ? gl0_str : gl1_str);
+        rc = make_gridloc(gl_str, &new_comp.term[i].gridloc);
+        if (rc < 0) {
+            ERROR("invalid gridloc '%s'\n", gl_str);
             return -1;
         }
-        c->resistor.ohms = ohms;
-        break; }
-    default:
-        FATAL("invalid type %d\n", type);
-        break;
+    }
+    // - set value
+    value = 0;
+    if (value_str && sscanf(value_str, "%f", &value) != 1) {
+        ERROR("invalid value '%s'\n", value_str);
+        return -1;
+    }
+    new_comp.values[0] = value;
+
+    // verify terminals are adjacent, except for COMP_CONNECTION where they just
+    // need to be in the same row or column
+    x0 = new_comp.term[0].gridloc.x;
+    y0 = new_comp.term[0].gridloc.y;
+    x1 = new_comp.term[1].gridloc.x;
+    y1 = new_comp.term[1].gridloc.y;
+    ok = false;
+    if (type == COMP_CONNECTION) {
+        ok = (x0 == x1 && y0 != y1) ||
+             (y0 == y1 && x0 != x1);
+    } else {
+        ok = (x0 == x1 && (y0 == y1-1 || y0 == y1+1)) ||
+             (y0 == y1 && (x0 == x1-1 || x0 == x1+1));
+    }
+    if (!ok) {
+        ERROR("invalid terminal locations '%s' '%s'\n", gl0_str, gl1_str);
+        return -1;
     }
 
-    // commit the new component
-    max_component++;
+    // XXX verify not overlapping
 
-    // return success
+    // commit the new component
+    component[compid] = new_comp;
+    assert(compid <= max_component);
+    if (compid == max_component) {
+        max_component++;
+    }
+
+    // return the compid
+    return compid;
+}
+
+static int32_t del_component(char * compid_str)
+{
+    int32_t compid;
+
+    if (sscanf(compid_str, "%d", &compid) != 1 ||
+        compid < 0 || compid >= max_component ||
+        &component[compid].type == COMP_NONE)
+    {
+        ERROR("component %d does not exist\n", compid);
+        return -1;
+    }
+
+    component[compid].type = COMP_NONE;
+    memset(&component[compid], 0, sizeof(component_t));
     return 0;
 }
 
-static char * term2locstr(terminal_t * term)
+static int32_t make_gridloc(char *glstr, gridloc_t * gl)
 {
-    static char s[8][20];
-    static int32_t static_idx;
-    int32_t idx;
+    int32_t x=-1, y=-1;
 
-    idx = __sync_fetch_and_add(&static_idx,1) % 8;
-    sprintf(s[idx], "%c%d", term->grid_y+'A', term->grid_x);
-    return s[idx];
+    if (glstr[0] >= 'A' && glstr[0] <= 'Z') {
+        y = glstr[0] - 'A';
+    } else if (glstr[0] >= 'a' && glstr[0] <= 'z') {
+        y = glstr[0] - 'a' + 26;
+    }
+
+    sscanf(glstr+1, "%d", &x);
+
+    if (y < 0 || y >= MAX_GRID_Y || x < 0 || x >= MAX_GRID_X) {
+        return -1;
+    }
+
+    gl->x = x;
+    gl->y = y;
+    return 0;
 }
 
-// -----------------  PANE HANDLERS  --------------------------------------
-
-static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event) 
+static char * make_gridloc_str(gridloc_t * gl)
 {
-    #define SDL_EVENT_MOUSE_MOTION  (SDL_EVENT_USER_DEFINED + 0)
-    #define SDL_EVENT_MOUSE_WHEEL   (SDL_EVENT_USER_DEFINED + 1)
+    #define MAX_S 32
+    static char static_str[MAX_S][8];
+    static int32_t static_idx;
+    int32_t idx;
+    char *s;
 
-    #define DEFAULT_GRID_XOFF  100
-    #define DEFAULT_GRID_YOFF  100
-    #define MIN_GRID_XOFF      (pane->w - ((MAX_GRID_X-1) * vars->grid_scale) - 100)
-    #define MAX_GRID_XOFF      100
-    #define MIN_GRID_YOFF      (pane->h - ((MAX_GRID_Y-1) * vars->grid_scale) - 100)
-    #define MAX_GRID_YOFF      100
+    assert(gl->x >= 0 && gl->x < MAX_GRID_X);
+    assert(gl->y >= 0 && gl->y < MAX_GRID_Y);
 
-    #define MIN_GRID_SCALE     100
-    #define MAX_GRID_SCALE     400
+    idx = __sync_fetch_and_add(&static_idx,1) % MAX_S;
+    s = static_str[idx];
 
-    #define FONT_ID 1
+    sprintf(s, "%c%d", 
+            gl->y + (gl->y < 26 ? 'A' : 'a'),
+            gl->x);
 
-    typedef struct {
-        struct {
-            int32_t x;
-            int32_t y;
-        } points[20][20];
-    } component_image_t;
+    return s;
+}
 
-    static component_image_t resistor_image = 
-        { { { {0,0}, {200,0}, {250,-50}, {350,50}, {450,-50}, {550,50}, {650,-50}, {750,50}, {800,0}, {1000,0}, {-1,-1} },
-            { {-1,-1} } } };
+static char * make_component_definition_str(component_t * c)
+{
+    #define MAX_S 32
+    static char static_str[MAX_S][8];
+    static int32_t static_idx;
+    int32_t idx, i;
+    char *s, *p;
 
-    static component_image_t capacitor_image = 
-        { { { {0,0}, {450,0}, {-1,-1} },
-            { {550,0}, {1000,0}, {-1,-1} },
-            { {450,-70}, {450,70}, {-1,-1} },
-            { {550,-70}, {550,70}, {-1,-1} },
-            { {-1,-1} } } };
+    idx = __sync_fetch_and_add(&static_idx,1) % MAX_S;
+    s = static_str[idx];
 
-    static component_image_t diode_image = 
-        { { { {0,0}, {450,0}, {-1,-1} },
-            { {450,-71}, {450,71}, {-1,-1} },
-            { {450,-71}, {550,0}, {-1,-1} },
-            { {450,71}, {550,0}, {-1,-1} },
-            { {550,71}, {550,-71}, {-1,-1} },
-            { {550,0}, {1000,0}, {-1,-1} },
-            { {-1,-1} } } };
-
-    static component_image_t open_switch = 
-        { { { {0,0}, {350,0}, {-1,-1} },
-            { {350,0}, {560,-160}, {-1,-1} },
-            { {650,0}, {1000,0}, {-1,-1} },
-            { {-1,-1} } } };
-
-    static component_image_t closed_switch = 
-        { { { {0,0}, {350,0}, {-1,-1} },
-            { {350,0}, {640,-20}, {-1,-1} },
-            { {650,0}, {1000,0}, {-1,-1} },
-            { {-1,-1} } } };
-
-    static component_image_t dc_power = 
-        { { { {0,0}, {300,0}, {-1,-1} },
-            { {300,0}, {358,142}, {500,200}, {642,142}, {700,0,}, {642,-142}, {500,-200}, {358,-142}, {300,0}, {-1,-1} },
-            { {350,0}, {400, 0}, {-1,-1} },
-            { {375,25}, {375, -25}, {-1,-1} },
-            { {625,25}, {625, -25}, {-1,-1} },
-            { {700,0}, {1000,0}, {-1,-1} },
-            { {-1,-1} } } };
-
-    static component_image_t * component_image[] = { &resistor_image, &capacitor_image, &diode_image ,
-                                 &open_switch, &closed_switch, &dc_power };
-
-    struct {
-        int32_t grid_xoff;  // xxx name
-        int32_t grid_yoff;
-        float   grid_scale;
-    } * vars = pane_cx->vars;
-    rect_t * pane = &pane_cx->pane;
-
-    // ----------------------------
-    // -------- INITIALIZE --------
-    // ----------------------------
-
-    if (request == PANE_HANDLER_REQ_INITIALIZE) {
-        vars = pane_cx->vars = calloc(1,sizeof(*vars));
-        vars->grid_xoff = 75;
-        vars->grid_yoff = 75;
-        vars->grid_scale = 200.;
-        return PANE_HANDLER_RET_NO_ACTION;
+    p = s;
+    p += sprintf(p, "%-10s %-3s %-3s",
+                 component_type_str(c->type),
+                 make_gridloc_str(&c->term[0].gridloc),
+                 make_gridloc_str(&c->term[1].gridloc));
+    for (i = 0; i < component_num_values(c->type); i++) {
+        p += sprintf(p, " %f", c->values[i]);
     }
 
-    // ------------------------
-    // -------- RENDER --------
-    // ------------------------
+    return s;
+}
 
-    if (request == PANE_HANDLER_REQ_RENDER) {
-        // if grid is enabled then draw it
-        int32_t i, j, k, x, y, count;
-        point_t points[26*50]; //xxx
+static char * component_type_str(int32_t type)
+{
+    static char * type_str[] = { "NONE",
+                                 "CONNECTION",
+                                 "DCPOWER",
+                                 "RESISTOR",
+                                 "CAPACITOR",
+                                 "DIODE",
+                                 "SWITCH",
+                                            };
 
-        if (1) {  // xxx grid on/off, cmd and/or click
-            // x labelling
-            for (i = 0; i < MAX_GRID_X; i++) {
-                x = i * vars->grid_scale + vars->grid_xoff - sdl_font_char_width(FONT_ID)/2;
-                sdl_render_printf(pane, x, 0, FONT_ID, WHITE, BLACK, "%d", i);
-            }
-            // y labelling
-            for (j = 0; j < MAX_GRID_Y; j++) {
-                y = j * vars->grid_scale + vars->grid_yoff - sdl_font_char_height(FONT_ID)/2;
-                sdl_render_printf(pane, 0, y, FONT_ID, WHITE, BLACK, "%c", 'A'+j);
-            }
-            // points
-            count = 0;
-            for (i = 0; i < MAX_GRID_X; i++) {
-                for (j = 0; j < MAX_GRID_Y; j++) {
-                    x = i * vars->grid_scale + vars->grid_xoff;
-                    y = j * vars->grid_scale + vars->grid_yoff;
-                    points[count].x = x;
-                    points[count].y = y;
-                    count++;
-                }
-            }
-            sdl_render_points(pane, points, count, WHITE, 2);
-        }
+    assert(type >= 0 && type <= sizeof(type_str)/sizeof(char*));
+    return type_str[type];
+}
 
-        // draw components
-        for (i = 0; i < max_component; i++) {
-            component_t * c  = &component[i];
+static int32_t component_num_values(int32_t type)
+{
+    static int32_t num_values[] = { 0,  // "NONE"
+                                    0,  // "CONNECTION"
+                                    1,  // "DCPOWER"
+                                    1,  // "RESISTOR"
+                                    1,  // "CAPACITOR"
+                                    0,  // "DIODE"
+                                    1,  // "SWITCH"
+                                             };
 
-            switch (c->type) {
-            case COMP_RESISTOR:
-            case COMP_CAPACITOR:
-            case COMP_DIODE:
-            case COMP_OPEN_SWITCH:
-            case COMP_CLOSED_SWITCH:  // xxx should be just one switch
-            case COMP_DC_POWER: {
-                component_image_t * ci = component_image[c->type];
-                x = c->term[0].grid_x * vars->grid_scale + vars->grid_xoff;
-                y = c->term[0].grid_y * vars->grid_scale + vars->grid_yoff;
-                for (j = 0; ci->points[j][0].x != -1; j++) {
-                    for (k = 0; ci->points[j][k].x != -1; k++) {
-                        if (c->term[1].grid_x == c->term[0].grid_x + 1) {
-                            points[k].x = x + ci->points[j][k].x * vars->grid_scale / 1000;  // right
-                            points[k].y = y + ci->points[j][k].y * vars->grid_scale / 1000;
-                        } else if (c->term[1].grid_x == c->term[0].grid_x - 1) {
-                            points[k].x = x - ci->points[j][k].x * vars->grid_scale / 1000;  // leftt
-                            points[k].y = y + ci->points[j][k].y * vars->grid_scale / 1000;
-                        } else if (c->term[1].grid_y == c->term[0].grid_y + 1) {
-                            points[k].x = x + ci->points[j][k].y * vars->grid_scale / 1000;
-                            points[k].y = y + ci->points[j][k].x * vars->grid_scale / 1000;  // down
-                        } else if (c->term[1].grid_y == c->term[0].grid_y - 1) {
-                            points[k].x = x + ci->points[j][k].y * vars->grid_scale / 1000;
-                            points[k].y = y - ci->points[j][k].x * vars->grid_scale / 1000;  // up
-                        } else {
-                            FATAL("xxxx\n");
-                        }
-                    }
-                    sdl_render_lines(pane, points, k, RED);
-                }
-                x = c->term[0].grid_x * vars->grid_scale + vars->grid_xoff;  // xxx need larger pt size
-                y = c->term[0].grid_y * vars->grid_scale + vars->grid_yoff;
-                sdl_render_point(pane, x, y, RED, 2);
-                x = c->term[1].grid_x * vars->grid_scale + vars->grid_xoff;
-                y = c->term[1].grid_y * vars->grid_scale + vars->grid_yoff;
-                sdl_render_point(pane, x, y, RED, 2);
-                break; }
-            case COMP_WIRE: {
-                int32_t x1 = c->term[0].grid_x * vars->grid_scale + vars->grid_xoff;
-                int32_t y1 = c->term[0].grid_y * vars->grid_scale + vars->grid_yoff;
-                int32_t x2 = c->term[1].grid_x * vars->grid_scale + vars->grid_xoff;
-                int32_t y2 = c->term[1].grid_y * vars->grid_scale + vars->grid_yoff;
-                sdl_render_line(pane, x1, y1, x2, y2, RED);
-                break; }
-            default:
-                FATAL("xxx\n");
-                break;
-            }
-        }
-
-        // XXX comments
-        rect_t locf = {0,0,pane->w,pane->h};
-        sdl_register_event(pane, &locf, SDL_EVENT_MOUSE_MOTION, SDL_EVENT_TYPE_MOUSE_MOTION, pane_cx);
-        sdl_register_event(pane, &locf, SDL_EVENT_MOUSE_WHEEL, SDL_EVENT_TYPE_MOUSE_WHEEL, pane_cx);
-
-        return PANE_HANDLER_RET_NO_ACTION;
-    }
-
-    // -----------------------
-    // -------- EVENT --------
-    // -----------------------
-
-    if (request == PANE_HANDLER_REQ_EVENT) {
-        switch(event->event_id) {
-        case SDL_EVENT_MOUSE_MOTION:
-            vars->grid_xoff += event->mouse_motion.delta_x;
-            vars->grid_yoff += event->mouse_motion.delta_y;
-            if (vars->grid_xoff < MIN_GRID_XOFF) vars->grid_xoff = MIN_GRID_XOFF;
-            if (vars->grid_xoff > MAX_GRID_XOFF) vars->grid_xoff = MAX_GRID_XOFF;
-            if (vars->grid_yoff < MIN_GRID_YOFF) vars->grid_yoff = MIN_GRID_YOFF;
-            if (vars->grid_yoff > MAX_GRID_YOFF) vars->grid_yoff = MAX_GRID_YOFF;
-            return PANE_HANDLER_RET_DISPLAY_REDRAW;
-        case SDL_EVENT_MOUSE_WHEEL: {  // XXX ctrl wheel
-            if (event->mouse_motion.delta_y > 0 && vars->grid_scale < MAX_GRID_SCALE) {
-                vars->grid_scale *= 1.1;
-                vars->grid_xoff = pane->w/2 - 1.1 * (pane->w/2 - vars->grid_xoff);
-                vars->grid_yoff = pane->h/2 - 1.1 * (pane->h/2 - vars->grid_yoff);
-            }
-            if (event->mouse_motion.delta_y < 0 && vars->grid_scale > MIN_GRID_SCALE) {
-                vars->grid_scale *= (1./1.1);
-                vars->grid_xoff = pane->w/2 - (1./1.1) * (pane->w/2 - vars->grid_xoff);
-                vars->grid_yoff = pane->h/2 - (1./1.1) * (pane->h/2 - vars->grid_yoff);
-            }
-            if (vars->grid_xoff < MIN_GRID_XOFF) vars->grid_xoff = MIN_GRID_XOFF;
-            if (vars->grid_xoff > MAX_GRID_XOFF) vars->grid_xoff = MAX_GRID_XOFF;
-            if (vars->grid_yoff < MIN_GRID_YOFF) vars->grid_yoff = MIN_GRID_YOFF;
-            if (vars->grid_yoff > MAX_GRID_YOFF) vars->grid_yoff = MAX_GRID_YOFF;
-            return PANE_HANDLER_RET_DISPLAY_REDRAW; }
-        }
-        return PANE_HANDLER_RET_NO_ACTION;
-    }
-
-    // ---------------------------
-    // -------- TERMINATE --------
-    // ---------------------------
-
-    if (request == PANE_HANDLER_REQ_TERMINATE) {
-        free(vars);
-        return PANE_HANDLER_RET_NO_ACTION;
-    }
-
-    // not reached
-    assert(0);
-    return PANE_HANDLER_RET_NO_ACTION;
+    assert(type >= 0 && type <= sizeof(num_values)/sizeof(num_values[0]));
+    return num_values[type];
 }

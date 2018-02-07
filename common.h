@@ -15,6 +15,8 @@
 #include <assert.h>
 #include <pthread.h>
 #include <math.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #include "util_sdl.h"
 #include "util_sdl_predefined_panes.h"
@@ -24,39 +26,38 @@
 // defines
 //
 
-#define MAX_GRID_X      50
-#define MAX_GRID_Y      26
-#define MAX_COMPONENT  100
+#define MAX_GRID_X          52
+#define MAX_GRID_Y          52
+#define MAX_COMPONENT       10000
+#define MAX_NODE            10000
+#define MAX_GRID_TERM       5
 
-#define COMP_NONE        99
-#define COMP_RESISTOR    0
-#define COMP_CAPACITOR   1
-#define COMP_DIODE       2
-#define COMP_OPEN_SWITCH 3     // xxx dont want 2 components
-#define COMP_CLOSED_SWITCH 4
-#define COMP_DC_POWER      5
-#define COMP_WIRE          10
-
-//#define COMP_POWER       1
-//#define COMP_WIRE        3
-//#define COMP_SWITCH      4
-
-//#define GRID_DIR_UP      0
-//#define GRID_DIR_RIGHT   1
-//#define GRID_DIR_DOWN    2
-//#define GRID_DIR_LEFT    3
+#define COMP_NONE           0
+#define COMP_CONNECTION     1
+#define COMP_DCPOWER        2
+#define COMP_RESISTOR       3
+#define COMP_CAPACITOR      4  // xxx later
+#define COMP_DIODE          5  // xxx later
+#define COMP_SWITCH         6  // xxx later
+#define COMP_LAST           6
 
 //
 // typedefs
 //
 
 struct component_s;
+struct node_s;
 
-typedef struct {
+typedef struct gridloc_s {
+    int32_t x;
+    int32_t y;
+} gridloc_t;
+
+typedef struct terminal_s {
     struct component_s * component;
+    struct node_s * node;
     int32_t id;
-    int32_t grid_x;
-    int32_t grid_y;   
+    gridloc_t gridloc;
 } terminal_t;
 
 typedef struct component_s {
@@ -64,23 +65,70 @@ typedef struct component_s {
     terminal_t term[2];
     union {
         struct {
+            float value1;   
+            float value2;
+        } connection;
+        struct {
+            float volts;
+            float value2;
+        } dcpower;
+        struct {
             float ohms;
+            float value2;
         } resistor;
+        struct {
+            float farads;
+            float value2;
+        } capacitor;
+        struct {
+            float value1;   
+            float value2;
+        } diode;
+        struct {
+            float is_closed;
+            float value2;
+        } switch_;
+        float values[2];
     };
 } component_t;
 
-typedef struct {
-    terminal_t * terminal[4];  // up, right, down, left
+typedef struct grid_s {
+    terminal_t * term[MAX_GRID_TERM];
+    int32_t max_term;
+    bool ground;
 } grid_t;
+
+typedef struct node_s {
+    bool ground;
+    terminal_t ** term;
+    int32_t max_term;
+    int32_t max_alloced_term;
+    gridloc_t * gridloc;
+    int32_t max_gridloc;
+    int32_t max_alloced_gridloc;
+} node_t;
 
 //
 // variables
 // 
 
-grid_t grid[MAX_GRID_X][MAX_GRID_Y];
 component_t component[MAX_COMPONENT];
+int32_t     max_component;
 
-int32_t max_component;
+gridloc_t   ground;
+bool        ground_is_set;
 
+grid_t      grid[MAX_GRID_X][MAX_GRID_Y];
+
+node_t      node[MAX_NODE];
+int32_t     max_node;
+
+//
+// prototypes
+//
+
+void display_handler(void);
+
+int32_t cs_prep(void);
 
 #endif
