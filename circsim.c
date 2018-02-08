@@ -17,24 +17,26 @@
 //
 
 static void identify_grid_ground(gridloc_t *gl);
-static char * make_gridloc_str(gridloc_t * gl); // XXX
+static node_t * allocate_node(void);
+static void add_terms_to_node(node_t *node, gridloc_t *gl);
+static void debug_print_nodes(void);
 
-node_t * allocate_node(void);
-void add_terms_to_node(node_t *node, gridloc_t *gl);
+// -----------------  CIRCSIM PREP  ---------------------------------------
 
-// -----------------  PUBLIC  ---------------------------------------------
-
-// XXX call this
 int32_t cs_prep(void)
 {
-    int32_t i, j, x, y, component_count=0;
+    int32_t i, j, x, y, component_count=0, ground_node_count=0;
     grid_t * g;
-    gridloc_t xxx_ground;
-
-    // clear grid and nodes
-    // xxx better way to clear grid ?
-    memset(grid,0,sizeof(grid));
+    gridloc_t ground_lclvar;
+    
+    // initialize
+    memset(grid,0,sizeof(grid));    // xxx better way to clear grid ?
     max_node = 0;
+    for (i = 0; i < max_component; i++) {
+        for (j = 0; j < 2; j++) {
+            component[i].term[j].node = NULL;
+        }
+    }
 
     // loop over components: 
     // - add them to the grid
@@ -51,13 +53,13 @@ int32_t cs_prep(void)
             y = c->term[j].gridloc.y;
             g = &grid[x][y];
             if (g->max_term == MAX_GRID_TERM) {
-                ERROR("all terminals used on gridloc %s\n", "XXX");
+                ERROR("all terminals used on gridloc %s\n", make_gridloc_str(&c->term[j].gridloc));
                 return -1;
             }
             g->term[g->max_term++] = &c->term[j];
         }
     }
-    INFO("XXX component_count = %d\n", component_count);
+    INFO("component_count = %d\n", component_count);
 
     // if no components then return
     if (component_count == 0) {
@@ -85,24 +87,23 @@ int32_t cs_prep(void)
             }
         }
         if (first_power_component) {
-            xxx_ground = first_power_component->term[1].gridloc;
+            ground_lclvar = first_power_component->term[1].gridloc;
         } else if (first_component) {
-            xxx_ground = first_component->term[0].gridloc;
+            ground_lclvar = first_component->term[0].gridloc;
         } else {
-            FATAL("XXX\n");
+            FATAL("failed to pick a ground\n");
         }
     } else {
-        xxx_ground = ground;
+        ground_lclvar = ground;
     }
 
     // identify all grid locations that are ground
-    identify_grid_ground(&xxx_ground);
+    identify_grid_ground(&ground_lclvar);
 
-    // create a list of nodes
-    // - eliminate the COMP_CONNECTION 
-    // - identify the ground node
-    // - verify there is exactly one ground node
-
+    // create a list of nodes, eliminating the connection component;
+    // so that each node provides a list of connected real components
+    // such as resistors, capacitors, diodes etc.
+    //
     // loop over all components 
     //   if the component is a CONNECTION then continue
     //   loop over the component's terminals
@@ -112,16 +113,6 @@ int32_t cs_prep(void)
     //      connected to this gridloc to the node
     //   endloop
     // endloop
-
-    // XXX move to top
-    for (i = 0; i < max_component; i++) {
-        component_t * c = &component[i];
-        for (j = 0; j < 2; j++) {
-            terminal_t * term = &c->term[j];
-            term->node = NULL;
-        }
-    }
-
     for (i = 0; i < max_component; i++) {
         component_t * c = &component[i];
         if (c->type == COMP_NONE || c->type == COMP_CONNECTION) {
@@ -137,33 +128,64 @@ int32_t cs_prep(void)
         }
     }
 
-    INFO("max_node = %d\n", max_node);
-    for (i = 0; i < max_node; i++) {
-        char s[200], *p = s;
-        node_t * n = &node[i];
-        INFO("node %d - max_gridloc=%d  max_term=%d\n", i, n->max_gridloc, n->max_term);
-        
-        p = s;
-        for (j = 0; j < n->max_gridloc; j++) {
-            p += sprintf(p, "%s ", make_gridloc_str(&n->gridloc[j]));
-        }
-        INFO("   gridlocs %s\n", s);
+    // debug print the list of nodes generated above
+    debug_print_nodes();
 
-        p = s;
-        for (j = 0; j < n->max_term; j++) {
-            p += sprintf(p, "copmid,term=%ld %d ", 
-                    n->term[j]->component - component,
-                    n->term[j]->id);
+    // validity check that just exactly one node is a ground node
+    for (i = 0; i < max_node; i++) {
+        if (node[i].ground) {
+            ground_node_count++;
         }
-        INFO("   terms %s\n", s);
-        
+    }
+    if (ground_node_count != 1) {
+        ERROR("ground_node_count=%d, should be 1\n", ground_node_count);
+        return -1;
     }
 
     // return success
     return 0;
 }
 
-void add_terms_to_node(node_t *n, gridloc_t *gl)
+static void identify_grid_ground(gridloc_t *gl)
+{
+    grid_t *g = &grid[gl->x][gl->y];
+    int32_t i;
+
+    g->ground = true;
+    for (i = 0; i < g->max_term; i++) {
+        component_t * c = g->term[i]->component;
+        if (c->type == COMP_CONNECTION) {
+            int32_t      other_term_id = (g->term[i]->id ^ 1);
+            terminal_t * other_term = &c->term[other_term_id];
+            gridloc_t  * other_gl = &other_term->gridloc;
+            grid_t     * other_g = &grid[other_gl->x][other_gl->y];
+            if (other_g->ground == false)  {
+                identify_grid_ground(other_gl);
+            }
+        }
+    }
+}
+
+static node_t * allocate_node(void)
+{
+    node_t * n;
+
+    n = &node[max_node++];
+    n->ground = false;
+    n->max_term = 0;
+    if (n->max_alloced_term == 0) {
+        n->term = malloc(100*sizeof(terminal_t));
+        n->max_alloced_term = 100;
+    }
+    n->max_gridloc = 0;
+    if (n->max_alloced_gridloc == 0) {
+        n->gridloc = malloc(100*sizeof(gridloc_t));
+        n->max_alloced_gridloc = 100;
+    }
+    return n;
+}
+
+static void add_terms_to_node(node_t *n, gridloc_t *gl)
 {
     int32_t i;
     grid_t *g;
@@ -195,72 +217,43 @@ void add_terms_to_node(node_t *n, gridloc_t *gl)
             term->node = n;
         }
     }
+
+    // if this grid location is ground then set this node's ground flag
+    if (g->ground) {
+        n->ground = true;
+    }
 }
 
-node_t * allocate_node(void)
+static void debug_print_nodes(void)
 {
-    node_t * n;
+    char s[200], *p;
+    int32_t i, j;
+ 
+    INFO("max_node = %d\n", max_node);
+    for (i = 0; i < max_node; i++) {
+        node_t * n = &node[i];
 
-    n = &node[max_node++];
-    n->ground = false;
-    n->max_term = 0;
-    if (n->max_alloced_term == 0) {
-        n->term = malloc(100*sizeof(terminal_t));
-        n->max_alloced_term = 100;
-    }
-    n->max_gridloc = 0;
-    if (n->max_alloced_gridloc == 0) {
-        n->gridloc = malloc(100*sizeof(gridloc_t));
-        n->max_alloced_gridloc = 100;
-    }
-    return n;
-}
-
-// -----------------  PRIVATE  --------------------------------------------
-
-static void identify_grid_ground(gridloc_t *gl)
-{
-    grid_t *g = &grid[gl->x][gl->y];
-    int32_t i;
-
-    INFO("XXX ground at %s\n", make_gridloc_str(gl));
-    g->ground = true;
-
-    for (i = 0; i < g->max_term; i++) {
-        component_t * c = g->term[i]->component;
-        if (c->type == COMP_CONNECTION) {
-            int32_t      other_term_id = (g->term[i]->id ^ 1);
-            terminal_t * other_term = &c->term[other_term_id];
-            gridloc_t  * other_gl = &other_term->gridloc;
-            grid_t     * other_g = &grid[other_gl->x][other_gl->y];
-            if (other_g->ground == false)  {
-                identify_grid_ground(other_gl);
-            }
+        INFO("node %d - max_gridloc=%d  max_term=%d  ground=%d\n", 
+             i, n->max_gridloc, n->max_term, n->ground);
+        
+        p = s;
+        for (j = 0; j < n->max_gridloc; j++) {
+            p += sprintf(p, "%s ", make_gridloc_str(&n->gridloc[j]));
         }
+        INFO("   gridlocs %s\n", s);
+
+        p = s;
+        for (j = 0; j < n->max_term; j++) {
+            p += sprintf(p, "copmid,term=%ld,%d ", 
+                    n->term[j]->component - component,
+                    n->term[j]->id);
+        }
+        INFO("   terms %s\n", s);
     }
 }
 
-// XXX make this global
-static char * make_gridloc_str(gridloc_t * gl)
-{
-    #define MAX_S 32
-    static char static_str[MAX_S][8];
-    static int32_t static_idx;
-    int32_t idx;
-    char *s;
+// ------------------------------------------------------------------------
 
-    assert(gl->x >= 0 && gl->x < MAX_GRID_X);
-    assert(gl->y >= 0 && gl->y < MAX_GRID_Y);
-
-    idx = __sync_fetch_and_add(&static_idx,1) % MAX_S;
-    s = static_str[idx];
-
-    sprintf(s, "%c%d",
-            gl->y + (gl->y < 26 ? 'A' : 'a'),
-            gl->x);
-
-    return s;
-}
 
 
 #if 0
@@ -274,7 +267,6 @@ wire junctions   loc
 wires   locstart, locend
 
 -------------
-
 
 cs_run()
 {
@@ -291,6 +283,8 @@ cs_cont()
 {
     run = true;
 }
+
+// xxx start with a single threaded approach
 
 sim_thread()
 {

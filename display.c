@@ -180,7 +180,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             // y labelling
             for (j = 0; j < MAX_GRID_Y; j++) {
                 y = j * vars->grid_scale + vars->grid_yoff - sdl_font_char_height(FONT_ID)/2;
-                sdl_render_printf(pane, 0, y, FONT_ID, BLUE, BLACK, "%c", 'A'+j);
+                sdl_render_printf(pane, 0, y, FONT_ID, BLUE, BLACK, "%c", 
+                                  j < 26 ?  'A'+j : 'a'+j-26);
             }
             // points
             count = 0;
@@ -193,7 +194,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     count++;
                 }
             }
-            sdl_render_points(pane, points, count, BLUE, 2);
+            sdl_render_points(pane, points, count, BLUE, 3);
         }
 
         // draw components
@@ -257,7 +258,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 color = (g->max_term == 1 ? RED :
                          g->ground        ? GREEN :
                                             WHITE);
-                sdl_render_point(pane, x, y, color, 2);
+                sdl_render_point(pane, x, y, color, 3);
             }
         }
 
@@ -278,10 +279,12 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         case SDL_EVENT_MOUSE_MOTION:
             vars->grid_xoff += event->mouse_motion.delta_x;
             vars->grid_yoff += event->mouse_motion.delta_y;
+#if 0
             if (vars->grid_xoff < MIN_GRID_XOFF) vars->grid_xoff = MIN_GRID_XOFF;
             if (vars->grid_xoff > MAX_GRID_XOFF) vars->grid_xoff = MAX_GRID_XOFF;
             if (vars->grid_yoff < MIN_GRID_YOFF) vars->grid_yoff = MIN_GRID_YOFF;
             if (vars->grid_yoff > MAX_GRID_YOFF) vars->grid_yoff = MAX_GRID_YOFF;
+#endif
             return PANE_HANDLER_RET_DISPLAY_REDRAW;
         case SDL_EVENT_MOUSE_WHEEL: {  // xxx ctrl wheel
             if (event->mouse_motion.delta_y > 0 && vars->grid_scale < MAX_GRID_SCALE) {
@@ -294,10 +297,12 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 vars->grid_xoff = pane->w/2 - (1./1.1) * (pane->w/2 - vars->grid_xoff);
                 vars->grid_yoff = pane->h/2 - (1./1.1) * (pane->h/2 - vars->grid_yoff);
             }
+#if 0
             if (vars->grid_xoff < MIN_GRID_XOFF) vars->grid_xoff = MIN_GRID_XOFF;
             if (vars->grid_xoff > MAX_GRID_XOFF) vars->grid_xoff = MAX_GRID_XOFF;
             if (vars->grid_yoff < MIN_GRID_YOFF) vars->grid_yoff = MIN_GRID_YOFF;
             if (vars->grid_yoff > MAX_GRID_YOFF) vars->grid_yoff = MAX_GRID_YOFF;
+#endif
             return PANE_HANDLER_RET_DISPLAY_REDRAW; }
         }
         return PANE_HANDLER_RET_NO_ACTION;

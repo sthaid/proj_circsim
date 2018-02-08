@@ -127,8 +127,17 @@ int32_t     max_node;
 // prototypes
 //
 
+// display.c
 void display_handler(void);
 
+// circsum.c
 int32_t cs_prep(void);
+
+// utils.c
+int32_t make_gridloc(char *glstr, gridloc_t * gl);
+char * make_gridloc_str(gridloc_t * gl);
+char * component_type_str(int32_t type);
+int32_t component_num_values(int32_t type);
+char * make_component_definition_str(component_t * c);
 
 #endif
