@@ -12,6 +12,9 @@
 // variables
 //
 
+static bool run_req;
+static bool run_state;
+
 //
 // prototypes
 //
@@ -20,8 +23,13 @@ static void identify_grid_ground(gridloc_t *gl);
 static node_t * allocate_node(void);
 static void add_terms_to_node(node_t *node, gridloc_t *gl);
 static void debug_print_nodes(void);
+static void * model_thread(void * cx);
+static void analyze_node(node_t * n);
+static void analyze_node_commit(node_t * n);
 
-// -----------------  CIRCSIM PREP  ---------------------------------------
+// XXX need to synchronize with display
+
+// -----------------  CIRC-SIM PREP  ---------------------------------------
 
 int32_t cs_prep(void)
 {
@@ -29,6 +37,8 @@ int32_t cs_prep(void)
     grid_t * g;
     gridloc_t ground_lclvar;
     
+    // xxx cant prep while model is running
+
     // initialize
     memset(grid,0,sizeof(grid));    // xxx better way to clear grid ?
     max_node = 0;
@@ -170,6 +180,7 @@ static node_t * allocate_node(void)
 {
     node_t * n;
 
+    // xxx reallocate if not big enough
     n = &node[max_node++];
     n->ground = false;
     n->max_term = 0;
@@ -252,9 +263,98 @@ static void debug_print_nodes(void)
     }
 }
 
-// ------------------------------------------------------------------------
+// -----------------  CIRC-SIM MODEL CONTROL  ------------------------------
 
+int32_t cs_sim(char *cmd)
+{
+    #define SET_RUN_REQ(x) \
+        do { \
+            run_req = (x); \
+            __sync_synchronize(); \
+            while (run_state != run_req) { \
+                usleep(1000); \
+            } \
+        } while (0)
 
+    pthread_t thread_id;
+    static bool model_thread_created;
+
+    // create the model_thread if not already created
+    if (!model_thread_created) {
+        INFO("createing model_thread\n");
+        pthread_create(&thread_id, NULL, model_thread, NULL);
+        model_thread_created = true;
+    }
+
+    // parse and process the cmd
+    if (strcasecmp(cmd, "run") == 0) {
+        // XXX reset components, and time
+        SET_RUN_REQ(true);
+    } else if (strcasecmp(cmd, "pause") == 0) {
+        SET_RUN_REQ(false);
+        run_req = false;
+    } else if (strcasecmp(cmd, "cont") == 0) {
+        SET_RUN_REQ(true);  // xxx only if was running at some point
+    } else {
+        ERROR("unsupported cmd '%s'\n", cmd);
+        return -1;
+    }
+
+    // success
+    return 0;
+}
+
+// -----------------  CIRC-SIM MODEL ---------------------------------------
+
+static void * model_thread(void * cx) 
+{
+    int32_t i;
+
+    while (true) {
+        // wait here until requested to run the model
+        while (run_req == false) {
+            run_state = false;
+            usleep(1000);
+        }
+        run_state = true;
+        __sync_synchronize();
+
+        // analyze the nodes, 
+        // xxx descibe in more detail
+        // xxx perhaps run this on multiple work threads
+        for (i = 0; i < max_node; i++) {
+            analyze_node(&node[i]);
+        }
+
+        // XXX commit
+        for (i = 0; i < max_node; i++) {
+            analyze_node_commit(&node[i]);
+        }
+
+        // update the grid with values from the nodes 
+        // XXX
+
+        // increment time
+        // xxx params need to be float
+        sim_time += params.delta_t;
+    }
+    return NULL;
+}
+
+static void analyze_node(node_t * n)
+{
+    // this routine will determine a new estimate for the
+    // voltage of this node
+
+    // XXX will need to add fields to node_t for voltage and voltage_next
+}
+
+static void analyze_node_commit(node_t * n)
+{
+#if 0
+    n->voltage = n->new_voltage;
+#endif
+}
 
 #if 0
 components    loc0,loc1
@@ -268,21 +368,6 @@ wires   locstart, locend
 
 -------------
 
-cs_run()
-{
-    resets
-    run = true;
-}
-
-cs_pause()
-{
-    run = false;
-}
-
-cs_cont()
-{
-    run = true;
-}
 
 // xxx start with a single threaded approach
 

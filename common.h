@@ -109,7 +109,8 @@ typedef struct node_s {
 } node_t;
 
 typedef struct params_s {
-    int32_t grid;
+    float grid;
+    float delta_t;
 } params_t;
 
 //
@@ -128,6 +129,7 @@ node_t      node[MAX_NODE];
 int32_t     max_node;
 
 params_t    params;
+float       sim_time;
 
 //
 // prototypes
@@ -138,6 +140,7 @@ void display_handler(void);
 
 // circsum.c
 int32_t cs_prep(void);
+int32_t cs_sim(char *cmd);
 
 // utils.c
 int32_t make_gridloc(char *glstr, gridloc_t * gl);

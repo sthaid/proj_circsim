@@ -100,6 +100,7 @@ static char           * sdl_font_path;
 
 static sdl_event_reg_t  sdl_event_reg_tbl[MAX_EVENT_REG_TBL];
 static int32_t          sdl_event_max;
+static sdl_event_t      sdl_push_ev;
 
 static uint32_t         sdl_color_to_rgba[] = {
                             //    red           green          blue    alpha
@@ -831,6 +832,17 @@ sdl_event_t * sdl_poll_event(void)
 
     bzero(&event, sizeof(event));
 
+    // if a push event is pending then return that event;
+    // the push event can be used to inject an event from another thread,
+    // for example if another thread wishes to terminate the program it could
+    // push the SDL_EVENT_QUIT
+    if (sdl_push_ev.event_id != SDL_EVENT_NONE) {
+        event = sdl_push_ev;
+        sdl_push_ev.event_id = SDL_EVENT_NONE;
+        __sync_synchronize();
+        return &event;
+    }
+
     while (true) {
         // get the next event, break out of loop if no event
         if (SDL_PollEvent(&ev) == 0) {
@@ -929,7 +941,7 @@ sdl_event_t * sdl_poll_event(void)
                 break;
             }
 
-#if 0
+#if 0 //XXX evaluate why this is ifdefed out
             // search the sdl_event_reg_tbl to ensure the mouse_motion event is still registered
             for (i = sdl_event_max-1; i >= 0; i--) {
                 if ((sdl_event_reg_tbl[i].event_type == SDL_EVENT_TYPE_MOUSE_MOTION) &&
@@ -1098,6 +1110,16 @@ sdl_event_t * sdl_poll_event(void)
     }
 
     return &event;
+}
+
+// this function is thread-safe
+void sdl_push_event(sdl_event_t *ev) 
+{
+    sdl_push_ev = *ev;
+    __sync_synchronize();
+    while (sdl_push_ev.event_id != SDL_EVENT_NONE) {
+        usleep(1000);
+    }
 }
 
 void sdl_play_event_sound(void)   

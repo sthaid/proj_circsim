@@ -201,6 +201,7 @@ void sdl_render_text_and_register_event(rect_t * pane, int32_t x, int32_t y, int
 void sdl_render_texture_and_register_event(rect_t * pane, int32_t x, int32_t y,
         texture_t texture, int32_t event_id, int32_t event_type, void * event_cx);
 sdl_event_t * sdl_poll_event(void);
+void sdl_push_event(sdl_event_t *ev);
 void sdl_play_event_sound(void);
 
 // render text

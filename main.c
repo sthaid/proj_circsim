@@ -4,12 +4,13 @@
 // defines
 //
 
+#define MB 0x100000
+
 #define DEFAULT_WIN_WIDTH  1900
 #define DEFAULT_WIN_HEIGHT 1000
 
-#define MB 0x100000
-    #define PARAM(x)      {#x,offsetof(params_t,x)}
-    #define MAX_PARAM_TBL (sizeof(params_tbl) / sizeof(params_tbl[0]))
+#define PARAM(x)      {#x,offsetof(params_t,x)}
+#define MAX_PARAM_TBL (sizeof(params_tbl) / sizeof(params_tbl[0]))
 
 //
 // typedefs
@@ -24,7 +25,8 @@ static char last_filename_used[200];
 static struct {
     char *name;
     off_t offset;
-} params_tbl[] = { PARAM(grid) 
+} params_tbl[] = { PARAM(grid),  // xxx should have range of values
+                   PARAM(delta_t),
                         };
 
 //
@@ -44,7 +46,7 @@ static int32_t cmd_write(char *filename, char *arg2, char *arg3, char *arg4);
 static int32_t cmd_add(char *type, char *gl0, char *gl1, char *value);
 static int32_t cmd_del(char *compid, char *arg2, char *arg3, char *arg4);
 static int32_t cmd_ground(char *gl, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_prep(char *arg1, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_sim(char *cmd, char *arg2, char *arg3, char *arg4);
 
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
 static int32_t del_component(char * compid_str);
@@ -62,7 +64,8 @@ int32_t main(int32_t argc, char ** argv)
     INFO("sizeof(node)      = %ld MB\n", sizeof(node)/MB);
 
     // init params
-    params.grid = true;
+    params.grid    = 1;  // true
+    params.delta_t = 1;
 
     // get and process options
     // -f <file> : read commands from file
@@ -108,6 +111,7 @@ static void help(void)
 static void * cli_thread(void * cx)
 {
     char *cmd_str = NULL;
+    sdl_event_t event;
 
     while (true) {
         free(cmd_str);
@@ -121,10 +125,18 @@ static void * cli_thread(void * cx)
         process_cmd(cmd_str);
     }
 
-    // xxx still not sure about this, may need to signal main thread
-    exit(0);
+    // exit must come from the util_sdl display_handler; 
+    // so inject the SDL_EVENT_QUIT and pause
+    memset(&event,0,sizeof(event));
+    event.event_id = SDL_EVENT_QUIT;
+    sdl_push_event(&event);
+    while (true) {
+        pause();
+    }
+    return NULL;
 }
 
+// xxx need descriptions, and would be nice to categorize these
 static struct {
     char * name;
     int32_t (*proc)(char *arg1, char *arg2, char *arg3, char *arg4);
@@ -133,15 +145,18 @@ static struct {
     char * usage;
 } cmd_tbl[] = {
     { "help",     cmd_help,    0, 0, ""                             },
+
     { "set",      cmd_set,     2, 2, "<name> <value>"               },
     { "show",     cmd_show,    0, 1, "[<components|params|ground>]" },
+
     { "reset",    cmd_reset,   0, 0, ""                             },
     { "read",     cmd_read,    1, 1, "<filename>"                   },
     { "write",    cmd_write,   0, 1, "[<filename>]"                 },
     { "add",      cmd_add,     3, 4, "<type> <gl0> <gl1> <value>"   },
     { "del",      cmd_del,     1, 1, "<compid>"                     },
     { "ground",   cmd_ground,  1, 1, "<gl>"                         },
-    { "prep",     cmd_prep,    0, 0, ""                             },  // XXX temp
+
+    { "sim",      cmd_sim,     1, 1, "<run|pause|cont>"             },
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -234,7 +249,7 @@ static int32_t cmd_set(char *name, char *value, char *arg3, char *arg4)
         }
     }
     if (i < MAX_PARAM_TBL) {
-        *(int32_t*)((void*)&params+params_tbl[i].offset) = val;
+        *(float*)((void*)&params+params_tbl[i].offset) = val;
         return 0;
     }
 
@@ -254,7 +269,7 @@ static int32_t cmd_show(char *what, char *arg2, char *arg3, char *arg4)
         for (i = 0; i < MAX_PARAM_TBL; i++) {
             INFO("  %-12s %d\n",
                  params_tbl[i].name,
-                 *(int32_t*)((void*)&params+params_tbl[i].offset));
+                 *(float*)((void*)&params+params_tbl[i].offset));
         }
         BLANK_LINE;
         printed = true;
@@ -398,9 +413,9 @@ static int32_t cmd_ground(char *gl, char *arg2, char *arg3, char *arg4)
     return 0;
 }
 
-static int32_t cmd_prep(char *arg1, char *arg2, char *arg3, char *arg4) // XXX temp
+static int32_t cmd_sim(char *cmd, char *arg2, char *arg3, char *arg4)
 {
-    return cs_prep();
+    return cs_sim(cmd);
 }
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------
