@@ -170,8 +170,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         int32_t i, j, k, x, y, count;
         point_t points[MAX_GRID_X*MAX_GRID_Y];
 
-        // draw grid, if enabled  xxx on/off
-        if (1) {
+        // draw grid, if enabled
+        if (params.grid) {
             // x labelling
             for (i = 0; i < MAX_GRID_X; i++) {
                 x = i * vars->grid_scale + vars->grid_xoff - sdl_font_char_width(FONT_ID)/2;

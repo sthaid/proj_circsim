@@ -108,6 +108,10 @@ typedef struct node_s {
     int32_t max_alloced_gridloc;
 } node_t;
 
+typedef struct params_s {
+    int32_t grid;
+} params_t;
+
 //
 // variables
 // 
@@ -122,6 +126,8 @@ grid_t      grid[MAX_GRID_X][MAX_GRID_Y];
 
 node_t      node[MAX_NODE];
 int32_t     max_node;
+
+params_t    params;
 
 //
 // prototypes

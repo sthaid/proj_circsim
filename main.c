@@ -8,6 +8,8 @@
 #define DEFAULT_WIN_HEIGHT 1000
 
 #define MB 0x100000
+    #define PARAM(x)      {#x,offsetof(params_t,x)}
+    #define MAX_PARAM_TBL (sizeof(params_tbl) / sizeof(params_tbl[0]))
 
 //
 // typedefs
@@ -17,7 +19,13 @@
 // variables
 //
 
-char last_filename_used[200];
+static char last_filename_used[200];
+
+static struct {
+    char *name;
+    off_t offset;
+} params_tbl[] = { PARAM(grid) 
+                        };
 
 //
 // prototypes
@@ -28,10 +36,11 @@ static void help(void);
 static void * cli_thread(void * cx);
 static int32_t process_cmd(char * cmdline);
 static int32_t cmd_help(char *arg1, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_clear(char *arg1, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_set(char *name, char *value, char *arg3, char *arg4);
+static int32_t cmd_show(char *what, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_reset(char *arg1, char *arg2, char *arg3, char *arg4);
 static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4);
 static int32_t cmd_write(char *filename, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_show(char *arg1, char *arg2, char *arg3, char *arg4);
 static int32_t cmd_add(char *type, char *gl0, char *gl1, char *value);
 static int32_t cmd_del(char *compid, char *arg2, char *arg3, char *arg4);
 static int32_t cmd_ground(char *gl, char *arg2, char *arg3, char *arg4);
@@ -51,6 +60,9 @@ int32_t main(int32_t argc, char ** argv)
     INFO("sizeof(component) = %ld MB\n", sizeof(component)/MB);
     INFO("sizeof(grid)      = %ld MB\n", sizeof(grid)/MB);
     INFO("sizeof(node)      = %ld MB\n", sizeof(node)/MB);
+
+    // init params
+    params.grid = true;
 
     // get and process options
     // -f <file> : read commands from file
@@ -120,15 +132,16 @@ static struct {
     int32_t max_args;
     char * usage;
 } cmd_tbl[] = {
-    { "help",     cmd_help,    0, 1, ""                           },
-    { "clear",    cmd_clear,   0, 0, ""                           },
-    { "read",     cmd_read,    1, 1, "<filename>"                 },
-    { "write",    cmd_write,   0, 1, "[<filename>]"               },
-    { "show",     cmd_show,    0, 0, ""                           },
-    { "add",      cmd_add,     3, 4, "<type> <gl0> <gl1> <value>" },
-    { "del",      cmd_del,     1, 1, "<compid>"                   },
-    { "ground",   cmd_ground,  1, 1, "<gl>"                       },
-    { "prep",     cmd_prep,    0, 0, ""                           },  // XXX temp
+    { "help",     cmd_help,    0, 0, ""                             },
+    { "set",      cmd_set,     2, 2, "<name> <value>"               },
+    { "show",     cmd_show,    0, 1, "[<components|params|ground>]" },
+    { "reset",    cmd_reset,   0, 0, ""                             },
+    { "read",     cmd_read,    1, 1, "<filename>"                   },
+    { "write",    cmd_write,   0, 1, "[<filename>]"                 },
+    { "add",      cmd_add,     3, 4, "<type> <gl0> <gl1> <value>"   },
+    { "del",      cmd_del,     1, 1, "<compid>"                     },
+    { "ground",   cmd_ground,  1, 1, "<gl>"                         },
+    { "prep",     cmd_prep,    0, 0, ""                             },  // XXX temp
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -163,7 +176,7 @@ static int32_t process_cmd(char * cmdline)
 
     // find cmd in cmd_tbl
     for (i = 0; i < MAX_CMD_TBL; i++) {
-        if (strcmp(cmd, cmd_tbl[i].name) == 0) {
+        if (strcasecmp(cmd, cmd_tbl[i].name) == 0) {
             if (arg_count < cmd_tbl[i].min_args || arg_count > cmd_tbl[i].max_args) {
                 ERROR("incorrect number of args\n");
                 return -1;
@@ -191,18 +204,101 @@ static int32_t cmd_help(char *arg1, char *arg2, char *arg3, char *arg4)
     int32_t i;
 
     for (i = 0; i < MAX_CMD_TBL; i++) {
-        INFO("%-16s %s\n", cmd_tbl[i].name, cmd_tbl[i].usage);
+        INFO("%-8s %s\n", cmd_tbl[i].name, cmd_tbl[i].usage);
     }
     return 0;
 }
 
-static int32_t cmd_clear(char *arg1, char *arg2, char *arg3, char *arg4)
+static int32_t cmd_set(char *name, char *value, char *arg3, char *arg4)
+{
+    int32_t i, val;
+
+    // convert value str to integer 'val';
+    // allow for special strings 'on' and 'off'
+    if (strcasecmp(value, "on") == 0) {
+        val = 1;
+    } else if (strcasecmp(value,"off") == 0) {
+        val = 0;
+    } else if (sscanf(value, "%d", &val) == 1) {
+        // sscanf okay
+    } else {
+        ERROR("invalid value '%s'\n", value);
+        return -1;
+    }
+    
+    // try to find name in params_tbl; 
+    // if found then set the param
+    for (i = 0; i < MAX_PARAM_TBL; i++) {
+        if (strcasecmp(name, params_tbl[i].name) == 0) {
+            break;
+        }
+    }
+    if (i < MAX_PARAM_TBL) {
+        *(int32_t*)((void*)&params+params_tbl[i].offset) = val;
+        return 0;
+    }
+
+    // unrecognized name
+    ERROR("param '%s' not supported\n", name);
+    return -1;
+}
+
+static int32_t cmd_show(char *what, char *arg2, char *arg3, char *arg4)
+{
+    int32_t i;
+    bool show_all = (what == NULL);
+    bool printed = false;
+
+    if (show_all || strcasecmp(what,"params") == 0) {
+        INFO("PARAMS\n");
+        for (i = 0; i < MAX_PARAM_TBL; i++) {
+            INFO("  %-12s %d\n",
+                 params_tbl[i].name,
+                 *(int32_t*)((void*)&params+params_tbl[i].offset));
+        }
+        BLANK_LINE;
+        printed = true;
+    }
+
+    if (show_all || strcasecmp(what,"components") == 0) {
+        INFO("COMPONENTS\n");
+        for (i = 0; i < max_component; i++) {
+            component_t * c = &component[i];
+            if (c->type == COMP_NONE) {
+                continue;
+            }
+            INFO("  %-3d %s\n", i, make_component_definition_str(c));
+        }
+        BLANK_LINE;
+        printed = true;
+    }
+
+    if (show_all || strcasecmp(what,"ground") == 0) {
+        INFO("GROUND\n");
+        INFO("  ground %s\n", ground_is_set ? make_gridloc_str(&ground) : "NOT_SET");
+        BLANK_LINE;
+        printed = true;
+    }
+
+    if (printed == false) {
+        ERROR("not supported '%s'\n", what);
+    }
+
+    return 0;
+}
+
+
+static int32_t cmd_reset(char *arg1, char *arg2, char *arg3, char *arg4)
 {
     max_component = 0;
     memset(component,0,sizeof(component));
 
     memset(&ground, 0, sizeof(ground));
     ground_is_set = false;
+
+    // xxx also needs to prep, or do something to clear grid and nodes
+    // xxx and stop the model
+
     return 0;
 }
 
@@ -273,24 +369,6 @@ static int32_t cmd_write(char *filename, char *arg2, char *arg3, char *arg4)
     }
 
     fclose(fp);
-    return 0;
-}
-
-static int32_t cmd_show(char *arg1, char *arg2, char *arg3, char *arg4)
-{
-    int32_t i;
-
-    for (i = 0; i < max_component; i++) {
-        component_t * c = &component[i];
-        if (c->type == COMP_NONE) {
-            continue;
-        }
-        INFO("%-3d %s\n", i, make_component_definition_str(c));
-    }
-
-    if (ground_is_set) {
-        INFO("ground %s\n", make_gridloc_str(&ground));
-    }
     return 0;
 }
 
