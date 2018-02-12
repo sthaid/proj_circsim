@@ -1,0 +1,8 @@
+clear_schematic
+add power      B1  C1 5.000000,0
+add connection B1  B2 
+add resistor   B2  C2 100.000000
+add resistor   C2  D2 200.000000
+add connection D2  D1 
+add connection D1  C1 
+ground C1

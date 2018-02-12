@@ -1,3 +1,4 @@
 circsim
 *.d
 *.o
+*.swp

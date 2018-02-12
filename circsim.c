@@ -1,5 +1,13 @@
+#if 0
+XXX TESTS
+    - series/parallel resistors
+    - resistor / capacitor time constant
+    - infinite resistor array
+    - capacitor / inductor resonant circuit
+#endif
+
 #include "common.h"
-  
+
 //
 // defines
 //
@@ -12,103 +20,146 @@
 // variables
 //
 
-static bool run_req;
-static bool run_state;
+static int32_t  circsim_state_req;
+static node_t * ground_node;
 
 //
 // prototypes
 //
-
-static void identify_grid_ground(gridloc_t *gl);
+  
+static int32_t model_reset(void);
+static int32_t model_run(void);
+static int32_t model_pause(void);
+static int32_t model_continue(void);
+static int32_t model_init_nodes(void);
 static node_t * allocate_node(void);
 static void add_terms_to_node(node_t *node, gridloc_t *gl);
 static void debug_print_nodes(void);
 static void * model_thread(void * cx);
-static void analyze_node(node_t * n);
-static void analyze_node_commit(node_t * n);
+static float get_comp_power_voltage(component_t * c);
 
-// XXX need to synchronize with display
+// -----------------  PUBLIC ---------------------------------------------------------
 
-// -----------------  CIRC-SIM PREP  ---------------------------------------
-
-int32_t cs_prep(void)
+void circsim_init(void)
 {
-    int32_t i, j, x, y, component_count=0, ground_node_count=0;
-    grid_t * g;
-    gridloc_t ground_lclvar;
-    
-    // xxx cant prep while model is running
+    pthread_t thread_id;
 
-    // initialize
-    memset(grid,0,sizeof(grid));    // xxx better way to clear grid ?
+    // xxx
+    node_v_prior_idx = 0;
+    node_v_curr_idx  = 1;
+    node_v_next_idx  = 2;
+
+    // create the model_thread
+    pthread_create(&thread_id, NULL, model_thread, NULL);
+}
+
+int32_t circsim_cmd(char *cmd)
+{
+    int32_t rc;
+
+    // parse and process the cmd
+    if (strcasecmp(cmd, "reset") == 0) {
+        rc = model_reset();
+    } else if (strcasecmp(cmd, "run") == 0) {
+        rc = model_run();
+    } else if (strcasecmp(cmd, "pause") == 0) {
+        rc = model_pause();
+    } else if (strcasecmp(cmd, "cont") == 0) {
+        rc = model_continue();
+    } else {
+        ERROR("unsupported cmd '%s'\n", cmd);
+        rc = -1;
+    }
+
+    return rc;
+}
+
+// -----------------  MODEL SUPPORT  -------------------------------------------------
+
+#define SET_CIRSIM_REQ(x) \
+    do { \
+        circsim_state_req = (x); \
+        __sync_synchronize(); \
+        while (circsim_state != circsim_state_req) { \
+            usleep(1000); \
+        } \
+    } while (0)
+
+static int32_t model_reset(void)
+{
+    int32_t i;
+
+    SET_CIRSIM_REQ(CIRCSIM_STATE_RESET);
+
+    for (i = 0; i < max_node; i++) {
+        node_t *n = &node[i];
+        memset(&n->zero_init_node_state, 
+               0,
+               sizeof(node_t) - offsetof(node_t,zero_init_node_state));
+    }
+
+    for (i = 0; i < max_component; i++) {
+        component_t *c = &component[i];
+        c->term[0].node = NULL;
+        c->term[1].node = NULL;
+        memset(&c->zero_init_component_state, 
+               0,
+               sizeof(component_t) - offsetof(component_t,zero_init_component_state));
+    }
+
+    circsim_time = 0;
     max_node = 0;
-    for (i = 0; i < max_component; i++) {
-        for (j = 0; j < 2; j++) {
-            component[i].term[j].node = NULL;
-        }
-    }
 
-    // loop over components: 
-    // - add them to the grid
-    for (i = 0; i < max_component; i++) {
-        component_t * c = &component[i];
-        if (c->type == COMP_NONE) {
-            continue;
-        }
-        if (c->type != COMP_CONNECTION) {
-            component_count++;
-        }
-        for (j = 0; j < 2; j++) {
-            x = c->term[j].gridloc.x;
-            y = c->term[j].gridloc.y;
-            g = &grid[x][y];
-            if (g->max_term == MAX_GRID_TERM) {
-                ERROR("all terminals used on gridloc %s\n", make_gridloc_str(&c->term[j].gridloc));
-                return -1;
-            }
-            g->term[g->max_term++] = &c->term[j];
-        }
-    }
-    INFO("component_count = %d\n", component_count);
+    INFO("success\n");
+    return 0;
+}
 
-    // if no components then return
-    if (component_count == 0) {
-        ERROR("no components\n");
+static int32_t model_run(void)
+{
+    int32_t rc;
+
+    rc = model_reset();
+    if (rc < 0) {
         return -1;
     }
 
-    // if ground is not specified then pick a ground
-    // - the second terminal on a power supply, if one exists OR
-    // - first terminal of the first component
-    if (!ground_is_set) {
-        component_t *first_component = NULL;
-        component_t *first_power_component = NULL;
-        for (i = 0; i < max_component; i++) {
-            component_t * c = &component[i];
-            if (c->type == COMP_NONE || c->type == COMP_CONNECTION) {
-                continue;
-            }
-            if (first_component == NULL) {
-                first_component = c;
-            }
-            if (first_power_component == NULL && c->type == COMP_DCPOWER) {
-                first_power_component = c;
-                break;
-            }
-        }
-        if (first_power_component) {
-            ground_lclvar = first_power_component->term[1].gridloc;
-        } else if (first_component) {
-            ground_lclvar = first_component->term[0].gridloc;
-        } else {
-            FATAL("failed to pick a ground\n");
-        }
-    } else {
-        ground_lclvar = ground;
+    rc = model_init_nodes();
+    if (rc < 0) {
+        return -1;
     }
 
-    // identify all grid locations that are ground
-    identify_grid_ground(&ground_lclvar);
+    SET_CIRSIM_REQ(CIRCSIM_STATE_RUNNING);
+
+    return 0;
+}
+
+static int32_t model_pause(void)
+{
+    if (circsim_state != CIRCSIM_STATE_RUNNING) {
+        ERROR("not running\n");
+        return -1;
+    }
+
+    SET_CIRSIM_REQ(CIRCSIM_STATE_PAUSED);
+
+    return 0;
+}
+
+static int32_t model_continue(void)
+{
+    if (circsim_state != CIRCSIM_STATE_PAUSED) {
+        ERROR("not paused\n");
+        return -1;
+    }
+
+    SET_CIRSIM_REQ(CIRCSIM_STATE_RUNNING);
+
+    return 0;
+}
+
+static int32_t model_init_nodes(void)
+{
+    int32_t i, j, ground_node_count, power_count;
 
     // create a list of nodes, eliminating the connection component;
     // so that each node provides a list of connected real components
@@ -117,10 +168,10 @@ int32_t cs_prep(void)
     // loop over all components 
     //   if the component is a CONNECTION then continue
     //   loop over the component's terminals
-    //     if the terminal is already part of a node then continue
-    //     allocate a new node
+    //     if the terminal is already part of a node then continue;
+    //     allocate a new node;
     //     call add_terms_to_node to add all terms on this gridloc, and
-    //      connected to this gridloc to the node
+    //      connected to this gridloc to the node;
     //   endloop
     // endloop
     for (i = 0; i < max_component; i++) {
@@ -141,58 +192,87 @@ int32_t cs_prep(void)
     // debug print the list of nodes generated above
     debug_print_nodes();
 
-    // validity check that just exactly one node is a ground node
-    for (i = 0; i < max_node; i++) {
-        if (node[i].ground) {
-            ground_node_count++;
-        }
-    }
-    if (ground_node_count != 1) {
-        ERROR("ground_node_count=%d, should be 1\n", ground_node_count);
+    // if no nodes then return error
+    if (max_node == 0) {
+        ERROR("no components\n");
         return -1;
     }
 
+    // verify that exactly one node is a ground node
+    for (i = 0; i < max_node; i++) {
+        if (node[i].ground) {
+            ground_node_count++;
+            ground_node = &node[i];
+        }
+    }
+    if (ground_node_count != 1) {
+        ERROR("ground_node_count=%d, must be 1\n", ground_node_count);
+        return -1;
+    }
+
+    // verify power:
+    // - error if term[0] is connected to the ground node;
+    // - error if term[1] is not connected to the ground node;
+    // - error if non ground nodes have more than 1 power connected
+    for (i = 0; i < max_component; i++) {
+        component_t *c = &component[i];
+        if (c->type != COMP_POWER) {
+            continue;
+        }
+        if (c->term[0].node == ground_node) {
+            ERROR("power compid %d has terminal 0 connected to ground\n", c->compid);
+            return -1;
+        }
+        if (c->term[1].node != ground_node) {
+            ERROR("power compid %d has terminal 1 connected to non-ground\n", c->compid);
+            return -1;
+        }
+    }
+    for (i = 0; i < max_node; i++) {
+        node_t *n = &node[i];
+        if (&node[i] == ground_node) {
+            continue;
+        }
+        power_count = 0;
+        for (j = 0; j < n->max_term; j++) {
+            if (n->term[j]->component->type == COMP_POWER) {
+                power_count++;
+            }
+        }
+        if (power_count > 1) {
+            ERROR("multiple power components interconnected\n");
+            return -1;
+        }
+    }
+
     // return success
+    INFO("success\n");
     return 0;
 }
 
-static void identify_grid_ground(gridloc_t *gl)
-{
-    grid_t *g = &grid[gl->x][gl->y];
-    int32_t i;
-
-    g->ground = true;
-    for (i = 0; i < g->max_term; i++) {
-        component_t * c = g->term[i]->component;
-        if (c->type == COMP_CONNECTION) {
-            int32_t      other_term_id = (g->term[i]->id ^ 1);
-            terminal_t * other_term = &c->term[other_term_id];
-            gridloc_t  * other_gl = &other_term->gridloc;
-            grid_t     * other_g = &grid[other_gl->x][other_gl->y];
-            if (other_g->ground == false)  {
-                identify_grid_ground(other_gl);
-            }
-        }
-    }
-}
+// - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 static node_t * allocate_node(void)
 {
     node_t * n;
 
-    // xxx reallocate if not big enough
+    assert(max_node < MAX_NODE);
     n = &node[max_node++];
-    n->ground = false;
-    n->max_term = 0;
+
+    // xxx reallocate if not big enough
     if (n->max_alloced_term == 0) {
         n->term = malloc(100*sizeof(terminal_t));
         n->max_alloced_term = 100;
     }
-    n->max_gridloc = 0;
     if (n->max_alloced_gridloc == 0) {
         n->gridloc = malloc(100*sizeof(gridloc_t));
         n->max_alloced_gridloc = 100;
     }
+
+    memset(&n->zero_init_node_state, 
+           0,
+           sizeof(node_t) - offsetof(node_t,zero_init_node_state));
+
     return n;
 }
 
@@ -209,6 +289,7 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
     }
 
     // add this gridloc to the node
+    assert(n->max_gridloc < n->max_alloced_gridloc);
     n->gridloc[n->max_gridloc++] = *gl;
 
     // add all terminals that are either direcctly connected
@@ -219,13 +300,19 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
         terminal_t * term = g->term[i];
         component_t * c = term->component;
         if (c->type == COMP_CONNECTION) {
-            int32_t other_term_id = (term->id ^ 1);
+            int32_t other_term_id = (term->termid ^ 1);
             terminal_t * other_term = &c->term[other_term_id];
             add_terms_to_node(n, &other_term->gridloc);
         } else {
             assert(term->node == NULL);
+            assert(n->max_term < n->max_alloced_term);
             n->term[n->max_term++] = term;
             term->node = n;
+
+            // xxx comment
+            if (term->component->type == COMP_POWER && term->termid == 0) {
+                n->power = term;
+            }
         }
     }
 
@@ -244,8 +331,9 @@ static void debug_print_nodes(void)
     for (i = 0; i < max_node; i++) {
         node_t * n = &node[i];
 
-        INFO("node %d - max_gridloc=%d  max_term=%d  ground=%d\n", 
-             i, n->max_gridloc, n->max_term, n->ground);
+        INFO("node %d - max_gridloc=%d  max_term=%d  ground=%d  power=%p power_compid=%d\n", 
+             i, n->max_gridloc, n->max_term, n->ground, n->power,
+             n->power ? n->power->component->compid : -1);
         
         p = s;
         for (j = 0; j < n->max_gridloc; j++) {
@@ -257,54 +345,31 @@ static void debug_print_nodes(void)
         for (j = 0; j < n->max_term; j++) {
             p += sprintf(p, "copmid,term=%ld,%d ", 
                     n->term[j]->component - component,
-                    n->term[j]->id);
+                    n->term[j]->termid);
         }
         INFO("   terms %s\n", s);
     }
 }
 
-// -----------------  CIRC-SIM MODEL CONTROL  ------------------------------
+// -----------------  MODEL THREAD  --------------------------------------------------
 
-int32_t cs_sim(char *cmd)
-{
-    #define SET_RUN_REQ(x) \
-        do { \
-            run_req = (x); \
-            __sync_synchronize(); \
-            while (run_state != run_req) { \
-                usleep(1000); \
-            } \
-        } while (0)
+// XXX description
+//
+// https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-071j-introduction-to-electronics-signals-and-measurement-spring-2006/lecture-notes/capactr_inductr.pdf
+//
+// the sum of the curren flowing into a node through resistors is
+//   SUM ((Vn - V) / Rn) = SUM (Vn/Rn) - V * SUM (1/Rn)
+//   where Vn is the voltage on the other side of the resistor
+//         Rn is the resistance
+//         V is the voltage of the node
+// setting this to 0 and solving for V
+//   SUM (Vn/Rn) - V * SUM (1/Rn) = 0
+//   V * SUM (1/Rn) = SUM (Vn/Rn)
+//
+//       SUM (Vn/Rn)
+//   V = -----------
+//       SUM (1/Rn)
 
-    pthread_t thread_id;
-    static bool model_thread_created;
-
-    // create the model_thread if not already created
-    if (!model_thread_created) {
-        INFO("createing model_thread\n");
-        pthread_create(&thread_id, NULL, model_thread, NULL);
-        model_thread_created = true;
-    }
-
-    // parse and process the cmd
-    if (strcasecmp(cmd, "run") == 0) {
-        // XXX reset components, and time
-        SET_RUN_REQ(true);
-    } else if (strcasecmp(cmd, "pause") == 0) {
-        SET_RUN_REQ(false);
-        run_req = false;
-    } else if (strcasecmp(cmd, "cont") == 0) {
-        SET_RUN_REQ(true);  // xxx only if was running at some point
-    } else {
-        ERROR("unsupported cmd '%s'\n", cmd);
-        return -1;
-    }
-
-    // success
-    return 0;
-}
-
-// -----------------  CIRC-SIM MODEL ---------------------------------------
 
 static void * model_thread(void * cx) 
 {
@@ -312,96 +377,117 @@ static void * model_thread(void * cx)
 
     while (true) {
         // wait here until requested to run the model
-        while (run_req == false) {
-            run_state = false;
+        while (circsim_state_req != CIRCSIM_STATE_RUNNING) {
+            circsim_state = circsim_state_req;
             usleep(1000);
         }
-        run_state = true;
+        circsim_state = CIRCSIM_STATE_RUNNING;
         __sync_synchronize();
 
-        // analyze the nodes, 
-        // xxx descibe in more detail
-        // xxx perhaps run this on multiple work threads
-        for (i = 0; i < max_node; i++) {
-            analyze_node(&node[i]);
-        }
-
-        // XXX commit
-        for (i = 0; i < max_node; i++) {
-            analyze_node_commit(&node[i]);
-        }
-
-        // update the grid with values from the nodes 
         // XXX
+        for (i = 0; i < max_node; i++) {
+            node_t * n = & node[i];
+
+            if (n->ground) {
+                NODE_V_NEXT(n) = 0;
+            } else if (n->power) {
+                component_t * c = n->power->component;
+                NODE_V_NEXT(n) = get_comp_power_voltage(c);
+            } else {
+                //       SUM (Vn/Rn)
+                //   V = -----------
+                //       SUM (1/Rn)
+                // XXX node should have an arra of the the ...
+                float sum1=0, sum2=0;
+                int32_t j;
+                for (j = 0; j < n->max_term; j++) {
+                    component_t *c = n->term[j]->component;
+                    int32_t other_termid = (n->term[j]->termid ^ 1);
+                    node_t *other_n = c->term[other_termid].node;
+
+                    assert(c->type == COMP_RESISTOR);
+                    //sum1 += ((NODE_V_CURR(other_n) - NODE_V_CURR(n)) / c->resistor.ohms);
+                    sum1 += (NODE_V_CURR(other_n) / c->resistor.ohms);
+                    sum2 += (1 / c->resistor.ohms);
+                }
+                INFO("sum1 = %f sum2 = %f\n", sum1, sum2);
+                NODE_V_NEXT(n) = sum1 / sum2;
+            }
+        }
+
+        // postprocessing:
+        // - update the current and prior node voltage
+        node_v_prior_idx = (node_v_prior_idx + 1) % 3;
+        node_v_curr_idx  = (node_v_curr_idx + 1) % 3;
+        node_v_next_idx  = (node_v_next_idx + 1) % 3;
+
+        // XXX debug print the node voltages
+        for (i = 0; i < max_node; i++) {
+            node_t * n = & node[i];
+            INFO("node %d v_curr %f\n", i,  NODE_V_CURR(n));
+        }
 
         // increment time
-        // xxx params need to be float
-        sim_time += params.delta_t;
+        circsim_time += (PARAM_DELTA_T_US / 1000000.);
+        INFO("TIME %f\n", circsim_time);
+
+        usleep(100000);
+#if 0
+        // preprocessing:
+        // - adust the power supply component voltage gradually to target
+        // - determine the equivalent resistance of the capacitors and inductors
+        // XXX could have a list of these components to make this more efficient
+        //XXX could instead loop over nodes with power supplies, if this flag was included in node_t
+
+        for (i = 0; i < max_component; i++) {
+            component_t * c = &component[i];
+            if (c->type == COMP_POWER) {
+                if (c->power.hz != 0) {
+                    FATAL("AC not supported yet\n");
+                }
+                // ramp up to dc voltage in 100 ms
+                if (circsim_time > .1) {
+                    c->power_state.volts = c->power.volts;
+                } else {
+                    c->power_state.volts = circsim_time / .1 * c->power.volts
+                }
+                INFO("volts %f\n", c->power_state.volts);
+                break;
+            }
+        }
+#endif
+
+#if 0
+        // XXX beware of node->
+        // determine a voltage update for each node:
+        // - nodes attached to ground reference
+        // - nodes attached to the hot side of a power supply 
+        // - otherwise select a voltage that satisfies Kirchhoff's current law
+            } else {
+            }
+        }
+#endif
+
     }
     return NULL;
 }
 
-static void analyze_node(node_t * n)
+static float get_comp_power_voltage(component_t * c)
 {
-    // this routine will determine a new estimate for the
-    // voltage of this node
+    float v;
 
-    // XXX will need to add fields to node_t for voltage and voltage_next
-}
-
-static void analyze_node_commit(node_t * n)
-{
-#if 0
-    n->voltage = n->new_voltage;
-#endif
-}
-
-#if 0
-components    loc0,loc1
-- resistor
-- dcpower
-- connection
-
-wire junctions   loc
-
-wires   locstart, locend
-
--------------
-
-
-// xxx start with a single threaded approach
-
-sim_thread()
-{
-    time = 0;
-
-    while (true) {
-        // release the work threads, these threads will
-        // each grab a node and determine a new voltage for that node
-
-        // wait for the work threads to complete
-
-        // commit the new voltages, and save voltage history
-
-        // update time
-        time += delta_time;
+    if (c->power.hz != 0) {
+        FATAL("AC not supported yet\n");
     }
-}
 
-work_thread()
-{
-    while (true) {
-        // wait to start
-
-        while (true) {
-            // get a node to process, if none left then done
-
-            // analyze the node
-
-        }
-
-        // indicate done
+    // ramp up to dc voltage in 100 ms
+    if (circsim_time > .1) {
+        v = c->power.volts;
+    } else {
+        v = circsim_time / .1 * c->power.volts;
     }
+    INFO("volts %f\n", v);
+
+    return v;
 }
 
-#endif
