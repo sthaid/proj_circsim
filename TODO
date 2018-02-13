@@ -1,3 +1,21 @@
+clean up so far
+center cmd
+select to display current of component values
+zoom display increased range, and reduce font size
+
+slew power supply or other components
+display power supply in status pane,
+ - especially want to see current
+ - other ways possible, such as mouse hover
+clean up test pgms
+ - use 2 tests for infinite grid
+add support for capacitor and test pgm
+  for cap time constant
+
+
+
+
+
 -O0 optimization
 
 -----------------

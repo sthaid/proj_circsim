@@ -1,3 +1,4 @@
+//XXX  display the voltages for every grid location with connections
 #include "common.h"
 
 //
@@ -19,7 +20,6 @@
 // variables
 //
 
-//XXX static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex;
 
 //
@@ -53,9 +53,10 @@ void display_unlock(void)
     pthread_mutex_unlock(&mutex);
 }
 
+// XXX
+    int32_t win_width, win_height;
 void display_handler(void)
 {
-    int32_t win_width, win_height;
 
     // use sdl to display the schematic
     win_width  = DEFAULT_WIN_WIDTH;
@@ -136,9 +137,11 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
     if (request == PANE_HANDLER_REQ_INITIALIZE) {
         vars = pane_cx->vars = calloc(1,sizeof(*vars));
-        vars->grid_xoff = 75;
-        vars->grid_yoff = 75;
         vars->grid_scale = 200.;
+        //XXX vars->grid_xoff = 75;
+        //XXX vars->grid_yoff = 75;
+        vars->grid_xoff = -vars->grid_scale * 26  + win_width/2;
+        vars->grid_yoff = -vars->grid_scale * 26 + win_height / 2;
         return PANE_HANDLER_RET_NO_ACTION;
     }
 
@@ -147,6 +150,10 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
     // ------------------------
 
     if (request == PANE_HANDLER_REQ_RENDER) {
+        int32_t i, j, glx, gly, color;
+
+        // xxx try to adjust font size when zoomed
+
         // draw grid, if enabled
         if (PARAM_GRID) {
             int32_t i, j, x, y, count;
@@ -155,13 +162,13 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             // x labelling
             for (i = 0; i < MAX_GRID_X; i++) {
                 x = i * vars->grid_scale + vars->grid_xoff - sdl_font_char_width(FONT_MEDIUM)/2;
-                sdl_render_printf(pane, x, 0, FONT_MEDIUM, BLUE, BLACK, "%d", i);
+                sdl_render_printf(pane, x, 0, FONT_MEDIUM, BLUE, BLACK, "%d", i+1);
             }
             // y labelling
             for (j = 0; j < MAX_GRID_Y; j++) {
                 y = j * vars->grid_scale + vars->grid_yoff - sdl_font_char_height(FONT_MEDIUM)/2;
                 sdl_render_printf(pane, 0, y, FONT_MEDIUM, BLUE, BLACK, "%c", 
-                                  j < 26 ?  'A'+j : 'a'+j-26);
+                                  j < 26 ?  'a'+j : 'A'+j-26);
             }
             // points
             count = 0;
@@ -178,7 +185,6 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         }
 
         // draw components
-        int32_t i;
         for (i = 0; i < max_component; i++) {
             component_t * c  = &component[i];
             switch (c->type) {
@@ -190,9 +196,16 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 sdl_render_line(pane, x1, y1, x2, y2, WHITE);
                 break; }
             case COMP_POWER: {
-                // xxx tbd, text labelling which power supply
-                // xxx int32_t x = c->term[0].gridloc.x * vars->grid_scale + vars->grid_xoff;
-                // xxx int32_t y = c->term[0].gridloc.y * vars->grid_scale + vars->grid_yoff;
+                int32_t x = c->term[0].gridloc.x * vars->grid_scale + vars->grid_xoff;
+                int32_t y = c->term[0].gridloc.y * vars->grid_scale + vars->grid_yoff;
+                char freq[20];
+                if (c->power.hz == 0) {
+                    strcpy(freq, "DC");
+                } else {
+                    sprintf(freq, " %.0fHZ", c->power.hz);
+                }
+                sdl_render_printf(pane, x+2, y+2+sdl_font_char_height(FONT_SMALL), FONT_SMALL, WHITE, BLACK, 
+                                  "%.2f V%s", c->power.volts, freq);
                 break; }
             case COMP_RESISTOR:
             case COMP_CAPACITOR:
@@ -208,7 +221,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 } else if (c->type == COMP_DIODE) {
                     ci = &diode_image;
                 } else {
-                    FATAL("XXX\n");
+                    FATAL("xxx\n");
                 }
                 x = c->term[0].gridloc.x * vars->grid_scale + vars->grid_xoff;
                 y = c->term[0].gridloc.y * vars->grid_scale + vars->grid_yoff;
@@ -227,16 +240,41 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                             points[k].x = x + ci->points[j][k].y * vars->grid_scale / 1000;  // up
                             points[k].y = y - ci->points[j][k].x * vars->grid_scale / 1000; 
                         } else {
-                            FATAL("XXXx\n");
+                            FATAL("xxxx\n");
                         }
                     }
                     sdl_render_lines(pane, points, k, WHITE);
                 }
+
+                // XXX value
+                if (c->term[1].gridloc.x == c->term[0].gridloc.x + 1) {         // right
+                    x += vars->grid_scale / 2;
+                } else if (c->term[1].gridloc.x == c->term[0].gridloc.x - 1) {  // left
+                    x -= vars->grid_scale / 2;
+                } else if (c->term[1].gridloc.y == c->term[0].gridloc.y + 1) {  // down 
+                    y += vars->grid_scale / 2;
+                } else if (c->term[1].gridloc.y == c->term[0].gridloc.y - 1) {  // up
+                    y -= vars->grid_scale / 2;
+                }
+                if (c->type == COMP_RESISTOR) {
+                    sdl_render_printf(pane, x, y, FONT_SMALL, WHITE, BLACK, 
+                                      "%.0f", c->resistor.ohms);   // XXX megs and K
+                }
+// XXX make routines to return ohms_str volts_str, etc
+
+// XXX option to display currents instead of or in addition to comp values
+
+// XXX don't need the power supply value displayed on the grid, in the status pane would be fine
+
+// XXX display power supply current in status pane
+
+// XXX cmd to center the display
+
                 break; }
             case COMP_NONE:
                 break;
             default:
-                FATAL("XXX\n");
+                FATAL("xxx\n");
                 break;
             }
         }
@@ -246,7 +284,6 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         // - power                       : RED
         // - ground                      : GREEN
         // - otherwise                   : WHITE
-        int32_t glx, gly, color;
         for (glx = 0; glx < MAX_GRID_X; glx++) {
             for (gly = 0; gly < MAX_GRID_Y; gly++) {
                 int32_t x, y;
@@ -262,6 +299,17 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                          g->ground         ? GREEN :
                                              WHITE);
                 sdl_render_point(pane, x, y, color, 3);
+            }
+        }
+
+        // display the voltage at all node gridlocs
+        for (i = 0; i < max_node; i++) {
+            node_t *n = &node[i];
+            for (j = 0; j < n->max_gridloc; j++) {
+                int32_t x = n->gridloc[j].x * vars->grid_scale + vars->grid_xoff;
+                int32_t y = n->gridloc[j].y * vars->grid_scale + vars->grid_yoff;
+                sdl_render_printf(pane, x+2, y+2, FONT_SMALL, WHITE, BLACK, 
+                                  "%.2f V", NODE_V_CURR(n));
             }
         }
 
@@ -392,27 +440,3 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
     assert(0);
     return PANE_HANDLER_RET_NO_ACTION;
 }
-
-
-/* XXX TODO
-display()
-{
-    // display all components
-
-    // display dots for all grid locations with connections
-    // - green dots for locations that are ground
-    // - white dots otherwise
-
-    // display the voltages for every grid location with connections
-}
-
-display_params()
-{
-    // time
-    // delta_time
-}
-
-display_graph()
-{
-}
-*/

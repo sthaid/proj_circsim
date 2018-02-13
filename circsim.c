@@ -1,9 +1,9 @@
 #if 0
-XXX TESTS
-    - series/parallel resistors
-    - resistor / capacitor time constant
-    - infinite resistor array
-    - capacitor / inductor resonant circuit
+xxx TESTS
+- series/parallel resistors
+- infinite resistor array
+- resistor / capacitor time constant
+- capacitor / inductor resonant circuit
 #endif
 
 #include "common.h"
@@ -44,7 +44,7 @@ void circsim_init(void)
 {
     pthread_t thread_id;
 
-    // xxx
+    // init variables
     node_v_prior_idx = 0;
     node_v_curr_idx  = 1;
     node_v_next_idx  = 2;
@@ -259,7 +259,9 @@ static node_t * allocate_node(void)
     assert(max_node < MAX_NODE);
     n = &node[max_node++];
 
+#if 0
     // xxx reallocate if not big enough
+    //     this will be done in other routines
     if (n->max_alloced_term == 0) {
         n->term = malloc(100*sizeof(terminal_t));
         n->max_alloced_term = 100;
@@ -268,6 +270,7 @@ static node_t * allocate_node(void)
         n->gridloc = malloc(100*sizeof(gridloc_t));
         n->max_alloced_gridloc = 100;
     }
+#endif
 
     memset(&n->zero_init_node_state, 
            0,
@@ -289,7 +292,12 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
     }
 
     // add this gridloc to the node
-    assert(n->max_gridloc < n->max_alloced_gridloc);
+    // XXX assert(n->max_gridloc < n->max_alloced_gridloc);
+    if (n->max_gridloc >= n->max_alloced_gridloc) {
+        n->max_alloced_gridloc = (n->max_gridloc == 0 ? 8 : n->max_gridloc * 2);
+        INFO("%ld: MAX_ALLOCED_GRIDLOC IS NOW %d\n", n-node, n->max_alloced_gridloc);
+        n->gridloc = realloc(n->gridloc, n->max_alloced_gridloc * sizeof(gridloc_t));
+    }
     n->gridloc[n->max_gridloc++] = *gl;
 
     // add all terminals that are either direcctly connected
@@ -305,8 +313,15 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
             add_terms_to_node(n, &other_term->gridloc);
         } else {
             assert(term->node == NULL);
-            assert(n->max_term < n->max_alloced_term);
+
+            // XXX assert(n->max_term < n->max_alloced_term);
+            if (n->max_term >= n->max_alloced_term) {
+                n->max_alloced_term = (n->max_term == 0 ? 8 : n->max_term * 2);
+                INFO("%ld: MAX_ALLOCED_TERM IS NOW %d\n", n-node, n->max_alloced_term);
+                n->term = realloc(n->term, n->max_alloced_term * sizeof(terminal_t));
+            }
             n->term[n->max_term++] = term;
+
             term->node = n;
 
             // xxx comment
@@ -326,6 +341,9 @@ static void debug_print_nodes(void)
 {
     char s[200], *p;
     int32_t i, j;
+
+    // XXX needs larger string
+    return;
  
     INFO("max_node = %d\n", max_node);
     for (i = 0; i < max_node; i++) {
@@ -353,7 +371,7 @@ static void debug_print_nodes(void)
 
 // -----------------  MODEL THREAD  --------------------------------------------------
 
-// XXX description
+// xxx description
 //
 // https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-071j-introduction-to-electronics-signals-and-measurement-spring-2006/lecture-notes/capactr_inductr.pdf
 //
@@ -370,7 +388,6 @@ static void debug_print_nodes(void)
 //   V = -----------
 //       SUM (1/Rn)
 
-
 static void * model_thread(void * cx) 
 {
     int32_t i;
@@ -384,7 +401,7 @@ static void * model_thread(void * cx)
         circsim_state = CIRCSIM_STATE_RUNNING;
         __sync_synchronize();
 
-        // XXX
+        // xxx comment
         for (i = 0; i < max_node; i++) {
             node_t * n = & node[i];
 
@@ -397,7 +414,6 @@ static void * model_thread(void * cx)
                 //       SUM (Vn/Rn)
                 //   V = -----------
                 //       SUM (1/Rn)
-                // XXX node should have an arra of the the ...
                 float sum1=0, sum2=0;
                 int32_t j;
                 for (j = 0; j < n->max_term; j++) {
@@ -406,11 +422,10 @@ static void * model_thread(void * cx)
                     node_t *other_n = c->term[other_termid].node;
 
                     assert(c->type == COMP_RESISTOR);
-                    //sum1 += ((NODE_V_CURR(other_n) - NODE_V_CURR(n)) / c->resistor.ohms);
                     sum1 += (NODE_V_CURR(other_n) / c->resistor.ohms);
                     sum2 += (1 / c->resistor.ohms);
                 }
-                INFO("sum1 = %f sum2 = %f\n", sum1, sum2);
+                // xxx INFO("sum1 = %f sum2 = %f\n", sum1, sum2);
                 NODE_V_NEXT(n) = sum1 / sum2;
             }
         }
@@ -421,53 +436,19 @@ static void * model_thread(void * cx)
         node_v_curr_idx  = (node_v_curr_idx + 1) % 3;
         node_v_next_idx  = (node_v_next_idx + 1) % 3;
 
-        // XXX debug print the node voltages
+#if 0
+        // xxx debug print the node voltages
         for (i = 0; i < max_node; i++) {
             node_t * n = & node[i];
             INFO("node %d v_curr %f\n", i,  NODE_V_CURR(n));
         }
+#endif
 
         // increment time
         circsim_time += (PARAM_DELTA_T_US / 1000000.);
-        INFO("TIME %f\n", circsim_time);
+        // xxx INFO("TIME %f\n", circsim_time);
 
-        usleep(100000);
-#if 0
-        // preprocessing:
-        // - adust the power supply component voltage gradually to target
-        // - determine the equivalent resistance of the capacitors and inductors
-        // XXX could have a list of these components to make this more efficient
-        //XXX could instead loop over nodes with power supplies, if this flag was included in node_t
-
-        for (i = 0; i < max_component; i++) {
-            component_t * c = &component[i];
-            if (c->type == COMP_POWER) {
-                if (c->power.hz != 0) {
-                    FATAL("AC not supported yet\n");
-                }
-                // ramp up to dc voltage in 100 ms
-                if (circsim_time > .1) {
-                    c->power_state.volts = c->power.volts;
-                } else {
-                    c->power_state.volts = circsim_time / .1 * c->power.volts
-                }
-                INFO("volts %f\n", c->power_state.volts);
-                break;
-            }
-        }
-#endif
-
-#if 0
-        // XXX beware of node->
-        // determine a voltage update for each node:
-        // - nodes attached to ground reference
-        // - nodes attached to the hot side of a power supply 
-        // - otherwise select a voltage that satisfies Kirchhoff's current law
-            } else {
-            }
-        }
-#endif
-
+        //usleep(100000);  // xxx temp
     }
     return NULL;
 }
@@ -486,7 +467,7 @@ static float get_comp_power_voltage(component_t * c)
     } else {
         v = circsim_time / .1 * c->power.volts;
     }
-    INFO("volts %f\n", v);
+    // xxx INFO("volts %f\n", v);
 
     return v;
 }

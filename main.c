@@ -58,11 +58,7 @@ int32_t main(int32_t argc, char ** argv)
     INFO("sizeof(grid)      = %ld MB\n", sizeof(grid)/MB);
     INFO("sizeof(node)      = %ld MB\n", sizeof(node)/MB);
 
-    // init params
-    // XXX PARAMS_GRID       = true;
-    // XXX PARAMS_DELTA_T_US = 1000;   // 1 ms
-
-    // xxx
+    // call initialization routines
     display_init();
     circsim_init();
 
@@ -134,6 +130,8 @@ static void * cli_thread(void * cx)
     }
     return NULL;
 }
+
+// XXX nice to have a cmd to initially center on a gridloc
 
 // xxx need descriptions, and would be nice to categorize these
 static struct {
@@ -332,8 +330,8 @@ static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4)
     char s[200];
     int32_t rc, fileline=0;
 
-    // XXX should this automatically clear theschemantic
-    // XXX this causes multiple model reset calls
+    // xxx should this automatically clear theschemantic
+    // xxx this causes multiple model reset calls
 
     fp = fopen(filename, "r");
     if (fp == NULL) {
@@ -525,13 +523,15 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
 
     // verify terminals are adjacent, except for COMP_CONNECTION where they just
     // need to be in the same row or column
-    // xxx power supplies don't need to be adjcant
+    // XXX power supplies don't need to be adjcant
     x0 = new_comp.term[0].gridloc.x;
     y0 = new_comp.term[0].gridloc.y;
     x1 = new_comp.term[1].gridloc.x;
     y1 = new_comp.term[1].gridloc.y;
     ok = false;
-    if (type == COMP_CONNECTION) {
+    if (type == COMP_POWER) {
+        ok = true;
+    } else if (type == COMP_CONNECTION) {
         ok = (x0 == x1 && y0 != y1) ||
              (y0 == y1 && x0 != x1);
     } else {
@@ -543,7 +543,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         return -1;
     }
 
-    // xxx verify not overlapping with existing component
+    // XXX verify not overlapping with existing component
 
     // commit the new component ...
 
@@ -643,8 +643,8 @@ char * make_gridloc_str(gridloc_t * gl)
     s = static_str[idx];
 
     sprintf(s, "%c%d", 
-            gl->y + (gl->y < 26 ? 'A' : 'a' - 26),
-            gl->x);
+            gl->y + (gl->y < 26 ? 'a' : 'A' - 26),
+            gl->x + 1);
 
     return s;
 }
@@ -655,13 +655,14 @@ static int32_t make_gridloc(char *glstr, gridloc_t * gl)
 {
     int32_t x=-1, y=-1;
 
-    if (glstr[0] >= 'A' && glstr[0] <= 'Z') {
-        y = glstr[0] - 'A';
-    } else if (glstr[0] >= 'a' && glstr[0] <= 'z') {
-        y = glstr[0] - 'a' + 26;
+    if (glstr[0] >= 'a' && glstr[0] <= 'z') {
+        y = glstr[0] - 'a';
+    } else if (glstr[0] >= 'A' && glstr[0] <= 'Z') {
+        y = glstr[0] - 'A' + 26;
     }
 
     sscanf(glstr+1, "%d", &x);
+    x--;
 
     if (y < 0 || y >= MAX_GRID_Y || x < 0 || x >= MAX_GRID_X) {
         return -1;
@@ -685,17 +686,18 @@ static char * make_component_str(component_t * c)
     s = static_str[idx];
 
     p = s;
-    p += sprintf(p, "%-10s %-3s %-3s",
+    p += sprintf(p, "%-10s %-4s %-4s",
                  c->type_str,
                  make_gridloc_str(&c->term[0].gridloc),
                  make_gridloc_str(&c->term[1].gridloc));
 
+    // XXX better way to select format descriptor, and add units comment
     switch (c->type) {
     case COMP_POWER:
-        p += sprintf(p, "%f,%f", c->power.volts, c->power.hz);
+        p += sprintf(p, "%.2f,%.2f", c->power.volts, c->power.hz);
         break;
     case COMP_RESISTOR:
-        p += sprintf(p, "%f", c->resistor.ohms);
+        p += sprintf(p, "%.2f", c->resistor.ohms);
         break;
     case COMP_CAPACITOR:
         // xxx tbd
@@ -751,7 +753,6 @@ static void identify_grid_ground(gridloc_t *gl)
     for (i = 0; i < g->max_term; i++) {
         component_t * c = g->term[i]->component;
         if (c->type == COMP_CONNECTION) {
-            // xxx use macros
             int32_t      other_term_id = (g->term[i]->termid ^ 1);
             terminal_t * other_term = &c->term[other_term_id];
             gridloc_t  * other_gl = &other_term->gridloc;

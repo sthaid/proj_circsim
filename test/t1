@@ -1,8 +1,10 @@
 clear_schematic
-add power      B1  C1 5.000000,0
-add connection B1  B2 
-add resistor   B2  C2 100.000000
-add resistor   C2  D2 200.000000
-add connection D2  D1 
-add connection D1  C1 
-ground C1
+add power      b1  c1 5.000000,0
+add connection b1  b2 
+add resistor   b2  c2 100.000000
+add resistor   c2  d2 200.000000
+add connection d2  d1 
+add connection d1  c1 
+ground c1
+
+sim run

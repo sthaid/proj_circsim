@@ -259,7 +259,7 @@ static int32_t sdl_init_fonts(void)
     }
 
     // initialize font0, the small font
-    font0_ptsize = sdl_win_height / 64 - 1;
+    font0_ptsize = sdl_win_height / 48 - 1;
     sdl_font[0].font = TTF_OpenFont(sdl_font_path, font0_ptsize);
     if (sdl_font[0].font == NULL) {
         ERROR("failed TTF_OpenFont %s\n", sdl_font_path);
