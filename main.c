@@ -1,3 +1,4 @@
+// XXX always use strcasecmp
 #define MAIN
 #include "common.h"
 
@@ -24,6 +25,7 @@ static char last_filename_used[200];
 // prototypes
 //
 
+static void main_init(void);
 static void help(void);
 
 static void * cli_thread(void * cx);
@@ -41,10 +43,11 @@ static int32_t cmd_ground(char *args);
 static int32_t cmd_sim(char *args);
 
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
-static int32_t del_component(char * compid_str);
+static int32_t del_component(char * comp_str);
 
 static char * make_component_str(component_t * c);
 static void identify_grid_ground(gridloc_t *gl);
+static void init_grid(void);
 
 // -----------------  MAIN  -----------------------------------------------
 
@@ -53,14 +56,10 @@ int32_t main(int32_t argc, char ** argv)
     pthread_t thread_id;
     int32_t rc;
 
-    // xxx
-    INFO("sizeof(component) = %ld MB\n", sizeof(component)/MB);
-    INFO("sizeof(grid)      = %ld MB\n", sizeof(grid)/MB);
-    INFO("sizeof(node)      = %ld MB\n", sizeof(node)/MB);
-
     // call initialization routines
+    main_init();
     display_init();
-    circsim_init();
+    model_init();
 
     // get and process options
     // -f <file> : read commands from file
@@ -93,6 +92,16 @@ int32_t main(int32_t argc, char ** argv)
 
     // done
     return 0;
+}
+
+static void main_init(void)
+{
+    // xxx
+    INFO("sizeof(component) = %ld MB\n", sizeof(component)/MB);
+    INFO("sizeof(grid)      = %ld MB\n", sizeof(grid)/MB);
+    INFO("sizeof(node)      = %ld MB\n", sizeof(node)/MB);
+
+    init_grid();
 }
 
 static void help(void)
@@ -146,7 +155,7 @@ static struct {
     { "read",            cmd_read,            "<filename>"                       },
     { "write",           cmd_write,           "[<filename>]"                     },
     { "add",             cmd_add,             "<type> <gl0> <gl1> <value,...>"   },
-    { "del",             cmd_del,             "<compid>"                         },
+    { "del",             cmd_del,             "<comp_str>"                       },
     { "ground",          cmd_ground,          "<gl>"                             },
 
     { "sim",             cmd_sim,             "<reset|run|pause|cont>"           },
@@ -261,8 +270,7 @@ static int32_t cmd_show(char *args)
             if (c->type == COMP_NONE) {
                 continue;
             }
-            // XXX don't show compid
-            INFO("  %-3d %s\n", i, make_component_str(c));
+            INFO("  %-8s %s\n", c->comp_str, make_component_str(c));
         }
         BLANK_LINE;
         printed = true;
@@ -290,7 +298,7 @@ static int32_t cmd_center(char *args)
 static int32_t cmd_clear_schematic(char *args)                                        
 {
     // reset circuit simulator
-    circsim_cmd("reset");
+    model_cmd("reset");
 
     // remove all components
     max_component = 0;
@@ -301,8 +309,8 @@ static int32_t cmd_clear_schematic(char *args)
     ground_is_set = false;
     identify_grid_ground(NULL);
 
-    // clear the grid
-    memset(&grid, 0, sizeof(grid));
+    // re-initialize the grid
+    init_grid();
 
     // success
     return 0;
@@ -400,11 +408,11 @@ static int32_t cmd_add(char *args)
 
 static int32_t cmd_del(char *args)
 {
-#if 0
-    // XXX maybe del based on grid loc
-    return del_component(compid);
-#endif
-    return -1;
+    char * comp_str;
+
+    comp_str = strtok(args, " ");
+
+    return del_component(comp_str);
 }
 
 static int32_t cmd_ground(char *args)
@@ -425,7 +433,7 @@ static int32_t cmd_ground(char *args)
     // reset circuit simulator,
     // set the new_ground,
     // identify grid ground locations
-    circsim_cmd("reset");
+    model_cmd("reset");
     ground = new_ground;   // xxx maybe these 2 dont need to be global
     ground_is_set = true;
     identify_grid_ground(NULL);
@@ -438,7 +446,7 @@ static int32_t cmd_sim(char *args)
 
     cmd = strtok(args, "");
 
-    return circsim_cmd(cmd);
+    return model_cmd(cmd);
 }
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------
@@ -446,7 +454,7 @@ static int32_t cmd_sim(char *args)
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str)
 {
     component_t new_comp, *c;
-    int32_t compid, x0, y0, x1, y1, i, rc, type=-1;
+    int32_t idx, x0, y0, x1, y1, i, rc, type=-1;
     char *gl_str;
     bool ok;
     float val1, val2;
@@ -460,6 +468,15 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
                     "inductor",
                     "diode",
                         };
+    static int32_t connection_id, power_id, resistor_id, capacitor_id;
+
+    // if max_component is zero then reset resistor,capacitor,... id variables
+    if (max_component == 0) {
+        connection_id = 1;
+        power_id = 1;
+        resistor_id = 1;
+        capacitor_id = 1;
+    }
 
     // convert type_str to type
     for (i = 0; i <= COMP_LAST; i++) {
@@ -474,27 +491,41 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     }
 
     // find the first available component tbl entry
-    for (compid = 0; compid < MAX_COMPONENT; compid++) {
-        if (component[compid].type == COMP_NONE) {
+    for (idx = 0; idx < MAX_COMPONENT; idx++) {
+        if (component[idx].type == COMP_NONE) {
             break;
         }        
     }
-    if (compid == MAX_COMPONENT) {
+    if (idx == MAX_COMPONENT) {
         ERROR("too many components, max allowed = %d\n", MAX_COMPONENT);
         return -1;
     }
-    assert(compid <= max_component);
+    assert(idx <= max_component);
 
     // init new_comp ...
     // - zero new_comp struct
     memset(&new_comp, 0, sizeof(new_comp));
-    // - set type, type_str, compid
+    // - set type, type_str
     new_comp.type = type;
     new_comp.type_str = component_type_str[i];
-    new_comp.compid = compid;
+    // - set comp_str
+    switch (new_comp.type) {
+    case COMP_CONNECTION:
+        sprintf(new_comp.comp_str, "X%d", connection_id++);
+        break;
+    case COMP_POWER:
+        sprintf(new_comp.comp_str, "P%d", power_id++);
+        break;
+    case COMP_RESISTOR:
+        sprintf(new_comp.comp_str, "R%d", resistor_id++);
+        break;
+    case COMP_CAPACITOR:
+        sprintf(new_comp.comp_str, "C%d", capacitor_id++);
+        break;
+    }
     // - set term
     for (i = 0; i < 2; i++) {
-        new_comp.term[i].component = &component[compid];
+        new_comp.term[i].component = &component[idx];
         new_comp.term[i].termid = i;
         gl_str = (i == 0 ? gl0_str : gl1_str);
         rc = make_gridloc(gl_str, &new_comp.term[i].gridloc);
@@ -530,7 +561,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
 
     // verify terminals are adjacent, except for:
     // - COMP_CONNECTION where they just need to be in the same row or column
-    // - COMP_POWER where the circsim model will enforce restrictions on 
+    // - COMP_POWER where the model model will enforce restrictions on 
     //   how the power supplies are connected
     x0 = new_comp.term[0].gridloc.x;
     y0 = new_comp.term[0].gridloc.y;
@@ -556,12 +587,12 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     // commit the new component ...
 
     // - reset the circuit simulator
-    circsim_cmd("reset");
+    model_cmd("reset");
 
     // - add new_comp to component list
-    c = &component[compid];
+    c = &component[idx];
     *c = new_comp;
-    if (compid == max_component) {
+    if (idx == max_component) {
         max_component++;
     }
 
@@ -580,31 +611,31 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     // - search grid to identify the ground locations
     identify_grid_ground(NULL);
 
-    // return the compid
-    return compid;
+    // return success
+    return 0;
 }
 
-static int32_t del_component(char * compid_str)
+static int32_t del_component(char * comp_str)
 {
-    int32_t compid, i, j;
+    int32_t i, j;
     component_t *c;
 
-// XXX dont use compid
-    // verify the compid_str, and
-    // set ptr to the component to be deleted
-    if (sscanf(compid_str, "%d", &compid) != 1 ||
-        compid < 0 || compid >= max_component ||
-        &component[compid].type == COMP_NONE)
-    {
-        ERROR("component %d does not exist\n", compid);
+    // locate the component to be deleted
+    for (i = 0; i < max_component; i++) {
+        c = &component[i];
+        if (c->type != COMP_NONE && strcasecmp(c->comp_str, comp_str) == 0) {
+            break;
+        }
+    }
+    if (i == max_component) {
+        ERROR("component '%s' does not exist\n", comp_str);
         return -1;
     }
-    c = &component[compid];
 
     // remove the component ...
 
     // - reset the circuit simulator
-    circsim_cmd("reset");
+    model_cmd("reset");
 
     // - remove the component's 2 terminals from the grid
     for (i = 0; i < 2; i++) {
@@ -624,10 +655,11 @@ static int32_t del_component(char * compid_str)
     }
 
     // - remove from component list
-    component[compid].type = COMP_NONE;
-    memset(&component[compid], 0, sizeof(component_t));
+    c->type = COMP_NONE;
+    memset(c, 0, sizeof(component_t));
 
-    // - search grid to identify the ground locations
+    // - search grid to identify ground locations that have possibly changed
+    //   as a result of the component's deletion
     identify_grid_ground(NULL);
 
     // success0
@@ -777,3 +809,16 @@ static void identify_grid_ground(gridloc_t *gl)
     }
 }
 
+static void init_grid()
+{
+    int32_t glx, gly;
+
+    memset(&grid, 0, sizeof(grid));
+
+    for (glx = 0; glx < MAX_GRID_X; glx++) {
+        for (gly = 0; gly < MAX_GRID_Y; gly++) {
+            gridloc_t gl = {glx, gly};
+            strcpy(grid[glx][gly].glstr, make_gridloc_str(&gl));
+        }
+    }
+}

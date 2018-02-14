@@ -185,7 +185,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         // xxx try to adjust font size when zoomed
 
         // draw grid, if enabled
-        if (strcmp(PARAM_GRID, "on") == 0) {
+        if (strcasecmp(PARAM_GRID, "on") == 0) {
             int32_t i, j, x, y, count;
             point_t points[MAX_GRID_X*MAX_GRID_Y];
 
@@ -303,10 +303,14 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y - 1) {  // up
                     y -= grid_scale / 2;
                 }
+                sdl_render_printf(pane, x, y, FONT_SMALL, WHITE, BLACK, 
+                                  "%s", c->comp_str);
+#if 0
                 if (c->type == COMP_RESISTOR) {
                     sdl_render_printf(pane, x, y, FONT_SMALL, WHITE, BLACK, 
                                       "%.0f", c->resistor.ohms);   // XXX megs and K,  USE SAME ROUTINE AS MAIN
                 }
+#endif
                 break; }
             case COMP_NONE:
                 break;
@@ -338,9 +342,9 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 sdl_render_point(pane, x, y, color, 3);
 
                 // XXX and draw the gridloc
-                gridloc_t gl = {glx,gly};
+                //XXX gridloc_t gl = {glx,gly};
                 sdl_render_printf(pane, x+2, y-2-sdl_font_char_height(FONT_SMALL), FONT_SMALL, WHITE, BLACK, 
-                                  "%s", make_gridloc_str(&gl));
+                                  "%s", g->glstr);  // make_gridloc_str(&gl));
             }
         }
 
@@ -445,9 +449,9 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
 
         // state
         sdl_render_printf(pane, 0, ROW2Y(0,FONT_MEDIUM), FONT_MEDIUM, WHITE, BLACK, 
-                          "%s", CIRCSIM_STATE_STR(circsim_state));
+                          "%s", MODEL_STATE_STR(model_state));
         sdl_render_printf(pane, 0, ROW2Y(1,FONT_MEDIUM), FONT_MEDIUM, WHITE, BLACK, 
-                          "%0.6f SECS", circsim_time);
+                          "%0.6f SECS", model_time);
 
         // params
         for (i = 0; params_tbl[i].name; i++) {

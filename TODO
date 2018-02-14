@@ -20,15 +20,8 @@ HOW TO GET THERE
 
 - support routines to convert values to/from strings
 
-- identify components  R1, C1, ...
-    - add to component_t
-
 - add display param to select the value displayed next to each component
      - choices: value, voltage, current, power
-
-- rename model
-
-- add gridlocstr to each gridloc
 
 - think about updates to the model to support capacitors, 
 
@@ -36,6 +29,11 @@ HOW TO GET THERE
 
 
 ---- DONE  ---
+- identify components  R1, C1, ...
+    - add to component_t
+- add gridlocstr to each gridloc
+- rename model
+
 - don't need the power supply value displayed on the grid, but may need to identify the power supply
   on the display somehow    DONE
 

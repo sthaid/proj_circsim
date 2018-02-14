@@ -20,7 +20,7 @@ XXX TESTS
 // variables
 //
 
-static int32_t  circsim_state_req;
+static int32_t  model_state_req;
 static node_t * ground_node;
 
 //
@@ -40,7 +40,7 @@ static float get_comp_power_voltage(component_t * c);
 
 // -----------------  PUBLIC ---------------------------------------------------------
 
-void circsim_init(void)
+void model_init(void)
 {
     pthread_t thread_id;
 
@@ -53,7 +53,7 @@ void circsim_init(void)
     pthread_create(&thread_id, NULL, model_thread, NULL);
 }
 
-int32_t circsim_cmd(char *cmd)
+int32_t model_cmd(char *cmd)
 {
     int32_t rc;
 
@@ -78,9 +78,9 @@ int32_t circsim_cmd(char *cmd)
 
 #define SET_CIRSIM_REQ(x) \
     do { \
-        circsim_state_req = (x); \
+        model_state_req = (x); \
         __sync_synchronize(); \
-        while (circsim_state != circsim_state_req) { \
+        while (model_state != model_state_req) { \
             usleep(1000); \
         } \
     } while (0)
@@ -89,7 +89,7 @@ static int32_t model_reset(void)
 {
     int32_t i;
 
-    SET_CIRSIM_REQ(CIRCSIM_STATE_RESET);
+    SET_CIRSIM_REQ(MODEL_STATE_RESET);
 
     for (i = 0; i < max_node; i++) {
         node_t *n = &node[i];
@@ -107,7 +107,7 @@ static int32_t model_reset(void)
                sizeof(component_t) - offsetof(component_t,zero_init_component_state));
     }
 
-    circsim_time = 0;
+    model_time = 0;
     max_node = 0;
 
     INFO("success\n");
@@ -128,31 +128,31 @@ static int32_t model_run(void)
         return -1;
     }
 
-    SET_CIRSIM_REQ(CIRCSIM_STATE_RUNNING);
+    SET_CIRSIM_REQ(MODEL_STATE_RUNNING);
 
     return 0;
 }
 
 static int32_t model_pause(void)
 {
-    if (circsim_state != CIRCSIM_STATE_RUNNING) {
+    if (model_state != MODEL_STATE_RUNNING) {
         ERROR("not running\n");
         return -1;
     }
 
-    SET_CIRSIM_REQ(CIRCSIM_STATE_PAUSED);
+    SET_CIRSIM_REQ(MODEL_STATE_PAUSED);
 
     return 0;
 }
 
 static int32_t model_continue(void)
 {
-    if (circsim_state != CIRCSIM_STATE_PAUSED) {
+    if (model_state != MODEL_STATE_PAUSED) {
         ERROR("not paused\n");
         return -1;
     }
 
-    SET_CIRSIM_REQ(CIRCSIM_STATE_RUNNING);
+    SET_CIRSIM_REQ(MODEL_STATE_RUNNING);
 
     return 0;
 }
@@ -220,11 +220,11 @@ static int32_t model_init_nodes(void)
             continue;
         }
         if (c->term[0].node == ground_node) {
-            ERROR("power compid %d has terminal 0 connected to ground\n", c->compid);
+            ERROR("power %s has terminal 0 connected to ground\n", c->comp_str);
             return -1;
         }
         if (c->term[1].node != ground_node) {
-            ERROR("power compid %d has terminal 1 connected to non-ground\n", c->compid);
+            ERROR("power %s has terminal 1 connected to non-ground\n", c->comp_str);
             return -1;
         }
     }
@@ -349,9 +349,9 @@ static void debug_print_nodes(void)
     for (i = 0; i < max_node; i++) {
         node_t * n = &node[i];
 
-        INFO("node %d - max_gridloc=%d  max_term=%d  ground=%d  power=%p power_compid=%d\n", 
+        INFO("node %d - max_gridloc=%d  max_term=%d  ground=%d  power=%p %s\n", 
              i, n->max_gridloc, n->max_term, n->ground, n->power,
-             n->power ? n->power->component->compid : -1);
+             n->power ? n->power->component->comp_str : "");
         
         p = s;
         for (j = 0; j < n->max_gridloc; j++) {
@@ -394,11 +394,11 @@ static void * model_thread(void * cx)
 
     while (true) {
         // wait here until requested to run the model
-        while (circsim_state_req != CIRCSIM_STATE_RUNNING) {
-            circsim_state = circsim_state_req;
+        while (model_state_req != MODEL_STATE_RUNNING) {
+            model_state = model_state_req;
             usleep(1000);
         }
-        circsim_state = CIRCSIM_STATE_RUNNING;
+        model_state = MODEL_STATE_RUNNING;
         __sync_synchronize();
 
         // xxx comment
@@ -447,8 +447,8 @@ static void * model_thread(void * cx)
         // increment time
         double delta_t_us;  // XXX how to validity check
         sscanf(PARAM_DELTA_T_US, "%lf", &delta_t_us);
-        circsim_time += (delta_t_us / 1000000.);
-        // xxx INFO("TIME %f\n", circsim_time);
+        model_time += (delta_t_us / 1000000.);
+        // xxx INFO("TIME %f\n", model_time);
 
         //usleep(100000);  // xxx temp
     }
@@ -464,10 +464,10 @@ static float get_comp_power_voltage(component_t * c)
     }
 
     // ramp up to dc voltage in 100 ms
-    if (circsim_time > .1) {
+    if (model_time > .1) {
         v = c->power.volts;
     } else {
-        v = circsim_time / .1 * c->power.volts;
+        v = model_time / .1 * c->power.volts;
     }
     // xxx INFO("volts %f\n", v);
 

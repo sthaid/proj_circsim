@@ -8,7 +8,7 @@ CFLAGS = -g -O0 -Wall -Iutil $(CFLAGS_PROFILING) $(CFLAGS_SDL2)
 
 SRC_CIRSIM = main.c \
              display.c \
-             circsim.c \
+             model.c \
              util/util_sdl.c \
              util/util_sdl_predefined_panes.c \
              util/util_jpeg.c \

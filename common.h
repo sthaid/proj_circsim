@@ -32,14 +32,14 @@
 #define MAX_NODE            10000
 #define MAX_GRID_TERM       5
 
-#define CIRCSIM_STATE_RESET    0
-#define CIRCSIM_STATE_RUNNING  1
-#define CIRCSIM_STATE_PAUSED   2
+#define MODEL_STATE_RESET    0
+#define MODEL_STATE_RUNNING  1
+#define MODEL_STATE_PAUSED   2
 
-#define CIRCSIM_STATE_STR(x) \
-    ((x) == CIRCSIM_STATE_RESET    ? "RESET"   : \
-     (x) == CIRCSIM_STATE_RUNNING  ? "RUNNING" : \
-     (x) == CIRCSIM_STATE_PAUSED   ? "PAUSED"  : \
+#define MODEL_STATE_STR(x) \
+    ((x) == MODEL_STATE_RESET    ? "RESET"   : \
+     (x) == MODEL_STATE_RUNNING  ? "RUNNING" : \
+     (x) == MODEL_STATE_PAUSED   ? "PAUSED"  : \
                                      "????")
 
 #define NODE_V_PRIOR(n) ((n)->voltage[node_v_prior_idx])
@@ -78,7 +78,7 @@ typedef struct component_s {
     // these fields describe the component
     int32_t type;
     char * type_str;
-    int32_t compid;
+    char comp_str[8];
     terminal_t term[2];
     union {
         struct {
@@ -95,7 +95,7 @@ typedef struct component_s {
             float henrys;
         } inductor;
     };
-    // component state, used by circsim.c, follow:
+    // component state, used by model.c, follow:
     // when clearing component state, zero from here
     int32_t zero_init_component_state;
     int32_t xxx_tbd;
@@ -103,6 +103,7 @@ typedef struct component_s {
 
 typedef struct grid_s {
     terminal_t * term[MAX_GRID_TERM];
+    char glstr[4];
     int32_t max_term;
     bool ground;
 } grid_t;
@@ -139,8 +140,8 @@ int32_t     node_v_prior_idx; //xxx should these be here?
 int32_t     node_v_curr_idx;
 int32_t     node_v_next_idx;
 
-double      circsim_time;
-int32_t     circsim_state;
+double      model_time;
+int32_t     model_state;
 
 //
 // parameters
@@ -184,7 +185,7 @@ int32_t display_center(void);
 void display_handler(void);
 
 // circsum.c
-void circsim_init(void);
-int32_t circsim_cmd(char *cmd);
+void model_init(void);
+int32_t model_cmd(char *cmd);
 
 #endif
