@@ -1,4 +1,5 @@
 circsim
+gen_resistor_grid
 *.d
 *.o
 *.swp

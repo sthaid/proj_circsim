@@ -139,7 +139,7 @@ int32_t     node_v_prior_idx; //xxx should these be here?
 int32_t     node_v_curr_idx;
 int32_t     node_v_next_idx;
 
-float       circsim_time;
+double      circsim_time;
 int32_t     circsim_state;
 
 //
@@ -148,18 +148,21 @@ int32_t     circsim_state;
 
 #define PARAM_GRID       (params_tbl[0].value)
 #define PARAM_DELTA_T_US (params_tbl[1].value)
+#define PARAM_CENTER     (params_tbl[2].value)
+#define PARAM_SCALE      (params_tbl[3].value)
 
 typedef struct {
-    char    *name;
-    char    *units;
-    int32_t  value;
+    char *name;
+    char  value[100];
 } params_tbl_entry_t;
 
 #ifdef MAIN
 params_tbl_entry_t params_tbl[] = { 
-        { "grid",    "bool",  true },
-        { "delta_t", "us",    1000 },
-        { NULL,      NULL,    0    }
+        { "grid",        "on"   },
+        { "delta_t_us",  "1000" },
+        { "center",      "a1"   },
+        { "scale",       "200"  },
+        { NULL,          ""     }
                                     };
 #else
 params_tbl_entry_t params_tbl[0];
@@ -171,11 +174,13 @@ params_tbl_entry_t params_tbl[0];
 
 // main.c
 char * make_gridloc_str(gridloc_t * gl);
+int32_t make_gridloc(char *glstr, gridloc_t * gl);
 
 // display.c
 void display_init(void);
 void display_lock(void);
 void display_unlock(void);
+int32_t display_center(void);
 void display_handler(void);
 
 // circsum.c

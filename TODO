@@ -1,3 +1,202 @@
+NEW COMMANDS
+=============
+
+ISSUES
+------
+direction of current and voltage displayed at meters and scopes
+  - could label components with dots when meter or scope is attached
+          what colors for the dots, don't want RED or GREEN
+when modify a component can the model be kept going
+  - perhaps if the model is running then the component can adjust gradually, say ove 100 iterations;
+    otherwise when the model is not running the component would be set immedeately
+what limit to place on delta_t_us, considering the component adjust time, and the frequency
+  of power supplies;   other dynamic considerations would be left to the user
+how to lable power supplies on the display
+
+not sure if I should be using comp_id in user intfc
+
+HOW TO GET THERE
+----------------
+
+- support routines to convert values to/from strings
+
+- identify components  R1, C1, ...
+    - add to component_t
+
+- add display param to select the value displayed next to each component
+     - choices: value, voltage, current, power
+
+- rename model
+
+- add gridlocstr to each gridloc
+
+- think about updates to the model to support capacitors, 
+
+- run the model not fastr than real time
+
+
+---- DONE  ---
+- don't need the power supply value displayed on the grid, but may need to identify the power supply
+  on the display somehow    DONE
+
+- pass full args to each cmd    DONE
+
+- use strings for params, the value can have spaces    DONE
+
+- display grid coords at every point    DONE
+
+- add center and scale params    DONE
+
+- add the center cmd     DONE
+
+
+- model support for value adjustment
+
+---- MORE TODO -------
+
+- add the modify cmd,  and add general way to gradual adjust components
+    when the model is running;  how to know if the model is running
+
+- pre or post compute the currents through each node
+
+- make a routine in display.c to create the string that is displayed 
+    start by displaying xxxxx if these values not yet supported
+         // XXX make routines to return ohms_str volts_str, etc
+         // XXX option to display currents instead of or in addition to comp values
+
+- add new panes for the meters and scopes
+   - add meter cmd, 
+   - add scope cmd
+   - also display component v,i,p, etc
+
+- update show cmd to show the new stuff
+
+- disable utils_predefinded_ graph mouse controls
+
+- misc
+  - better make_component_str, include units
+
+- need more tests, such as
+  - series/parallel resistors
+  - infinite resistor array
+  - resistor / capacitor time constant
+  - capacitor / inductor resonant circuit
+  - ac signal to capacitor, demonstrate zero energy on the power supply
+
+
+LIST OR NEW CMDS
+------------------
+center 
+modify
+meter 
+scope
+trigger
+
+center
+------
+
+center
+  resets display to default center and zoom
+
+set cmd : - use strings for param names and values
+-------------------------------------------------
+
+set delta_t_us      number
+set grid            on|off
+set display         comp_id|comp_current|comp_value 
+set center          A26
+set zoom            100
+
+modify  cmd  - changes a component value   XXX can this be done while model is running?
+--------------------------------------------------------------------------------------
+
+modify 7 value1 value2 ...
+  if model is running then initiate a gradual adjust, otherwide immedeate
+
+meter cmd
+---------
+
+meter A 7  ????
+meter A a1 a2
+meter A a1 ground
+meter A off
+  display red and black dots on components
+
+scope cmd and trigger cmd
+-----------------------
+
+scope B 7 current xscale=xxx yscale=xxx yoffset=xxx
+  display red and black dots on components
+    OR
+scope B voltage
+scope B xscale=xxx 
+scope B yscale=xxx
+scope B yoffset=xxx
+scope B off
+
+trigger B
+
+show cmd 
+--------
+
+args:
+  help
+  params
+  component N
+  components
+  ground
+  center
+  meters
+  scopes
+
+NOTES:
+-------
+
+METER display example
+   power_7  V=xxx I=xxx P=xxx E=xxx
+   resistor_8  V=xxx I=xxx        XXX  need the direction
+
+1 watt-second == 1 joule
+
+
+LATER
+-----
+
+better help, and include cmd categories
+
+FROM DIDPLAY.C
+---------------
+
+// XXX make routines to return ohms_str volts_str, etc
+// XXX option to display currents instead of or in addition to comp values
+// XXX don't need the power supply value displayed on the grid, in the status pane would be fine
+// XXX display power supply current in status pane
+// XXX cmd to center the display
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+rename compid to comp_id throughout
+    
+be able to see power supply power and energy; through a capacitor circuit
+
+better unit printing strings for ohms, farads, etc
 clean up so far
 center cmd
 select to display current of component values
@@ -14,7 +213,11 @@ add support for capacitor and test pgm
 
 
 
-
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 -O0 optimization
 

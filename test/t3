@@ -5306,6 +5306,10 @@ add connection W52  X52
 add connection X52  Y52 
 add connection Y52  Z52 
 
-add power A26 a1 4,0
-add power A27 a1 -4,0
+add power A26 a1 4 0
+add power A27 a1 -4 0
 ground a1
+
+set center A26
+set scale 200
+center

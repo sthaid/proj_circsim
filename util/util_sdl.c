@@ -1178,6 +1178,8 @@ void sdl_render_printf(rect_t * pane, int32_t x, int32_t y, int32_t font_id,
     char str[1000];
     va_list ap;
 
+// XXX check first if text is to be printed
+
     va_start(ap, fmt);
     vsnprintf(str, sizeof(str), fmt, ap);
     va_end(ap);
@@ -1572,6 +1574,7 @@ rect_t sdl_render_texture(rect_t * pane, int32_t x, int32_t y, texture_t texture
     int32_t width, height;
     rect_t loc, loc_clipped = {0,0,0,0};
 
+// XXX also check first
     // verify texture arg
     if (texture == NULL) {
         return loc_clipped;

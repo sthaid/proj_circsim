@@ -28,21 +28,21 @@ static void help(void);
 
 static void * cli_thread(void * cx);
 static int32_t process_cmd(char * cmdline);
-static int32_t cmd_help(char *arg1, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_set(char *name, char *value, char *arg3, char *arg4);
-static int32_t cmd_show(char *what, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_clear_schematic(char *arg1, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_write(char *filename, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_add(char *type, char *gl0, char *gl1, char *value);
-static int32_t cmd_del(char *compid, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_ground(char *gl, char *arg2, char *arg3, char *arg4);
-static int32_t cmd_sim(char *cmd, char *arg2, char *arg3, char *arg4);
+static int32_t cmd_help(char *args);
+static int32_t cmd_set(char *args);
+static int32_t cmd_show(char *args);
+static int32_t cmd_center(char *args);
+static int32_t cmd_clear_schematic(char *args);
+static int32_t cmd_read(char *args);
+static int32_t cmd_write(char *args);
+static int32_t cmd_add(char *args);
+static int32_t cmd_del(char *args);
+static int32_t cmd_ground(char *args);
+static int32_t cmd_sim(char *args);
 
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
 static int32_t del_component(char * compid_str);
 
-static int32_t make_gridloc(char *glstr, gridloc_t * gl);
 static char * make_component_str(component_t * c);
 static void identify_grid_ground(gridloc_t *gl);
 
@@ -71,7 +71,7 @@ int32_t main(int32_t argc, char ** argv)
         }
         switch (opt_char) {
         case 'f':
-            rc = cmd_read(optarg,NULL,NULL,NULL);
+            rc = cmd_read(optarg);
             if (rc < 0) {
                 exit(1);
             }
@@ -131,29 +131,25 @@ static void * cli_thread(void * cx)
     return NULL;
 }
 
-// XXX nice to have a cmd to initially center on a gridloc
-
-// xxx need descriptions, and would be nice to categorize these
 static struct {
     char * name;
-    int32_t (*proc)(char *arg1, char *arg2, char *arg3, char *arg4);
-    int32_t min_args;
-    int32_t max_args;
+    int32_t (*proc)(char *args);
     char * usage;
 } cmd_tbl[] = {
-    { "help",            cmd_help,    0, 0,         ""                                 },
+    { "help",            cmd_help,            ""                                 },
 
-    { "set",             cmd_set,     2, 2,         "<param_name> <param_value>"       },
-    { "show",            cmd_show,    0, 1,         "[<components|params|ground>]"     },
+    { "set",             cmd_set,             "<param_name> <param_value>"       },
+    { "show",            cmd_show,            "[<components|params|ground>]"     },
+    { "center",          cmd_center,          ""                                 },
 
-    { "clear_schematic", cmd_clear_schematic, 0, 0, "clear schematic"                  },
-    { "read",            cmd_read,    1, 1,         "<filename>"                       },
-    { "write",           cmd_write,   0, 1,         "[<filename>]"                     },
-    { "add",             cmd_add,     3, 4,         "<type> <gl0> <gl1> <value,...>"   },
-    { "del",             cmd_del,     1, 1,         "<compid>"                         },
-    { "ground",          cmd_ground,  1, 1,         "<gl>"                             },
+    { "clear_schematic", cmd_clear_schematic, "clear schematic"                  },
+    { "read",            cmd_read,            "<filename>"                       },
+    { "write",           cmd_write,           "[<filename>]"                     },
+    { "add",             cmd_add,             "<type> <gl0> <gl1> <value,...>"   },
+    { "del",             cmd_del,             "<compid>"                         },
+    { "ground",          cmd_ground,          "<gl>"                             },
 
-    { "sim",             cmd_sim,     1, 1,         "<reset|run|pause|cont>"           },
+    { "sim",             cmd_sim,             "<reset|run|pause|cont>"           },
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -161,8 +157,8 @@ static struct {
 static int32_t process_cmd(char * cmdline)
 {
     char *comment_char;
-    char *cmd, *arg1, *arg2, *arg3, *arg4;
-    int32_t i, rc, arg_count=0;
+    char *cmd, *args;
+    int32_t i, rc;
 
     // terminate cmdline at the comment ('#') character, if any
     comment_char = strchr(cmdline,'#');
@@ -172,14 +168,7 @@ static int32_t process_cmd(char * cmdline)
 
     // tokenize
     cmd = strtok(cmdline, " \n");
-    arg1 = strtok(NULL, " \n");
-    arg2 = strtok(NULL, " \n");
-    arg3 = strtok(NULL, " \n");
-    arg4 = strtok(NULL, " \n");
-    if (arg1) arg_count++;
-    if (arg2) arg_count++;
-    if (arg3) arg_count++;
-    if (arg4) arg_count++;
+    args = strtok(NULL, "\n");
 
     // if no cmd then return success
     if (cmd == NULL) {
@@ -189,13 +178,8 @@ static int32_t process_cmd(char * cmdline)
     // find cmd in cmd_tbl
     for (i = 0; i < MAX_CMD_TBL; i++) {
         if (strcasecmp(cmd, cmd_tbl[i].name) == 0) {
-            if (arg_count < cmd_tbl[i].min_args || arg_count > cmd_tbl[i].max_args) {
-                ERROR("incorrect number of args\n");
-                return -1;
-            }
-
             display_lock();
-            rc = cmd_tbl[i].proc(arg1,arg2,arg3,arg4);
+            rc = cmd_tbl[i].proc(args);
             display_unlock();
             if (rc < 0) {
                 ERROR("failed: '%s'\n", cmdline);  // xxx make a copy of cmdline, strtok clobbered it
@@ -213,7 +197,8 @@ static int32_t process_cmd(char * cmdline)
     return 0;
 }
 
-static int32_t cmd_help(char *arg1, char *arg2, char *arg3, char *arg4)
+// XXX check all of these cmds for null args
+static int32_t cmd_help(char *args)
 {
     int32_t i;
 
@@ -223,23 +208,14 @@ static int32_t cmd_help(char *arg1, char *arg2, char *arg3, char *arg4)
     return 0;
 }
 
-static int32_t cmd_set(char *name, char *value, char *arg3, char *arg4)
+static int32_t cmd_set(char *args)
 {
-    int32_t i, val;
+    char *name, *value;
+    int32_t i;
 
-    // convert value str to integer 'val';
-    // allow for special strings 'on' and 'off'
-    if (strcasecmp(value, "on") == 0) {
-        val = 1;
-    } else if (strcasecmp(value,"off") == 0) {
-        val = 0;
-    } else if (sscanf(value, "%d", &val) == 1) {
-        // sscanf okay
-    } else {
-        ERROR("invalid value '%s'\n", value);
-        return -1;
-    }
-    
+    name = strtok(args, " ");
+    value = strtok(NULL, "");
+
     // try to find name in params_tbl; 
     // if found then set the param
     for (i = 0; params_tbl[i].name; i++) {
@@ -247,29 +223,32 @@ static int32_t cmd_set(char *name, char *value, char *arg3, char *arg4)
             break;
         }
     }
-    if (params_tbl[i].name) {
-        params_tbl[i].value = val;
-        return 0;
+    if (params_tbl[i].name == NULL) {
+        ERROR("param '%s' not found\n", name);
+        return -1;
     }
 
-    // unrecognized name
-    ERROR("param '%s' not found\n", name);
-    return -1;
+    // store new param value
+    strcpy(params_tbl[i].value, value);
+    return 0;
 }
 
-static int32_t cmd_show(char *what, char *arg2, char *arg3, char *arg4)
+static int32_t cmd_show(char *args)
 {
     int32_t i;
-    bool show_all = (what == NULL);
-    bool printed = false;
+    bool show_all, printed=false;
+    char *what;
+
+    what = strtok(args, " ");
+
+    show_all = (what == NULL);
 
     if (show_all || strcasecmp(what,"params") == 0) {
         INFO("PARAMS\n");
         for (i = 0; params_tbl[i].name; i++) {
-            INFO("  %-8s %-6d %s",
+            INFO("  %-8s %s",
                  params_tbl[i].name,
-                 params_tbl[i].value,
-                 params_tbl[i].units);
+                 params_tbl[i].value);
         }
         BLANK_LINE;
         printed = true;
@@ -282,6 +261,7 @@ static int32_t cmd_show(char *what, char *arg2, char *arg3, char *arg4)
             if (c->type == COMP_NONE) {
                 continue;
             }
+            // XXX don't show compid
             INFO("  %-3d %s\n", i, make_component_str(c));
         }
         BLANK_LINE;
@@ -302,8 +282,12 @@ static int32_t cmd_show(char *what, char *arg2, char *arg3, char *arg4)
     return 0;
 }
 
+static int32_t cmd_center(char *args)
+{
+    return display_center();
+}
 
-static int32_t cmd_clear_schematic(char *arg1, char *arg2, char *arg3, char *arg4)
+static int32_t cmd_clear_schematic(char *args)                                        
 {
     // reset circuit simulator
     circsim_cmd("reset");
@@ -324,11 +308,13 @@ static int32_t cmd_clear_schematic(char *arg1, char *arg2, char *arg3, char *arg
     return 0;
 }
 
-static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4)
+static int32_t cmd_read(char *args)
 {
     FILE * fp;
-    char s[200];
+    char s[200], *filename;
     int32_t rc, fileline=0;
+
+    filename = strtok(args, " ");
 
     // xxx should this automatically clear theschemantic
     // xxx this causes multiple model reset calls
@@ -354,10 +340,13 @@ static int32_t cmd_read(char *filename, char *arg2, char *arg3, char *arg4)
     return 0;
 }
 
-static int32_t cmd_write(char *filename, char *arg2, char *arg3, char *arg4)
+static int32_t cmd_write(char *args)
 {
     FILE * fp;
     int32_t i;
+    char *filename;
+
+    filename = strtok(args, " ");
 
     if (filename == NULL) {
         filename = last_filename_used;
@@ -397,20 +386,34 @@ static int32_t cmd_write(char *filename, char *arg2, char *arg3, char *arg4)
     return 0;
 }
 
-static int32_t cmd_add(char *type, char *gl0, char *gl1, char *value)
+static int32_t cmd_add(char *args)
 {
+    char *type, *gl0, *gl1, *value;
+
+    type = strtok(args, " ");
+    gl0 = strtok(NULL, " ");
+    gl1 = strtok(NULL, " ");
+    value = strtok(NULL, "");
+
     return add_component(type, gl0, gl1, value);
 }
 
-static int32_t cmd_del(char *compid, char *arg2, char *arg3, char *arg4)
+static int32_t cmd_del(char *args)
 {
+#if 0
+    // XXX maybe del based on grid loc
     return del_component(compid);
+#endif
+    return -1;
 }
 
-static int32_t cmd_ground(char *gl, char *arg2, char *arg3, char *arg4)
+static int32_t cmd_ground(char *args)
 {
     int32_t rc;
     gridloc_t new_ground;
+    char *gl;
+
+    gl = strtok(args, " ");
 
     // construct gridloc for the ground
     rc = make_gridloc(gl, &new_ground);
@@ -429,8 +432,12 @@ static int32_t cmd_ground(char *gl, char *arg2, char *arg3, char *arg4)
     return 0;
 }
 
-static int32_t cmd_sim(char *cmd, char *arg2, char *arg3, char *arg4)
+static int32_t cmd_sim(char *args)
 {
+    char *cmd;
+
+    cmd = strtok(args, "");
+
     return circsim_cmd(cmd);
 }
 
@@ -499,7 +506,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     // - set component value
     switch (new_comp.type) {
     case COMP_POWER:
-        if (value_str && sscanf(value_str, "%f,%f", &val1, &val2) != 2) {
+        if (value_str && sscanf(value_str, "%f %f", &val1, &val2) != 2) {
             ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
             return -1;
         }
@@ -521,9 +528,10 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         break;
     }
 
-    // verify terminals are adjacent, except for COMP_CONNECTION where they just
-    // need to be in the same row or column
-    // XXX power supplies don't need to be adjcant
+    // verify terminals are adjacent, except for:
+    // - COMP_CONNECTION where they just need to be in the same row or column
+    // - COMP_POWER where the circsim model will enforce restrictions on 
+    //   how the power supplies are connected
     x0 = new_comp.term[0].gridloc.x;
     y0 = new_comp.term[0].gridloc.y;
     x1 = new_comp.term[1].gridloc.x;
@@ -581,6 +589,7 @@ static int32_t del_component(char * compid_str)
     int32_t compid, i, j;
     component_t *c;
 
+// XXX dont use compid
     // verify the compid_str, and
     // set ptr to the component to be deleted
     if (sscanf(compid_str, "%d", &compid) != 1 ||
@@ -649,9 +658,7 @@ char * make_gridloc_str(gridloc_t * gl)
     return s;
 }
 
-// -----------------  PRIVATE UTILS  -------------------------------------------------------------
-
-static int32_t make_gridloc(char *glstr, gridloc_t * gl)
+int32_t make_gridloc(char *glstr, gridloc_t * gl)
 {
     int32_t x=-1, y=-1;
 
@@ -673,6 +680,8 @@ static int32_t make_gridloc(char *glstr, gridloc_t * gl)
     return 0;
 }
 
+// -----------------  PRIVATE UTILS  -------------------------------------------------------------
+
 static char * make_component_str(component_t * c)
 {
     #define MAX_S 32
@@ -691,13 +700,17 @@ static char * make_component_str(component_t * c)
                  make_gridloc_str(&c->term[0].gridloc),
                  make_gridloc_str(&c->term[1].gridloc));
 
-    // XXX better way to select format descriptor, and add units comment
+    // XXX better way to select format, and add units comment
+    // XXX use a routine to make the valuestr, I have something in PFM
+    //        100  100K    100M   10pf   10uf  10mf   etc
+    //            will also need comparable routine to scan the strings
+
     switch (c->type) {
     case COMP_POWER:
-        p += sprintf(p, "%.2f,%.2f", c->power.volts, c->power.hz);
+        p += sprintf(p, "%.2f %.2f  # volts hz", c->power.volts, c->power.hz);
         break;
     case COMP_RESISTOR:
-        p += sprintf(p, "%.2f", c->resistor.ohms);
+        p += sprintf(p, "%.2f  # ohms", c->resistor.ohms);
         break;
     case COMP_CAPACITOR:
         // xxx tbd

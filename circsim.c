@@ -1,5 +1,5 @@
 #if 0
-xxx TESTS
+XXX TESTS
 - series/parallel resistors
 - infinite resistor array
 - resistor / capacitor time constant
@@ -445,7 +445,9 @@ static void * model_thread(void * cx)
 #endif
 
         // increment time
-        circsim_time += (PARAM_DELTA_T_US / 1000000.);
+        double delta_t_us;  // XXX how to validity check
+        sscanf(PARAM_DELTA_T_US, "%lf", &delta_t_us);
+        circsim_time += (delta_t_us / 1000000.);
         // xxx INFO("TIME %f\n", circsim_time);
 
         //usleep(100000);  // xxx temp

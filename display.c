@@ -1,4 +1,6 @@
-//XXX  display the voltages for every grid location with connections
+// XXX so busy drawing cant pan the pane
+// XXX maybe need a minimum delay in util_sdl.c
+
 #include "common.h"
 
 //
@@ -8,9 +10,16 @@
 #define DEFAULT_WIN_WIDTH  1900
 #define DEFAULT_WIN_HEIGHT 1000
 
+#define PH_SCHEMATIC_W 1500
+#define PH_SCHEMATIC_H 1000
+
 #define FONT_SMALL  0  // xxx more fonts, and move these defines
 #define FONT_MEDIUM 1 
 #define FONT_LARGE  2
+
+#define MIN_GRID_SCALE     100
+#define MAX_GRID_SCALE     400
+
 
 //
 // typedefs
@@ -21,6 +30,11 @@
 //
 
 static pthread_mutex_t mutex;
+static int32_t win_width, win_height;
+
+static int32_t grid_xoff;
+static int32_t grid_yoff;
+static float   grid_scale;
 
 //
 // prototypes
@@ -41,6 +55,8 @@ void display_init(void)
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&mutex, &attr);
+
+    display_center();
 }
 
 void display_lock(void)
@@ -53,11 +69,36 @@ void display_unlock(void)
     pthread_mutex_unlock(&mutex);
 }
 
-// XXX
-    int32_t win_width, win_height;
+int32_t display_center(void)
+{
+    int32_t rc;
+    gridloc_t gl;
+    float new_grid_scale;
+
+    rc = make_gridloc(PARAM_CENTER, &gl);
+    if (rc < 0) {
+        ERROR("invalid grid center loc '%s'\n", PARAM_CENTER);
+        return -1;
+    }
+
+    if (sscanf(PARAM_SCALE, "%f", &new_grid_scale) != 1) {
+        ERROR("invalid grid scale '%s'\n", PARAM_SCALE);
+        return -1;
+    }
+    if (new_grid_scale < MIN_GRID_SCALE) new_grid_scale = MIN_GRID_SCALE;
+    if (new_grid_scale > MAX_GRID_SCALE) new_grid_scale = MAX_GRID_SCALE;
+
+    display_lock();
+    grid_scale = new_grid_scale;
+    grid_xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2;
+    grid_yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2;
+    display_unlock();
+
+    return 0;
+}
+
 void display_handler(void)
 {
-
     // use sdl to display the schematic
     win_width  = DEFAULT_WIN_WIDTH;
     win_height = DEFAULT_WIN_HEIGHT;
@@ -70,9 +111,11 @@ void display_handler(void)
         display_end,    // called after pane handlers
         50000,          // 0=continuous, -1=never, else us 
         2,              // number of pane handler varargs that follow
-        pane_hndlr_schematic, NULL,    0,    0, 1500, 1000, PANE_BORDER_STYLE_MINIMAL,
-        pane_hndlr_status,    NULL, 1500,    0,  400,  400, PANE_BORDER_STYLE_MINIMAL);
+        pane_hndlr_schematic, NULL, 0,              0,  PH_SCHEMATIC_W, PH_SCHEMATIC_H, PANE_BORDER_STYLE_MINIMAL,
+        pane_hndlr_status,    NULL, PH_SCHEMATIC_W, 0,  400,            400,            PANE_BORDER_STYLE_MINIMAL);
 }
+
+// ------------------------------------------------------------------------
 
 static void display_start(void * cx)
 {
@@ -90,12 +133,6 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 {
     #define SDL_EVENT_MOUSE_MOTION  (SDL_EVENT_USER_DEFINED + 0)
     #define SDL_EVENT_MOUSE_WHEEL   (SDL_EVENT_USER_DEFINED + 1)
-
-    #define DEFAULT_GRID_XOFF  100
-    #define DEFAULT_GRID_YOFF  100
-
-    #define MIN_GRID_SCALE     100
-    #define MAX_GRID_SCALE     400
 
     typedef struct {
         struct {
@@ -125,9 +162,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             { {-1,-1} } } };
 
     struct {
-        int32_t grid_xoff;
-        int32_t grid_yoff;
-        float   grid_scale;
+        int32_t nothing;
     } * vars = pane_cx->vars;
     rect_t * pane = &pane_cx->pane;
 
@@ -137,11 +172,6 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
     if (request == PANE_HANDLER_REQ_INITIALIZE) {
         vars = pane_cx->vars = calloc(1,sizeof(*vars));
-        vars->grid_scale = 200.;
-        //XXX vars->grid_xoff = 75;
-        //XXX vars->grid_yoff = 75;
-        vars->grid_xoff = -vars->grid_scale * 26  + win_width/2;
-        vars->grid_yoff = -vars->grid_scale * 26 + win_height / 2;
         return PANE_HANDLER_RET_NO_ACTION;
     }
 
@@ -155,33 +185,48 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         // xxx try to adjust font size when zoomed
 
         // draw grid, if enabled
-        if (PARAM_GRID) {
+        if (strcmp(PARAM_GRID, "on") == 0) {
             int32_t i, j, x, y, count;
             point_t points[MAX_GRID_X*MAX_GRID_Y];
 
+#if 0
             // x labelling
             for (i = 0; i < MAX_GRID_X; i++) {
-                x = i * vars->grid_scale + vars->grid_xoff - sdl_font_char_width(FONT_MEDIUM)/2;
+                x = i * grid_scale + grid_xoff - sdl_font_char_width(FONT_MEDIUM)/2;
                 sdl_render_printf(pane, x, 0, FONT_MEDIUM, BLUE, BLACK, "%d", i+1);
             }
             // y labelling
             for (j = 0; j < MAX_GRID_Y; j++) {
-                y = j * vars->grid_scale + vars->grid_yoff - sdl_font_char_height(FONT_MEDIUM)/2;
+                y = j * grid_scale + grid_yoff - sdl_font_char_height(FONT_MEDIUM)/2;
                 sdl_render_printf(pane, 0, y, FONT_MEDIUM, BLUE, BLACK, "%c", 
                                   j < 26 ?  'a'+j : 'A'+j-26);
             }
+#endif
+
+//XXX instead draw grid at every point
             // points
             count = 0;
+// XXX use glx, gly instead
             for (i = 0; i < MAX_GRID_X; i++) {
                 for (j = 0; j < MAX_GRID_Y; j++) {
-                    x = i * vars->grid_scale + vars->grid_xoff;
-                    y = j * vars->grid_scale + vars->grid_yoff;
+                    x = i * grid_scale + grid_xoff;
+                    y = j * grid_scale + grid_yoff;
                     points[count].x = x;
                     points[count].y = y;
                     count++;
                 }
             }
             sdl_render_points(pane, points, count, BLUE, 3);
+
+            for (i = 0; i < MAX_GRID_X; i++) {
+                for (j = 0; j < MAX_GRID_Y; j++) {
+                    gridloc_t gl = {i,j};
+                    x = i * grid_scale + grid_xoff;
+                    y = j * grid_scale + grid_yoff;
+                    sdl_render_printf(pane, x+2, y-2-sdl_font_char_height(FONT_SMALL), FONT_SMALL, BLUE, BLACK, 
+                                    "%s", make_gridloc_str(&gl));
+                }
+            }
         }
 
         // draw components
@@ -189,15 +234,16 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             component_t * c  = &component[i];
             switch (c->type) {
             case COMP_CONNECTION: {
-                int32_t x1 = c->term[0].gridloc.x * vars->grid_scale + vars->grid_xoff;
-                int32_t y1 = c->term[0].gridloc.y * vars->grid_scale + vars->grid_yoff;
-                int32_t x2 = c->term[1].gridloc.x * vars->grid_scale + vars->grid_xoff;
-                int32_t y2 = c->term[1].gridloc.y * vars->grid_scale + vars->grid_yoff;
+                int32_t x1 = c->term[0].gridloc.x * grid_scale + grid_xoff;
+                int32_t y1 = c->term[0].gridloc.y * grid_scale + grid_yoff;
+                int32_t x2 = c->term[1].gridloc.x * grid_scale + grid_xoff;
+                int32_t y2 = c->term[1].gridloc.y * grid_scale + grid_yoff;
                 sdl_render_line(pane, x1, y1, x2, y2, WHITE);
                 break; }
             case COMP_POWER: {
-                int32_t x = c->term[0].gridloc.x * vars->grid_scale + vars->grid_xoff;
-                int32_t y = c->term[0].gridloc.y * vars->grid_scale + vars->grid_yoff;
+#if 0
+                int32_t x = c->term[0].gridloc.x * grid_scale + grid_xoff;
+                int32_t y = c->term[0].gridloc.y * grid_scale + grid_yoff;
                 char freq[20];
                 if (c->power.hz == 0) {
                     strcpy(freq, "DC");
@@ -206,6 +252,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 }
                 sdl_render_printf(pane, x+2, y+2+sdl_font_char_height(FONT_SMALL), FONT_SMALL, WHITE, BLACK, 
                                   "%.2f V%s", c->power.volts, freq);
+#endif
                 break; }
             case COMP_RESISTOR:
             case COMP_CAPACITOR:
@@ -223,22 +270,22 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 } else {
                     FATAL("xxx\n");
                 }
-                x = c->term[0].gridloc.x * vars->grid_scale + vars->grid_xoff;
-                y = c->term[0].gridloc.y * vars->grid_scale + vars->grid_yoff;
+                x = c->term[0].gridloc.x * grid_scale + grid_xoff;
+                y = c->term[0].gridloc.y * grid_scale + grid_yoff;
                 for (j = 0; ci->points[j][0].x != -1; j++) {
                     for (k = 0; ci->points[j][k].x != -1; k++) {
                         if (c->term[1].gridloc.x == c->term[0].gridloc.x + 1) {
-                            points[k].x = x + ci->points[j][k].x * vars->grid_scale / 1000;  // right
-                            points[k].y = y + ci->points[j][k].y * vars->grid_scale / 1000;
+                            points[k].x = x + ci->points[j][k].x * grid_scale / 1000;  // right
+                            points[k].y = y + ci->points[j][k].y * grid_scale / 1000;
                         } else if (c->term[1].gridloc.x == c->term[0].gridloc.x - 1) {
-                            points[k].x = x - ci->points[j][k].x * vars->grid_scale / 1000;  // leftt
-                            points[k].y = y + ci->points[j][k].y * vars->grid_scale / 1000;
+                            points[k].x = x - ci->points[j][k].x * grid_scale / 1000;  // leftt
+                            points[k].y = y + ci->points[j][k].y * grid_scale / 1000;
                         } else if (c->term[1].gridloc.y == c->term[0].gridloc.y + 1) {
-                            points[k].x = x + ci->points[j][k].y * vars->grid_scale / 1000;  // down
-                            points[k].y = y + ci->points[j][k].x * vars->grid_scale / 1000; 
+                            points[k].x = x + ci->points[j][k].y * grid_scale / 1000;  // down
+                            points[k].y = y + ci->points[j][k].x * grid_scale / 1000; 
                         } else if (c->term[1].gridloc.y == c->term[0].gridloc.y - 1) {
-                            points[k].x = x + ci->points[j][k].y * vars->grid_scale / 1000;  // up
-                            points[k].y = y - ci->points[j][k].x * vars->grid_scale / 1000; 
+                            points[k].x = x + ci->points[j][k].y * grid_scale / 1000;  // up
+                            points[k].y = y - ci->points[j][k].x * grid_scale / 1000; 
                         } else {
                             FATAL("xxxx\n");
                         }
@@ -248,28 +295,18 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
                 // XXX value
                 if (c->term[1].gridloc.x == c->term[0].gridloc.x + 1) {         // right
-                    x += vars->grid_scale / 2;
+                    x += grid_scale / 2;
                 } else if (c->term[1].gridloc.x == c->term[0].gridloc.x - 1) {  // left
-                    x -= vars->grid_scale / 2;
+                    x -= grid_scale / 2;
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y + 1) {  // down 
-                    y += vars->grid_scale / 2;
+                    y += grid_scale / 2;
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y - 1) {  // up
-                    y -= vars->grid_scale / 2;
+                    y -= grid_scale / 2;
                 }
                 if (c->type == COMP_RESISTOR) {
                     sdl_render_printf(pane, x, y, FONT_SMALL, WHITE, BLACK, 
-                                      "%.0f", c->resistor.ohms);   // XXX megs and K
+                                      "%.0f", c->resistor.ohms);   // XXX megs and K,  USE SAME ROUTINE AS MAIN
                 }
-// XXX make routines to return ohms_str volts_str, etc
-
-// XXX option to display currents instead of or in addition to comp values
-
-// XXX don't need the power supply value displayed on the grid, in the status pane would be fine
-
-// XXX display power supply current in status pane
-
-// XXX cmd to center the display
-
                 break; }
             case COMP_NONE:
                 break;
@@ -281,9 +318,9 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
         // draw a point at all grid locations that have at least one terminal as follows:
         // - just one terminal connected : YELLOW  (this is a warning)
-        // - power                       : RED
-        // - ground                      : GREEN
-        // - otherwise                   : WHITE
+        // - power     : RED
+        // - ground    : GREEN
+        // - otherwise : WHITE
         for (glx = 0; glx < MAX_GRID_X; glx++) {
             for (gly = 0; gly < MAX_GRID_Y; gly++) {
                 int32_t x, y;
@@ -292,13 +329,18 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 if (g->max_term == 0) {
                     continue;
                 }
-                x = glx * vars->grid_scale + vars->grid_xoff;
-                y = gly * vars->grid_scale + vars->grid_yoff;
+                x = glx * grid_scale + grid_xoff;
+                y = gly * grid_scale + grid_yoff;
                 color = (g->max_term == 1  ? YELLOW :
                          has_comp_power(g) ? RED :
                          g->ground         ? GREEN :
                                              WHITE);
                 sdl_render_point(pane, x, y, color, 3);
+
+                // XXX and draw the gridloc
+                gridloc_t gl = {glx,gly};
+                sdl_render_printf(pane, x+2, y-2-sdl_font_char_height(FONT_SMALL), FONT_SMALL, WHITE, BLACK, 
+                                  "%s", make_gridloc_str(&gl));
             }
         }
 
@@ -306,8 +348,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         for (i = 0; i < max_node; i++) {
             node_t *n = &node[i];
             for (j = 0; j < n->max_gridloc; j++) {
-                int32_t x = n->gridloc[j].x * vars->grid_scale + vars->grid_xoff;
-                int32_t y = n->gridloc[j].y * vars->grid_scale + vars->grid_yoff;
+                int32_t x = n->gridloc[j].x * grid_scale + grid_xoff;
+                int32_t y = n->gridloc[j].y * grid_scale + grid_yoff;
                 sdl_render_printf(pane, x+2, y+2, FONT_SMALL, WHITE, BLACK, 
                                   "%.2f V", NODE_V_CURR(n));
             }
@@ -330,19 +372,19 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
     if (request == PANE_HANDLER_REQ_EVENT) {
         switch(event->event_id) {
         case SDL_EVENT_MOUSE_MOTION:
-            vars->grid_xoff += event->mouse_motion.delta_x;
-            vars->grid_yoff += event->mouse_motion.delta_y;
+            grid_xoff += event->mouse_motion.delta_x;
+            grid_yoff += event->mouse_motion.delta_y;
             return PANE_HANDLER_RET_DISPLAY_REDRAW;
         case SDL_EVENT_MOUSE_WHEEL: {  // xxx ctrl wheel
-            if (event->mouse_motion.delta_y > 0 && vars->grid_scale < MAX_GRID_SCALE) {
-                vars->grid_scale *= 1.1;
-                vars->grid_xoff = pane->w/2 - 1.1 * (pane->w/2 - vars->grid_xoff);
-                vars->grid_yoff = pane->h/2 - 1.1 * (pane->h/2 - vars->grid_yoff);
+            if (event->mouse_motion.delta_y > 0 && grid_scale < MAX_GRID_SCALE) {
+                grid_scale *= 1.1;
+                grid_xoff = pane->w/2 - 1.1 * (pane->w/2 - grid_xoff);
+                grid_yoff = pane->h/2 - 1.1 * (pane->h/2 - grid_yoff);
             }
-            if (event->mouse_motion.delta_y < 0 && vars->grid_scale > MIN_GRID_SCALE) {
-                vars->grid_scale *= (1./1.1);
-                vars->grid_xoff = pane->w/2 - (1./1.1) * (pane->w/2 - vars->grid_xoff);
-                vars->grid_yoff = pane->h/2 - (1./1.1) * (pane->h/2 - vars->grid_yoff);
+            if (event->mouse_motion.delta_y < 0 && grid_scale > MIN_GRID_SCALE) {
+                grid_scale *= (1./1.1);
+                grid_xoff = pane->w/2 - (1./1.1) * (pane->w/2 - grid_xoff);
+                grid_yoff = pane->h/2 - (1./1.1) * (pane->h/2 - grid_yoff);
             }
             return PANE_HANDLER_RET_DISPLAY_REDRAW; }
         }
@@ -410,10 +452,9 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
         // params
         for (i = 0; params_tbl[i].name; i++) {
             sdl_render_printf(pane, 0, ROW2Y(3+i,FONT_MEDIUM), FONT_MEDIUM, WHITE, BLACK, 
-                              "%-8s %-6d %s",
+                              "%-8s %s",
                               params_tbl[i].name,
-                              params_tbl[i].value,
-                              params_tbl[i].units);
+                              params_tbl[i].value);
         }
 
         return PANE_HANDLER_RET_NO_ACTION;
