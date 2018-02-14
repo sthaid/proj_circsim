@@ -18,6 +18,8 @@ not sure if I should be using comp_id in user intfc
 HOW TO GET THERE
 ----------------
 
+- larger size points in util_sdl.c
+
 - support routines to convert values to/from strings
 
 - add display param to select the value displayed next to each component

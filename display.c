@@ -180,37 +180,18 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
     // ------------------------
 
     if (request == PANE_HANDLER_REQ_RENDER) {
-        int32_t i, j, glx, gly, color;
-
         // xxx try to adjust font size when zoomed
 
         // draw grid, if enabled
         if (strcasecmp(PARAM_GRID, "on") == 0) {
-            int32_t i, j, x, y, count;
+            int32_t glx, gly, x, y, count=0;
             point_t points[MAX_GRID_X*MAX_GRID_Y];
 
-#if 0
-            // x labelling
-            for (i = 0; i < MAX_GRID_X; i++) {
-                x = i * grid_scale + grid_xoff - sdl_font_char_width(FONT_MEDIUM)/2;
-                sdl_render_printf(pane, x, 0, FONT_MEDIUM, BLUE, BLACK, "%d", i+1);
-            }
-            // y labelling
-            for (j = 0; j < MAX_GRID_Y; j++) {
-                y = j * grid_scale + grid_yoff - sdl_font_char_height(FONT_MEDIUM)/2;
-                sdl_render_printf(pane, 0, y, FONT_MEDIUM, BLUE, BLACK, "%c", 
-                                  j < 26 ?  'a'+j : 'A'+j-26);
-            }
-#endif
-
-//XXX instead draw grid at every point
-            // points
-            count = 0;
-// XXX use glx, gly instead
-            for (i = 0; i < MAX_GRID_X; i++) {
-                for (j = 0; j < MAX_GRID_Y; j++) {
-                    x = i * grid_scale + grid_xoff;
-                    y = j * grid_scale + grid_yoff;
+            // draw grid points
+            for (glx = 0; glx < MAX_GRID_X; glx++) {
+                for (gly = 0; gly < MAX_GRID_Y; gly++) {
+                    x = glx * grid_scale + grid_xoff;
+                    y = gly * grid_scale + grid_yoff;
                     points[count].x = x;
                     points[count].y = y;
                     count++;
@@ -218,11 +199,12 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             }
             sdl_render_points(pane, points, count, BLUE, 3);
 
-            for (i = 0; i < MAX_GRID_X; i++) {
-                for (j = 0; j < MAX_GRID_Y; j++) {
-                    gridloc_t gl = {i,j};
-                    x = i * grid_scale + grid_xoff;
-                    y = j * grid_scale + grid_yoff;
+            // draw gridloc_str at each grid point
+            for (glx = 0; glx < MAX_GRID_X; glx++) {
+                for (gly = 0; gly < MAX_GRID_Y; gly++) {
+                    gridloc_t gl = {glx,gly};
+                    x = glx * grid_scale + grid_xoff;
+                    y = gly * grid_scale + grid_yoff;
                     sdl_render_printf(pane, x+2, y-2-sdl_font_char_height(FONT_SMALL), FONT_SMALL, BLUE, BLACK, 
                                     "%s", make_gridloc_str(&gl));
                 }
@@ -230,6 +212,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         }
 
         // draw components
+        { int32_t i;
         for (i = 0; i < max_component; i++) {
             component_t * c  = &component[i];
             switch (c->type) {
@@ -303,14 +286,14 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y - 1) {  // up
                     y -= grid_scale / 2;
                 }
+
                 sdl_render_printf(pane, x, y, FONT_SMALL, WHITE, BLACK, 
                                   "%s", c->comp_str);
-#if 0
                 if (c->type == COMP_RESISTOR) {
-                    sdl_render_printf(pane, x, y, FONT_SMALL, WHITE, BLACK, 
+                    sdl_render_printf(pane, x, y+sdl_font_char_height(FONT_SMALL), FONT_SMALL, WHITE, BLACK, 
                                       "%.0f", c->resistor.ohms);   // XXX megs and K,  USE SAME ROUTINE AS MAIN
+// AAAAAAAAA use str routine here
                 }
-#endif
                 break; }
             case COMP_NONE:
                 break;
@@ -318,13 +301,14 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 FATAL("xxx\n");
                 break;
             }
-        }
+        } }
 
         // draw a point at all grid locations that have at least one terminal as follows:
         // - just one terminal connected : YELLOW  (this is a warning)
         // - power     : RED
         // - ground    : GREEN
         // - otherwise : WHITE
+        { int32_t glx, gly, color;
         for (glx = 0; glx < MAX_GRID_X; glx++) {
             for (gly = 0; gly < MAX_GRID_Y; gly++) {
                 int32_t x, y;
@@ -341,15 +325,19 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                                              WHITE);
                 sdl_render_point(pane, x, y, color, 3);
 
+#if 0
                 // XXX and draw the gridloc
                 //XXX gridloc_t gl = {glx,gly};
                 sdl_render_printf(pane, x+2, y-2-sdl_font_char_height(FONT_SMALL), FONT_SMALL, WHITE, BLACK, 
                                   "%s", g->glstr);  // make_gridloc_str(&gl));
+#endif
             }
-        }
+        } }
 
         // display the voltage at all node gridlocs
+        { int32_t i;
         for (i = 0; i < max_node; i++) {
+            int32_t j;
             node_t *n = &node[i];
             for (j = 0; j < n->max_gridloc; j++) {
                 int32_t x = n->gridloc[j].x * grid_scale + grid_xoff;
@@ -357,7 +345,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 sdl_render_printf(pane, x+2, y+2, FONT_SMALL, WHITE, BLACK, 
                                   "%.2f V", NODE_V_CURR(n));
             }
-        }
+        } }
 
         // register for mouse motion and mouse wheel events
         // - mouse motion used to pan 

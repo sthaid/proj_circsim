@@ -7,7 +7,7 @@ add connection d2  d1
 add connection d1  c1 
 ground c1
 
-set center c1
+set center c4
 set scale 200
 set grid off
 center
