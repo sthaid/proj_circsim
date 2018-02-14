@@ -176,6 +176,7 @@ params_tbl_entry_t params_tbl[0];
 // main.c
 char * make_gridloc_str(gridloc_t * gl);
 int32_t make_gridloc(char *glstr, gridloc_t * gl);
+char * make_component_value_str(component_t * c);
 
 // display.c
 void display_init(void);

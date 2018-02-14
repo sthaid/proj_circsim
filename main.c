@@ -667,6 +667,7 @@ static int32_t del_component(char * comp_str)
 }
 
 // -----------------  PUBLIC UTILS  -------------------------------------------------------------
+// xxx don't like these names
 
 char * make_gridloc_str(gridloc_t * gl)
 {
@@ -710,6 +711,49 @@ int32_t make_gridloc(char *glstr, gridloc_t * gl)
     gl->x = x;
     gl->y = y;
     return 0;
+}
+
+char * make_component_value_str(component_t * c)
+{
+    #define MAX_S 32
+
+    static char static_str[MAX_S][100];
+    static int32_t static_idx;
+    int32_t idx;
+    char *s;
+    float v;
+
+    idx = __sync_fetch_and_add(&static_idx,1) % MAX_S;
+    s = static_str[idx];
+    s[0] = '\0';
+
+// XXX needs more work
+    switch (c->type) {
+    case COMP_RESISTOR:
+        v = c->resistor.ohms;
+        if (v < 1e3) {
+            sprintf(s, "%.0f", v);
+        } else if (v < 10e3) {
+            sprintf(s, "%.1fK", v/1e3 );
+        } else if (v < 1000e3) {
+            sprintf(s, "%.0fK", v/1e3 );
+        } else if (v < 10e6) {
+            sprintf(s, "%.1fM", v/1e6 );
+        } else {
+            sprintf(s, "%.0fM", v/1e6 );
+        }
+        break;
+    }
+/*
+#define COMP_NONE           0
+#define COMP_CONNECTION     1
+#define COMP_POWER          2
+#define COMP_CAPACITOR      4
+#define COMP_INDUCTOR       5
+#define COMP_DIODE          6
+*/
+
+    return s;
 }
 
 // -----------------  PRIVATE UTILS  -------------------------------------------------------------

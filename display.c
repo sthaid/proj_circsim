@@ -289,10 +289,9 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
                 sdl_render_printf(pane, x, y, FONT_SMALL, WHITE, BLACK, 
                                   "%s", c->comp_str);
-                if (c->type == COMP_RESISTOR) {
+                if (c->type != COMP_CONNECTION) {  // xxx and != others
                     sdl_render_printf(pane, x, y+sdl_font_char_height(FONT_SMALL), FONT_SMALL, WHITE, BLACK, 
-                                      "%.0f", c->resistor.ohms);   // XXX megs and K,  USE SAME ROUTINE AS MAIN
-// AAAAAAAAA use str routine here
+                                      "%s", make_component_value_str(c));
                 }
                 break; }
             case COMP_NONE:
