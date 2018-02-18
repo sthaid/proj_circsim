@@ -18,16 +18,30 @@ not sure if I should be using comp_id in user intfc
 HOW TO GET THERE
 ----------------
 
+CURRENTS
+
+- params
+delta_t_us    1
+current       on off
+voltage       on off 
+grid          on off
+commpnoent    id value off
+center        A1
+scale         200
+
 - larger size points in util_sdl.c
 
-- support routines to convert values to/from strings
+- keep track of term current in nodes
+   - pre or post compute the currents through each node
 
-- add display param to select the value displayed next to each component
-     - choices: value, voltage, current, power
+
+- support routines to convert values to/from strings    STARTED ON THIS
 
 - think about updates to the model to support capacitors, 
 
 - run the model not fastr than real time
+
+- scale font 
 
 
 ---- DONE  ---
@@ -56,8 +70,6 @@ HOW TO GET THERE
 
 - add the modify cmd,  and add general way to gradual adjust components
     when the model is running;  how to know if the model is running
-
-- pre or post compute the currents through each node
 
 - make a routine in display.c to create the string that is displayed 
     start by displaying xxxxx if these values not yet supported

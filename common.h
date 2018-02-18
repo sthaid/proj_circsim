@@ -26,6 +26,8 @@
 // defines
 //
 
+#define MB 0x100000
+
 #define MAX_GRID_X          52
 #define MAX_GRID_Y          52
 #define MAX_COMPONENT       10000
@@ -55,6 +57,17 @@
 #define COMP_DIODE          6
 #define COMP_LAST           6
 
+#define NO_VALUE  NAN  // xxx how is this being used
+
+// for str_to_val and val_to_str
+#define UNITS_VOLTS  1
+#define UNITS_AMPS   2
+#define UNITS_OHMS   3
+#define UNITS_FARADS 4
+#define UNITS_HZ     5
+
+#define strcmp strcasecmp
+
 //
 // typedefs
 //
@@ -69,9 +82,10 @@ typedef struct gridloc_s {
 
 typedef struct terminal_s {
     struct component_s * component;
-    struct node_s * node;
     int32_t termid;
     gridloc_t gridloc;
+    struct node_s * node;
+    double current;
 } terminal_t;
 
 typedef struct component_s {
@@ -82,17 +96,17 @@ typedef struct component_s {
     terminal_t term[2];
     union {
         struct {
-            float volts;
-            float hz;  // 0 = DC
+            double volts;
+            double hz;  // 0 = DC
         } power;
         struct {
-            float ohms;
+            double ohms;
         } resistor;
         struct {
-            float farads;
+            double farads;
         } capacitor;
         struct {
-            float henrys;
+            double henrys;
         } inductor;
     };
     // component state, used by model.c, follow:
@@ -119,7 +133,7 @@ typedef struct node_s {
     int32_t max_gridloc;
     bool ground;
     terminal_t * power;
-    float voltage[3];   // circular buffer of: prior, curr, new 
+    double voltage[3];   // circular buffer of: prior, curr, new 
 } node_t;
 
 //
@@ -147,10 +161,13 @@ int32_t     model_state;
 // parameters
 // 
 
-#define PARAM_GRID       (params_tbl[0].value)
-#define PARAM_DELTA_T_US (params_tbl[1].value)
-#define PARAM_CENTER     (params_tbl[2].value)
-#define PARAM_SCALE      (params_tbl[3].value)
+#define PARAM_DELTA_T_US (params_tbl[0].value)
+#define PARAM_GRID       (params_tbl[1].value)
+#define PARAM_CURRENT    (params_tbl[2].value)
+#define PARAM_VOLTAGE    (params_tbl[3].value)
+#define PARAM_COMPONENT  (params_tbl[4].value)
+#define PARAM_CENTER     (params_tbl[5].value)
+#define PARAM_SCALE      (params_tbl[6].value)
 
 typedef struct {
     char *name;
@@ -159,12 +176,15 @@ typedef struct {
 
 #ifdef MAIN
 params_tbl_entry_t params_tbl[] = { 
-        { "grid",        "on"   },
-        { "delta_t_us",  "1000" },
-        { "center",      "a1"   },
-        { "scale",       "200"  },
-        { NULL,          ""     }
-                                    };
+        { "delta_t_us",     "1"      },   // model time increment
+        { "grid",          "off"     },   // on, off
+        { "current",       "on"      },   // on, off
+        { "voltage",       "on"      },   // on, off
+        { "component",     "value"   },   // id, value, off
+        { "center",        "c3"      },   // gridloc of display center
+        { "scale",         "200"     },   // display scale, pixels between components
+        { NULL,            ""        }
+                                          };
 #else
 params_tbl_entry_t params_tbl[0];
 #endif
@@ -174,9 +194,13 @@ params_tbl_entry_t params_tbl[0];
 //
 
 // main.c
-char * make_gridloc_str(gridloc_t * gl);
-int32_t make_gridloc(char *glstr, gridloc_t * gl);
-char * make_component_value_str(component_t * c);
+
+char * gridloc_to_str(gridloc_t * gl, char * s);
+int32_t str_to_gridloc(char *glstr, gridloc_t * gl);
+char * component_to_value_str(component_t * c, char * s);
+char * component_to_full_str(component_t * c, char * s);
+int32_t str_to_val(char * s, int32_t units, double * val_result);
+char * val_to_str(double val, int32_t units, char * s);
 
 // display.c
 void display_init(void);

@@ -1,5 +1,5 @@
 clear_schematic
-add power      b4  c4 5.000000,0.000000
+add power      b4  c4 5v
 add connection b4  b5 
 add resistor   b5  c5 100.000000
 add resistor   c5  d5 200.000000

@@ -12,6 +12,15 @@ XXX TESTS
 // defines
 //
 
+#define SET_MODEL_REQ(x) \
+    do { \
+        model_state_req = (x); \
+        __sync_synchronize(); \
+        while (model_state != model_state_req) { \
+            usleep(1000); \
+        } \
+    } while (0)
+
 //
 // typedefs
 //
@@ -36,7 +45,7 @@ static node_t * allocate_node(void);
 static void add_terms_to_node(node_t *node, gridloc_t *gl);
 static void debug_print_nodes(void);
 static void * model_thread(void * cx);
-static float get_comp_power_voltage(component_t * c);
+static double get_comp_power_voltage(component_t * c);
 
 // -----------------  PUBLIC ---------------------------------------------------------
 
@@ -58,13 +67,13 @@ int32_t model_cmd(char *cmd)
     int32_t rc;
 
     // parse and process the cmd
-    if (strcasecmp(cmd, "reset") == 0) {
+    if (strcmp(cmd, "reset") == 0) {
         rc = model_reset();
-    } else if (strcasecmp(cmd, "run") == 0) {
+    } else if (strcmp(cmd, "run") == 0) {
         rc = model_run();
-    } else if (strcasecmp(cmd, "pause") == 0) {
+    } else if (strcmp(cmd, "pause") == 0) {
         rc = model_pause();
-    } else if (strcasecmp(cmd, "cont") == 0) {
+    } else if (strcmp(cmd, "cont") == 0) {
         rc = model_continue();
     } else {
         ERROR("unsupported cmd '%s'\n", cmd);
@@ -76,20 +85,11 @@ int32_t model_cmd(char *cmd)
 
 // -----------------  MODEL SUPPORT  -------------------------------------------------
 
-#define SET_CIRSIM_REQ(x) \
-    do { \
-        model_state_req = (x); \
-        __sync_synchronize(); \
-        while (model_state != model_state_req) { \
-            usleep(1000); \
-        } \
-    } while (0)
-
 static int32_t model_reset(void)
 {
     int32_t i;
 
-    SET_CIRSIM_REQ(MODEL_STATE_RESET);
+    SET_MODEL_REQ(MODEL_STATE_RESET);
 
     for (i = 0; i < max_node; i++) {
         node_t *n = &node[i];
@@ -128,7 +128,7 @@ static int32_t model_run(void)
         return -1;
     }
 
-    SET_CIRSIM_REQ(MODEL_STATE_RUNNING);
+    SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
     return 0;
 }
@@ -140,7 +140,7 @@ static int32_t model_pause(void)
         return -1;
     }
 
-    SET_CIRSIM_REQ(MODEL_STATE_PAUSED);
+    SET_MODEL_REQ(MODEL_STATE_PAUSED);
 
     return 0;
 }
@@ -152,7 +152,7 @@ static int32_t model_continue(void)
         return -1;
     }
 
-    SET_CIRSIM_REQ(MODEL_STATE_RUNNING);
+    SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
     return 0;
 }
@@ -320,7 +320,9 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
                 INFO("%ld: MAX_ALLOCED_TERM IS NOW %d\n", n-node, n->max_alloced_term);
                 n->term = realloc(n->term, n->max_alloced_term * sizeof(terminal_t));
             }
-            n->term[n->max_term++] = term;
+            n->term[n->max_term] = term;
+            term->current = NO_VALUE;   // XXX be sure to reset this too
+            n->max_term++;
 
             term->node = n;
 
@@ -339,7 +341,7 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
 
 static void debug_print_nodes(void)
 {
-    char s[200], *p;
+    char s[200], s1[100], *p;
     int32_t i, j;
 
     // XXX needs larger string
@@ -355,7 +357,7 @@ static void debug_print_nodes(void)
         
         p = s;
         for (j = 0; j < n->max_gridloc; j++) {
-            p += sprintf(p, "%s ", make_gridloc_str(&n->gridloc[j]));
+            p += sprintf(p, "%s ", gridloc_to_str(&n->gridloc[j],s1));
         }
         INFO("   gridlocs %s\n", s);
 
@@ -390,7 +392,7 @@ static void debug_print_nodes(void)
 
 static void * model_thread(void * cx) 
 {
-    int32_t i;
+    int32_t i,j;
 
     while (true) {
         // wait here until requested to run the model
@@ -414,7 +416,7 @@ static void * model_thread(void * cx)
                 //       SUM (Vn/Rn)
                 //   V = -----------
                 //       SUM (1/Rn)
-                float sum1=0, sum2=0;
+                double sum1=0, sum2=0;
                 int32_t j;
                 for (j = 0; j < n->max_term; j++) {
                     component_t *c = n->term[j]->component;
@@ -425,10 +427,24 @@ static void * model_thread(void * cx)
                     sum1 += (NODE_V_CURR(other_n) / c->resistor.ohms);
                     sum2 += (1 / c->resistor.ohms);
                 }
-                // xxx INFO("sum1 = %f sum2 = %f\n", sum1, sum2);
                 NODE_V_NEXT(n) = sum1 / sum2;
             }
+
+            // compute the current from each node terminal, using the voltage just calculated
+            for (j = 0; j < n->max_term; j++) {
+                terminal_t *term = n->term[j];
+                component_t *c = term->component;
+                int32_t other_termid = (term->termid ^ 1);
+                node_t *other_n = c->term[other_termid].node;
+
+                switch (c->type) {
+                case COMP_RESISTOR:
+                    term->current = (NODE_V_CURR(n) - NODE_V_CURR(other_n)) / c->resistor.ohms;
+                    break;
+                }
+            }
         }
+
 
         // postprocessing:
         // - update the current and prior node voltage
@@ -455,12 +471,12 @@ static void * model_thread(void * cx)
     return NULL;
 }
 
-static float get_comp_power_voltage(component_t * c)
+static double get_comp_power_voltage(component_t * c)
 {
-    float v;
+    double v;
 
     if (c->power.hz != 0) {
-        FATAL("AC not supported yet\n");
+        // XXX FATAL("AC not supported yet\n");
     }
 
     // ramp up to dc voltage in 100 ms

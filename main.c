@@ -1,15 +1,9 @@
-// XXX always use strcasecmp
 #define MAIN
 #include "common.h"
 
 //
 // defines
 //
-
-#define MB 0x100000
-
-#define DEFAULT_WIN_WIDTH  1900
-#define DEFAULT_WIN_HEIGHT 1000
 
 //
 // typedefs
@@ -45,7 +39,6 @@ static int32_t cmd_sim(char *args);
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
 static int32_t del_component(char * comp_str);
 
-static char * make_component_str(component_t * c);
 static void identify_grid_ground(gridloc_t *gl);
 static void init_grid(void);
 
@@ -96,18 +89,18 @@ int32_t main(int32_t argc, char ** argv)
 
 static void main_init(void)
 {
-    // xxx
-    INFO("sizeof(component) = %ld MB\n", sizeof(component)/MB);
-    INFO("sizeof(grid)      = %ld MB\n", sizeof(grid)/MB);
-    INFO("sizeof(node)      = %ld MB\n", sizeof(node)/MB);
-
     init_grid();
 }
 
 static void help(void)
 {
-    INFO("HELP xxx TBD\n");
-    exit(0);
+    INFO("usage: circsim [-f <filename>] [-h]\n");
+    INFO("  -f: read commands from filename\n");
+    INFO("  -h: help\n");
+    BLANK_LINE;
+
+    INFO("commands:\n");
+    cmd_help(NULL);
 }
 
 // -----------------  CLI THREAD  -----------------------------------------
@@ -117,6 +110,8 @@ static void * cli_thread(void * cx)
     char *cmd_str = NULL;
     sdl_event_t event;
 
+    // use readline/add_history to read commands, and
+    // call process_cmd to process them
     while (true) {
         free(cmd_str);
         if ((cmd_str = readline("> ")) == NULL) {
@@ -151,10 +146,10 @@ static struct {
     { "show",            cmd_show,            "[<components|params|ground>]"     },
     { "center",          cmd_center,          ""                                 },
 
-    { "clear_schematic", cmd_clear_schematic, "clear schematic"                  },
+    { "clear_schematic", cmd_clear_schematic, "",                                },
     { "read",            cmd_read,            "<filename>"                       },
     { "write",           cmd_write,           "[<filename>]"                     },
-    { "add",             cmd_add,             "<type> <gl0> <gl1> <value,...>"   },
+    { "add",             cmd_add,             "<type> <gl0> <gl1> [<values>]"    },
     { "del",             cmd_del,             "<comp_str>"                       },
     { "ground",          cmd_ground,          "<gl>"                             },
 
@@ -167,7 +162,8 @@ static int32_t process_cmd(char * cmdline)
 {
     char *comment_char;
     char *cmd, *args;
-    int32_t i, rc;
+    int32_t i, rc, len;
+    char cmdline_orig[1000];
 
     // terminate cmdline at the comment ('#') character, if any
     comment_char = strchr(cmdline,'#');
@@ -175,30 +171,51 @@ static int32_t process_cmd(char * cmdline)
         *comment_char = '\0';
     }
 
-    // tokenize
-    cmd = strtok(cmdline, " \n");
-    args = strtok(NULL, "\n");
+    // make a copy of cmdline, to be used if an error is encountered
+    strcpy(cmdline_orig, cmdline);
 
-    // if no cmd then return success
+    // get command, if no cmd then return 
+    cmd = strtok(cmdline, " \n");
     if (cmd == NULL) {
         return 0;
     }
 
+    // get args, and remove leading and trailing spaces
+    args = strtok(NULL, "\n");
+    if (args == NULL) {
+        args = "";
+    }
+    while (*args == ' ') {
+        args++;
+    }
+    len = strlen(args); 
+    while (len > 0) {
+        if (args[len-1] == ' ') {
+            args[len-1] = '\0';
+            len--;
+        } else {
+            break;
+        }
+    }
+printf("cmd '%s' args '%s'\n", cmd, args);
+
+    // if no cmd then return success
+
     // find cmd in cmd_tbl
     for (i = 0; i < MAX_CMD_TBL; i++) {
-        if (strcasecmp(cmd, cmd_tbl[i].name) == 0) {
+        if (strcmp(cmd, cmd_tbl[i].name) == 0) {
             display_lock();
             rc = cmd_tbl[i].proc(args);
             display_unlock();
             if (rc < 0) {
-                ERROR("failed: '%s'\n", cmdline);  // xxx make a copy of cmdline, strtok clobbered it
+                ERROR("failed: '%s'\n", cmdline_orig);
                 return -1;
             }
             break;
         }
     } 
     if (i == MAX_CMD_TBL) {
-        ERROR("not found: '%s'\n", cmdline);
+        ERROR("cmd not found: '%s'\n", cmd);
         return -1;
     }
 
@@ -206,11 +223,14 @@ static int32_t process_cmd(char * cmdline)
     return 0;
 }
 
-// XXX check all of these cmds for null args
+// the following cmd routines return
+// -1 for error and 0 for success
+
 static int32_t cmd_help(char *args)
 {
     int32_t i;
 
+    // print the usage strings
     for (i = 0; i < MAX_CMD_TBL; i++) {
         INFO("%-16s %s\n", cmd_tbl[i].name, cmd_tbl[i].usage);
     }
@@ -222,13 +242,18 @@ static int32_t cmd_set(char *args)
     char *name, *value;
     int32_t i;
 
+    // tokenize args, and verify all supplied
     name = strtok(args, " ");
-    value = strtok(NULL, "");
+    value = strtok(NULL, " ");
+    if (name == NULL || value == NULL) {
+        ERROR("insufficient args\n");
+        return -1;
+    }
 
     // try to find name in params_tbl; 
     // if found then set the param
     for (i = 0; params_tbl[i].name; i++) {
-        if (strcasecmp(name, params_tbl[i].name) == 0) {
+        if (strcmp(name, params_tbl[i].name) == 0) {
             break;
         }
     }
@@ -247,15 +272,17 @@ static int32_t cmd_show(char *args)
     int32_t i;
     bool show_all, printed=false;
     char *what;
+    char s[100];
 
+    // determine what is to be shown
     what = strtok(args, " ");
-
     show_all = (what == NULL);
 
-    if (show_all || strcasecmp(what,"params") == 0) {
+    // show params
+    if (show_all || strcmp(what,"params") == 0) {
         INFO("PARAMS\n");
         for (i = 0; params_tbl[i].name; i++) {
-            INFO("  %-8s %s",
+            INFO("  %-12s %s",
                  params_tbl[i].name,
                  params_tbl[i].value);
         }
@@ -263,30 +290,34 @@ static int32_t cmd_show(char *args)
         printed = true;
     }
 
-    if (show_all || strcasecmp(what,"components") == 0) {
+    // show components
+    if (show_all || strcmp(what,"components") == 0) {
         INFO("COMPONENTS\n");
         for (i = 0; i < max_component; i++) {
             component_t * c = &component[i];
             if (c->type == COMP_NONE) {
                 continue;
             }
-            INFO("  %-8s %s\n", c->comp_str, make_component_str(c));
+            INFO("  %-8s %s\n", c->comp_str, component_to_full_str(c,s));
         }
         BLANK_LINE;
         printed = true;
     }
 
-    if (show_all || strcasecmp(what,"ground") == 0) {
+    // show ground
+    if (show_all || strcmp(what,"ground") == 0) {
         INFO("GROUND\n");
-        INFO("  ground %s\n", ground_is_set ? make_gridloc_str(&ground) : "NOT_SET");
+        INFO("  ground %s\n", ground_is_set ? gridloc_to_str(&ground,s) : "NOT_SET");
         BLANK_LINE;
         printed = true;
     }
 
+    // if nothing was shown then print error
     if (printed == false) {
         ERROR("not supported '%s'\n", what);
     }
 
+    // return success
     return 0;
 }
 
@@ -322,28 +353,38 @@ static int32_t cmd_read(char *args)
     char s[200], *filename;
     int32_t rc, fileline=0;
 
+    // tokenize and verify args
     filename = strtok(args, " ");
+    if (filename == NULL) {
+        ERROR("insufficient args\n");
+        return -1;
+    }
 
-    // xxx should this automatically clear theschemantic
-    // xxx this causes multiple model reset calls
+    // XXX this causes multiple model reset calls
 
+    // open the file for reading
     fp = fopen(filename, "r");
     if (fp == NULL) {
         ERROR("unable to open '%s', %s\n", filename, strerror(errno));
         return -1;
     }
 
+    // keep track of the last_filename_used, so if the write command
+    // is issued without a filenmae arg it will use the last_filename_used
     strcpy(last_filename_used, filename);
 
+    // read cmd lines from file, and call process_cmd 
     while (fgets(s, sizeof(s), fp) != NULL) {
         fileline++;
         rc = process_cmd(s);
         if (rc < 0) {
             ERROR("aborting read of command from '%s', line %d\n", filename, fileline);
+            fclose(fp);
             return -1;
         }
     }
 
+    // close, and return success
     fclose(fp);
     return 0;
 }
@@ -353,9 +394,10 @@ static int32_t cmd_write(char *args)
     FILE * fp;
     int32_t i;
     char *filename;
+    char s[100];
 
+    // get the filename to be written
     filename = strtok(args, " ");
-
     if (filename == NULL) {
         filename = last_filename_used;
         if (filename[0] == '\0') {
@@ -364,33 +406,51 @@ static int32_t cmd_write(char *args)
         }
     }
 
+    // open the file for writing
     fp = fopen(filename, "w");
     if (fp == NULL) {
         ERROR("unable to open '%s', %s\n", filename, strerror(errno));
         return -1;
     }
 
+    // print 
     INFO("saving to file '%s'\n", filename);
 
+    // keep track of the last_filename_used, so that a subsequent write
+    // will use the same filename by default
     if (filename != last_filename_used) {
         strcpy(last_filename_used, filename);
     }
 
+    // print the commands to the file
     fprintf(fp, "clear_schematic\n");
+    fprintf(fp, "\n");
 
     for (i = 0; i < max_component; i++) {
+        char s[100];
         component_t *c = &component[i];
         if (c->type == COMP_NONE) {
             continue;
         }
-        fprintf(fp, "add %s\n", make_component_str(c));
+        fprintf(fp, "add %s\n", component_to_full_str(c,s));
     }
+    fprintf(fp, "\n");
 
+    // xxx can we say not-set or use default ground
     if (ground_is_set) {
-        fprintf(fp, "ground %s\n", make_gridloc_str(&ground));
+        fprintf(fp, "ground %s\n", gridloc_to_str(&ground,s));
+        fprintf(fp, "\n");
     }
 
+    for (i = 0; params_tbl[i].name; i++) {
+        fprintf(fp, "set %-12s %s\n", params_tbl[i].name, params_tbl[i].value);
+    }
+    fprintf(fp, "\n");
+
+    // close the file
     fclose(fp);
+
+    // success
     return 0;
 }
 
@@ -398,11 +458,19 @@ static int32_t cmd_add(char *args)
 {
     char *type, *gl0, *gl1, *value;
 
+    // tokenize and verify args supplied
     type = strtok(args, " ");
     gl0 = strtok(NULL, " ");
     gl1 = strtok(NULL, " ");
-    value = strtok(NULL, "");
+    value = strtok(NULL, " ");
 
+    // value is not needed for some components
+    if (type == NULL || gl0 == NULL || gl1 == NULL) {
+        ERROR("insufficient args\n");
+        return -1;
+    }
+
+    // call add_component to do the work
     return add_component(type, gl0, gl1, value);
 }
 
@@ -410,8 +478,14 @@ static int32_t cmd_del(char *args)
 {
     char * comp_str;
 
+    // get the comp_str which identifies the component, such as 'R1'
     comp_str = strtok(args, " ");
+    if (comp_str == NULL) {
+        ERROR("insufficient args\n");
+        return -1;
+    }
 
+    // call del_component to do the work
     return del_component(comp_str);
 }
 
@@ -421,10 +495,15 @@ static int32_t cmd_ground(char *args)
     gridloc_t new_ground;
     char *gl;
 
+    // tokenize and verify arg is supplied
     gl = strtok(args, " ");
+    if (gl == NULL) {
+        ERROR("insufficient args\n");
+        return -1;
+    }
 
     // construct gridloc for the ground
-    rc = make_gridloc(gl, &new_ground);
+    rc = str_to_gridloc(gl, &new_ground);
     if (rc < 0) {
         ERROR("invalid gridloc '%s'\n", gl);
         return -1;
@@ -434,7 +513,7 @@ static int32_t cmd_ground(char *args)
     // set the new_ground,
     // identify grid ground locations
     model_cmd("reset");
-    ground = new_ground;   // xxx maybe these 2 dont need to be global
+    ground = new_ground;
     ground_is_set = true;
     identify_grid_ground(NULL);
     return 0;
@@ -442,10 +521,9 @@ static int32_t cmd_ground(char *args)
 
 static int32_t cmd_sim(char *args)
 {
-    char *cmd;
+    char *cmd = args;
 
-    cmd = strtok(args, "");
-
+    // pass cmd to the model
     return model_cmd(cmd);
 }
 
@@ -457,7 +535,6 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     int32_t idx, x0, y0, x1, y1, i, rc, type=-1;
     char *gl_str;
     bool ok;
-    float val1, val2;
 
     static char * component_type_str[] = {
                     "none",
@@ -480,7 +557,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
 
     // convert type_str to type
     for (i = 0; i <= COMP_LAST; i++) {
-        if (strcasecmp(component_type_str[i], type_str) == 0) {
+        if (strcmp(component_type_str[i], type_str) == 0) {
             type = i;
             break;
         }
@@ -528,7 +605,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         new_comp.term[i].component = &component[idx];
         new_comp.term[i].termid = i;
         gl_str = (i == 0 ? gl0_str : gl1_str);
-        rc = make_gridloc(gl_str, &new_comp.term[i].gridloc);
+        rc = str_to_gridloc(gl_str, &new_comp.term[i].gridloc);
         if (rc < 0) {
             ERROR("invalid gridloc '%s'\n", gl_str);
             return -1;
@@ -537,25 +614,34 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     // - set component value
     switch (new_comp.type) {
     case COMP_POWER:
-        if (value_str && sscanf(value_str, "%f %f", &val1, &val2) != 2) {
+        value_str = strtok(value_str, ",");
+        rc = str_to_val(value_str, UNITS_VOLTS, &new_comp.power.volts);
+        if (rc == -1) {
             ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
             return -1;
         }
-        new_comp.power.volts = val1;
-        new_comp.power.hz = val2;
+        value_str = strtok(NULL, "");
+printf("second value_str '%s'\n", value_str);
+        if (value_str != NULL) {
+            rc = str_to_val(value_str, UNITS_HZ, &new_comp.power.hz);
+            if (rc == -1) {
+                ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
+                return -1;
+            }
+        }
         break;
     case COMP_RESISTOR:
-        if (value_str && sscanf(value_str, "%f", &val1) != 1) {
+        rc = str_to_val(value_str, UNITS_OHMS, &new_comp.resistor.ohms);
+        if (rc == -1) {
             ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
             return -1;
         }
-        new_comp.resistor.ohms = val1;
         break;
     case COMP_CAPACITOR:
-        // xxx tbd
+        // xxx tbd later
         break;
     case COMP_INDUCTOR:
-        // xxx tbd
+        // xxx tbd later
         break;
     }
 
@@ -582,7 +668,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         return -1;
     }
 
-    // XXX verify not overlapping with existing component
+    // xxx verify not overlapping with existing component
 
     // commit the new component ...
 
@@ -602,7 +688,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         int32_t y = c->term[i].gridloc.y;
         grid_t * g = &grid[x][y];
         if (g->max_term == MAX_GRID_TERM) {
-            FATAL("xxx all terminals used on gridloc %s\n", make_gridloc_str(&c->term[i].gridloc));
+            FATAL("all terminals used on gridloc %s\n", g->glstr);
             return -1;
         }
         g->term[g->max_term++] = &c->term[i];
@@ -623,7 +709,7 @@ static int32_t del_component(char * comp_str)
     // locate the component to be deleted
     for (i = 0; i < max_component; i++) {
         c = &component[i];
-        if (c->type != COMP_NONE && strcasecmp(c->comp_str, comp_str) == 0) {
+        if (c->type != COMP_NONE && strcmp(c->comp_str, comp_str) == 0) {
             break;
         }
     }
@@ -667,33 +753,27 @@ static int32_t del_component(char * comp_str)
 }
 
 // -----------------  PUBLIC UTILS  -------------------------------------------------------------
-// xxx don't like these names
 
-char * make_gridloc_str(gridloc_t * gl)
+// convert gridloc to string
+char * gridloc_to_str(gridloc_t * gl, char * s)
 {
-    #define MAX_S 32
-
-    static char static_str[MAX_S][8];
-    static int32_t static_idx;
-    int32_t idx;
-    char *s;
-
     assert(gl->x >= 0 && gl->x < MAX_GRID_X);
     assert(gl->y >= 0 && gl->y < MAX_GRID_Y);
-
-    idx = __sync_fetch_and_add(&static_idx,1) % MAX_S;
-    s = static_str[idx];
 
     sprintf(s, "%c%d", 
             gl->y + (gl->y < 26 ? 'a' : 'A' - 26),
             gl->x + 1);
-
     return s;
 }
 
-int32_t make_gridloc(char *glstr, gridloc_t * gl)
+// convert string to gridloc, return -1 on error
+int32_t str_to_gridloc(char *glstr, gridloc_t * gl)
 {
     int32_t x=-1, y=-1;
+
+    if (glstr == NULL) {
+        return -1;
+    }
 
     if (glstr[0] >= 'a' && glstr[0] <= 'z') {
         y = glstr[0] - 'a';
@@ -713,91 +793,158 @@ int32_t make_gridloc(char *glstr, gridloc_t * gl)
     return 0;
 }
 
-char * make_component_value_str(component_t * c)
+// convert component to value string
+char * component_to_value_str(component_t * c, char *s)
 {
-    #define MAX_S 32
+    int32_t len;
 
-    static char static_str[MAX_S][100];
-    static int32_t static_idx;
-    int32_t idx;
-    char *s;
-    float v;
-
-    idx = __sync_fetch_and_add(&static_idx,1) % MAX_S;
-    s = static_str[idx];
     s[0] = '\0';
-
-// XXX needs more work
-    switch (c->type) {
-    case COMP_RESISTOR:
-        v = c->resistor.ohms;
-        if (v < 1e3) {
-            sprintf(s, "%.0f", v);
-        } else if (v < 10e3) {
-            sprintf(s, "%.1fK", v/1e3 );
-        } else if (v < 1000e3) {
-            sprintf(s, "%.0fK", v/1e3 );
-        } else if (v < 10e6) {
-            sprintf(s, "%.1fM", v/1e6 );
-        } else {
-            sprintf(s, "%.0fM", v/1e6 );
-        }
-        break;
-    }
-/*
-#define COMP_NONE           0
-#define COMP_CONNECTION     1
-#define COMP_POWER          2
-#define COMP_CAPACITOR      4
-#define COMP_INDUCTOR       5
-#define COMP_DIODE          6
-*/
-
-    return s;
-}
-
-// -----------------  PRIVATE UTILS  -------------------------------------------------------------
-
-static char * make_component_str(component_t * c)
-{
-    #define MAX_S 32
-
-    static char static_str[MAX_S][100];
-    static int32_t static_idx;
-    int32_t idx;
-    char *s, *p;
-
-    idx = __sync_fetch_and_add(&static_idx,1) % MAX_S;
-    s = static_str[idx];
-
-    p = s;
-    p += sprintf(p, "%-10s %-4s %-4s",
-                 c->type_str,
-                 make_gridloc_str(&c->term[0].gridloc),
-                 make_gridloc_str(&c->term[1].gridloc));
-
-    // XXX better way to select format, and add units comment
-    // XXX use a routine to make the valuestr, I have something in PFM
-    //        100  100K    100M   10pf   10uf  10mf   etc
-    //            will also need comparable routine to scan the strings
 
     switch (c->type) {
     case COMP_POWER:
-        p += sprintf(p, "%.2f %.2f  # volts hz", c->power.volts, c->power.hz);
+        val_to_str(c->power.volts, UNITS_VOLTS, s);
+        if (c->power.hz > 0) {
+            len = strlen(s);
+            strcpy(s+len, ",");
+            val_to_str(c->power.hz, UNITS_HZ, s+len+1);
+        }
         break;
     case COMP_RESISTOR:
-        p += sprintf(p, "%.2f  # ohms", c->resistor.ohms);
+        val_to_str(c->resistor.ohms, UNITS_OHMS, s);
         break;
-    case COMP_CAPACITOR:
-        // xxx tbd
+    case COMP_CAPACITOR:  // xxx tbd
         break;
-    case COMP_INDUCTOR:
-        // xxx tbd
+    case COMP_INDUCTOR:   // xxx tbd
+        break;
+    case COMP_CONNECTION:
+    case COMP_DIODE:
+    default:
         break;
     }
 
     return s;
 }
+
+// convert component to full string
+char * component_to_full_str(component_t * c, char * s)
+{
+    char *p, s1[100], s2[100];
+
+    p = s;
+    p += sprintf(p, "%-10s %-4s %-4s ",
+                 c->type_str,
+                 gridloc_to_str(&c->term[0].gridloc, s1),
+                 gridloc_to_str(&c->term[1].gridloc, s2));
+    component_to_value_str(c, p);
+
+    return s;
+}
+
+typedef struct {
+    char * units;
+    double factor;  // 0 is table terminator
+} convert_t;
+static convert_t volts_tbl[]  = { {"kV",1e3}, {"V",1}, {"mV",1e-3}, {"uV",1e-6},                  {"V",0} };
+static convert_t amps_tbl[]   = { {"A",1}, {"mA",1e-3}, {"uA",1e-6},                              {"A",0} };
+static convert_t ohms_tbl[]   = { {"M",1e6}, {"K",1e3}, {"",1},                                   {"OHMS",0} };
+static convert_t farads_tbl[] = { {"F",1}, {"mF",1e-3}, {"uF",1e-6}, {"nF",1e-9}, {"pF",1e-12},   {"F",0} };
+static convert_t hz_tbl[]     = { {"MHz",1e6}, {"kHz",1e3}, {"Hz",1},                             {"Hz",0} };
+
+// returns -1 on error, otherwise the number of chars from s that were processed;
+//
+// if no units_str is supplied then the value is returned;
+// otherwise, this routine requires a match of the units_str with tbl units prior to 
+// reaching the table terminator
+int32_t str_to_val(char * s, int32_t units, double * val_result)
+{
+    convert_t *tbl, *t;
+    int32_t cnt, n;
+    char units_str[100];
+    double v;
+
+    // verify string is supplied
+    if (s == NULL) {
+        return -1;
+    }
+
+    // pick the conversion table
+    tbl = (units == UNITS_VOLTS  ? volts_tbl  :
+           units == UNITS_AMPS   ? amps_tbl   :
+           units == UNITS_OHMS   ? ohms_tbl   :
+           units == UNITS_FARADS ? farads_tbl :
+           units == UNITS_HZ     ? hz_tbl     :
+                                   NULL);
+    assert(tbl);
+
+    // scanf the string, return error if failed
+    units_str[0] = '\0';
+    cnt = sscanf(s, "%lf%n%s%n", &v, &n, units_str, &n);
+printf("xxx cnt %d  units_str '%s'  n %d  val %lf\n", cnt, units_str, n, v);
+    if (cnt != 1 && cnt != 2) {
+        return -1;
+    }
+
+    // search tbl for matching units, and
+    // return value scaled by the units factor
+    // xxx comment
+    if (units_str[0] == '\0') {
+        *val_result = v;
+        return 0;        
+    } else {
+        t = tbl;
+        while (true) {
+            if (t->factor == 0) {
+printf("xxx factor 0\n");
+                return -1;
+            }
+            if (strcmp(units_str, t->units) == 0) {
+                *val_result = v * t->factor;
+                return n;
+            }
+printf("xxx units_str is not '%s'\n", t->units);
+            t++;
+        }
+    }
+}
+
+// if the tbl terminator is reached (because the value is too small) then 
+// the value is printed using "%.2g" format, followed by the tbl terminator units
+char * val_to_str(double val, int32_t units, char *s)
+{
+    char *fmt;
+    convert_t *tbl, *t;
+
+    // pick the conversion table
+    tbl = (units == UNITS_VOLTS  ? volts_tbl  :
+           units == UNITS_AMPS   ? amps_tbl   :
+           units == UNITS_OHMS   ? ohms_tbl   :
+           units == UNITS_FARADS ? farads_tbl :
+           units == UNITS_HZ     ? hz_tbl     :
+                                   NULL);
+    assert(tbl);
+    
+    // scan the conversion table for the appropriate units string to use, 
+    // and sprint the value and units
+    t = tbl;
+    while (true) {
+        if (fabs(val) >= (t->factor * 0.999) || t->factor == 0) { 
+            if (t->factor == 0) {
+                sprintf(s, "%.2g%s", val, t->units);
+            } else {
+                val /= t->factor;
+                fmt = (val >= -9.99 && val <= 9.99) ? "%.1f%s" : "%.0f%s";
+                sprintf(s, fmt, val, t->units);
+            }
+            break;
+        }
+        t++;
+    }
+
+    // return the static string
+    return s;
+}
+
+// -----------------  PRIVATE UTILS  ------------------------------------------------------------
 
 static void identify_grid_ground(gridloc_t *gl)
 {
@@ -856,13 +1003,16 @@ static void identify_grid_ground(gridloc_t *gl)
 static void init_grid()
 {
     int32_t glx, gly;
+    char s[100];
 
+    // clear the grid
     memset(&grid, 0, sizeof(grid));
 
+    // reset the grid's gridloc strings
     for (glx = 0; glx < MAX_GRID_X; glx++) {
         for (gly = 0; gly < MAX_GRID_Y; gly++) {
             gridloc_t gl = {glx, gly};
-            strcpy(grid[glx][gly].glstr, make_gridloc_str(&gl));
+            strcpy(grid[glx][gly].glstr, gridloc_to_str(&gl,s));
         }
     }
 }
