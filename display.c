@@ -559,7 +559,7 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
         sdl_render_printf(pane, 0, ROW2Y(0,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
                           "%s", MODEL_STATE_STR(model_state));
         sdl_render_printf(pane, 0, ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
-                          "%0.6f SECS", model_time);
+                          "%0.6f SECS", model_time_s);
 
         // params
         for (i = 0; params_tbl[i].name; i++) {

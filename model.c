@@ -1,3 +1,4 @@
+// -O0
 #if 0
 XXX TESTS
 - series/parallel resistors
@@ -83,6 +84,8 @@ int32_t model_cmd(char *cmd)
     return rc;
 }
 
+// XXX run and cont cmd should give a duration
+
 // -----------------  MODEL SUPPORT  -------------------------------------------------
 
 static int32_t model_reset(void)
@@ -111,7 +114,7 @@ static int32_t model_reset(void)
                sizeof(component_t) - offsetof(component_t,zero_init_component_state));
     }
 
-    model_time = 0;
+    model_time_s = 0;
     max_node = 0;
 
     INFO("success\n");
@@ -263,19 +266,6 @@ static node_t * allocate_node(void)
     assert(max_node < MAX_NODE);
     n = &node[max_node++];
 
-#if 0
-    // xxx reallocate if not big enough
-    //     this will be done in other routines
-    if (n->max_alloced_term == 0) {
-        n->term = malloc(100*sizeof(terminal_t));
-        n->max_alloced_term = 100;
-    }
-    if (n->max_alloced_gridloc == 0) {
-        n->gridloc = malloc(100*sizeof(gridloc_t));
-        n->max_alloced_gridloc = 100;
-    }
-#endif
-
     memset(&n->zero_init_node_state, 
            0,
            sizeof(node_t) - offsetof(node_t,zero_init_node_state));
@@ -397,6 +387,7 @@ static void debug_print_nodes(void)
 static void * model_thread(void * cx) 
 {
     int32_t i,j;
+    double delta_t_us, delta_t_s;  // XXX how to validity check
 
     while (true) {
         // wait here until requested to run the model
@@ -406,6 +397,11 @@ static void * model_thread(void * cx)
         }
         model_state = MODEL_STATE_RUNNING;
         __sync_synchronize();
+
+        // get delta time (secs) from param
+        sscanf(PARAM_DELTA_T_US, "%lf", &delta_t_us);
+        delta_t_s = delta_t_us * 1e-6;
+        //INFO("XXX delta_t_us %lf delta_t_s %lf\n", delta_t_us, delta_t_s);
 
         // xxx comment
         for (i = 0; i < max_node; i++) {
@@ -420,21 +416,42 @@ static void * model_thread(void * cx)
                 //       SUM (Vn/Rn)
                 //   V = -----------
                 //       SUM (1/Rn)
-                double sum1=0, sum2=0;
+                double r_sum_num=0, r_sum_denom=0;
+                double c_sum_num=0, c_sum_denom=0;
                 int32_t j;
                 for (j = 0; j < n->max_term; j++) {
                     component_t *c = n->term[j]->component;
                     int32_t other_termid = (n->term[j]->termid ^ 1);
                     node_t *other_n = c->term[other_termid].node;
 
-                    assert(c->type == COMP_RESISTOR);
-                    sum1 += (NODE_V_CURR(other_n) / c->resistor.ohms);
-                    sum2 += (1 / c->resistor.ohms);
+                    switch (c->type) {
+                    case COMP_RESISTOR:
+                        r_sum_num += (NODE_V_CURR(other_n) / c->resistor.ohms);
+                        r_sum_denom += (1 / c->resistor.ohms);
+                        break;
+                    case COMP_CAPACITOR:
+                        c_sum_num += (NODE_V_CURR(n) + NODE_V_CURR(other_n) - NODE_V_PRIOR(other_n)) *
+                                     (c->capacitor.farads / delta_t_s);
+                        //c_sum_num += (NODE_V_CURR(other_n) + NODE_V_CURR(n) - NODE_V_PRIOR(other_n)) *
+                                     //(c->capacitor.farads / delta_t_s);
+                        c_sum_denom += c->capacitor.farads / delta_t_s;
+                        //c_sum += c->capacitor.farads;
+                        break;
+                    default:
+                        FATAL("comp type %s not supported\n", c->type_str);
+                    }
                 }
-                NODE_V_NEXT(n) = sum1 / sum2;
+                //c_sum_num = NODE_V_CURR(n) / delta_t_s * c_sum;
+                //c_sum_denom = c_sum / delta_t_s;  // xxx optimize
+                NODE_V_NEXT(n) = (r_sum_num + c_sum_num) / 
+                                 (r_sum_denom + c_sum_denom);
             }
+        }
 
-            // compute the current from each node terminal, using the voltage just calculated
+#if 1
+        // compute the current from each node terminal, using the voltage just calculated   xxx
+        for (i = 0; i < max_node; i++) {
+            node_t * n = & node[i];
             for (j = 0; j < n->max_term; j++) {
                 terminal_t *term = n->term[j];
                 component_t *c = term->component;
@@ -443,12 +460,16 @@ static void * model_thread(void * cx)
 
                 switch (c->type) {
                 case COMP_RESISTOR:
-                    term->current = (NODE_V_CURR(n) - NODE_V_CURR(other_n)) / c->resistor.ohms;
+                    term->current = (NODE_V_NEXT(n) - NODE_V_NEXT(other_n)) / c->resistor.ohms;
+                    break;
+                case COMP_CAPACITOR:
+                    term->current = ((NODE_V_NEXT(n) - NODE_V_CURR(n)) - (NODE_V_NEXT(other_n) - NODE_V_CURR(other_n)))
+                                     * c->capacitor.farads / delta_t_s;
                     break;
                 }
             }
         }
-
+#endif
 
         // postprocessing:
         // - update the current and prior node voltage
@@ -465,12 +486,12 @@ static void * model_thread(void * cx)
 #endif
 
         // increment time
-        double delta_t_us;  // XXX how to validity check
-        sscanf(PARAM_DELTA_T_US, "%lf", &delta_t_us);
-        model_time += (delta_t_us / 1000000.);
-        // xxx INFO("TIME %f\n", model_time);
+        model_time_s += delta_t_s;
 
         //usleep(100000);  // xxx temp
+        if (model_time_s > 1) {  // xxx make this an option
+            model_state_req = MODEL_STATE_PAUSED;
+        }
     }
     return NULL;
 }
@@ -479,15 +500,20 @@ static double get_comp_power_voltage(component_t * c)
 {
     double v;
 
+    // xxx 
+    //return c->power.volts;
+
+// XXX try without this
+
     if (c->power.hz != 0) {
         // XXX FATAL("AC not supported yet\n");
     }
 
     // ramp up to dc voltage in 100 ms
-    if (model_time > .1) {
+    if (model_time_s > .1) {
         v = c->power.volts;
     } else {
-        v = model_time / .1 * c->power.volts;
+        v = model_time_s / .1 * c->power.volts;
     }
     // xxx INFO("volts %f\n", v);
 

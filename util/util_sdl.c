@@ -1571,6 +1571,7 @@ texture_t sdl_create_text_texture(int32_t fg_color, int32_t bg_color, int32_t fo
     bg_sdl_color.a = (bg_rgba >>  0) & 0xff;
 
     // if the font has not been initialized then do so
+// XXX we can't get a font size until actually used, fix this
     if (sdl_font[font_ptsize].font == NULL) {
         assert(sdl_font_path);
         sdl_font[font_ptsize].font = TTF_OpenFont(sdl_font_path, font_ptsize);

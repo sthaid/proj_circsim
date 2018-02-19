@@ -618,7 +618,6 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
             return -1;
         }
         value_str = strtok(NULL, "");
-printf("second value_str '%s'\n", value_str);
         if (value_str != NULL) {
             rc = str_to_val(value_str, UNITS_HZ, &new_comp.power.hz);
             if (rc == -1) {
@@ -635,10 +634,18 @@ printf("second value_str '%s'\n", value_str);
         }
         break;
     case COMP_CAPACITOR:
-        // xxx tbd later
+        rc = str_to_val(value_str, UNITS_FARADS, &new_comp.capacitor.farads);
+        if (rc == -1) {
+            ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
+            return -1;
+        }
         break;
     case COMP_INDUCTOR:
-        // xxx tbd later
+        rc = str_to_val(value_str, UNITS_HENRYS, &new_comp.inductor.henrys); 
+        if (rc == -1) {
+            ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
+            return -1;
+        }
         break;
     }
 
@@ -809,9 +816,11 @@ char * component_to_value_str(component_t * c, char *s)
     case COMP_RESISTOR:
         val_to_str(c->resistor.ohms, UNITS_OHMS, s);
         break;
-    case COMP_CAPACITOR:  // xxx tbd
+    case COMP_CAPACITOR:
+        val_to_str(c->capacitor.farads, UNITS_FARADS, s);
         break;
-    case COMP_INDUCTOR:   // xxx tbd
+    case COMP_INDUCTOR:
+        val_to_str(c->inductor.henrys, UNITS_HENRYS, s);
         break;
     case COMP_CONNECTION:
     case COMP_DIODE:
@@ -837,6 +846,7 @@ char * component_to_full_str(component_t * c, char * s)
     return s;
 }
 
+// xxx check henrys
 typedef struct {
     char * units;
     double factor;  // 0 is table terminator
@@ -845,6 +855,7 @@ static convert_t volts_tbl[]  = { {"kV",1e3}, {"V",1}, {"mV",1e-3}, {"uV",1e-6},
 static convert_t amps_tbl[]   = { {"A",1}, {"mA",1e-3}, {"uA",1e-6},                              {"A",0} };
 static convert_t ohms_tbl[]   = { {"M",1e6}, {"K",1e3}, {"",1},                                   {"OHMS",0} };
 static convert_t farads_tbl[] = { {"F",1}, {"mF",1e-3}, {"uF",1e-6}, {"nF",1e-9}, {"pF",1e-12},   {"F",0} };
+static convert_t henrys_tbl[] = { {"H", 1}, {"mH",1e-3}, {"uH",1e-6},                              {"H",0} };
 static convert_t hz_tbl[]     = { {"MHz",1e6}, {"kHz",1e3}, {"Hz",1},                             {"Hz",0} };
 
 // returns -1 on error, otherwise the number of chars from s that were processed;
@@ -869,6 +880,7 @@ int32_t str_to_val(char * s, int32_t units, double * val_result)
            units == UNITS_AMPS   ? amps_tbl   :
            units == UNITS_OHMS   ? ohms_tbl   :
            units == UNITS_FARADS ? farads_tbl :
+           units == UNITS_HENRYS ? henrys_tbl :
            units == UNITS_HZ     ? hz_tbl     :
                                    NULL);
     assert(tbl);
@@ -913,12 +925,14 @@ char * val_to_str(double val, int32_t units, char *s)
 {
     char *fmt;
     convert_t *tbl, *t;
+    double absval = fabs(val);
 
     // pick the conversion table
     tbl = (units == UNITS_VOLTS  ? volts_tbl  :
            units == UNITS_AMPS   ? amps_tbl   :
            units == UNITS_OHMS   ? ohms_tbl   :
            units == UNITS_FARADS ? farads_tbl :
+           units == UNITS_HENRYS ? henrys_tbl :
            units == UNITS_HZ     ? hz_tbl     :
                                    NULL);
     assert(tbl);
@@ -927,12 +941,15 @@ char * val_to_str(double val, int32_t units, char *s)
     // and sprint the value and units
     t = tbl;
     while (true) {
-        if (fabs(val) >= (t->factor * 0.999) || t->factor == 0) { 
+        if (absval >= (t->factor * 0.999) || t->factor == 0) { 
             if (t->factor == 0) {
                 sprintf(s, "%.2g%s", val, t->units);
             } else {
                 val /= t->factor;
-                fmt = (val >= -9.99 && val <= 9.99) ? "%.1f%s" : "%.0f%s";
+                absval = fabs(val);
+                fmt = (absval > 99.99 ? "%.0f%s" :
+                       absval > 9.999 ? "%.1f%s" :
+                                        "%.2f%s");
                 sprintf(s, fmt, val, t->units);
             }
             break;

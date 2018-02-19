@@ -64,7 +64,8 @@
 #define UNITS_AMPS   2
 #define UNITS_OHMS   3
 #define UNITS_FARADS 4
-#define UNITS_HZ     5
+#define UNITS_HENRYS 5
+#define UNITS_HZ     6
 
 #define strcmp strcasecmp
 
@@ -85,7 +86,7 @@ typedef struct terminal_s {
     int32_t termid;
     gridloc_t gridloc;
     struct node_s * node;
-    double current;
+    double current;  // xxx prior ?
 } terminal_t;
 
 typedef struct component_s {
@@ -154,7 +155,7 @@ int32_t     node_v_prior_idx; //xxx should these be here?
 int32_t     node_v_curr_idx;
 int32_t     node_v_next_idx;
 
-double      model_time;
+double      model_time_s;
 int32_t     model_state;
 
 //
