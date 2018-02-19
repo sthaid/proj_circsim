@@ -48,8 +48,8 @@ SOFTWARE.
 #define BYTES_PER_PIXEL   4
 
 // xxx
-#define COL2X(c,fid)   ((c) * sdl_font_char_width(fid))
-#define ROW2Y(r,fid)   ((r) * sdl_font_char_height(fid))
+#define COL2X(c,font_ptsize)   ((c) * sdl_font_char_width(font_ptsize))
+#define ROW2Y(r,font_ptsize)   ((r) * sdl_font_char_height(font_ptsize))
 
 // rectangle
 typedef struct {
@@ -166,7 +166,7 @@ typedef struct pane_cx_s {
 //
 
 // sdl initialize
-int32_t sdl_init(int32_t * w, int32_t * h, bool resizeable, bool scale_fonts_when_window_resized);
+int32_t sdl_init(int32_t * w, int32_t * h, bool resizeable);
 void sdl_get_max_texture_dim(int32_t * max_texture_dim);
 
 // pane support
@@ -189,14 +189,14 @@ void sdl_display_init(int32_t * win_width, int32_t * win_height, bool * win_mini
 void sdl_display_present(void);
 
 // font support
-int32_t sdl_pane_cols(rect_t * pane, int32_t fid);
-int32_t sdl_pane_rows(rect_t * pane, int32_t fid);
-int32_t sdl_font_char_width(int32_t fid);
-int32_t sdl_font_char_height(int32_t fid);
+int32_t sdl_pane_cols(rect_t * pane, int32_t font_ptsize);
+int32_t sdl_pane_rows(rect_t * pane, int32_t font_ptsize);
+int32_t sdl_font_char_width(int32_t font_ptsize);
+int32_t sdl_font_char_height(int32_t font_ptsize);
 
 // event support
 void sdl_register_event(rect_t * pane, rect_t * loc, int32_t event_id, int32_t event_type, void * event_cx);
-void sdl_render_text_and_register_event(rect_t * pane, int32_t x, int32_t y, int32_t font_id, char * str, 
+void sdl_render_text_and_register_event(rect_t * pane, int32_t x, int32_t y, int32_t font_ptsize, char * str, 
         int32_t fg_color, int32_t bg_color, int32_t event_id, int32_t event_type, void * event_cx);
 void sdl_render_texture_and_register_event(rect_t * pane, int32_t x, int32_t y,
         texture_t texture, int32_t event_id, int32_t event_type, void * event_cx);
@@ -205,9 +205,9 @@ void sdl_push_event(sdl_event_t *ev);
 void sdl_play_event_sound(void);
 
 // render text
-rect_t sdl_render_text(rect_t * pane, int32_t x, int32_t y, int32_t font_id, char * str, 
+rect_t sdl_render_text(rect_t * pane, int32_t x, int32_t y, int32_t font_ptsize, char * str, 
             int32_t fg_color, int32_t bg_color);
-void sdl_render_printf(rect_t * pane, int32_t x, int32_t y, int32_t font_id, 
+void sdl_render_printf(rect_t * pane, int32_t x, int32_t y, int32_t font_ptsize, 
             int32_t fg_color, int32_t bg_color, char * fmt, ...) __attribute__ ((format (printf, 7, 8)));
 
 // render rectangle, lines, circles, points
@@ -224,7 +224,7 @@ void sdl_render_points(rect_t * pane, point_t * points, int32_t count, int32_t c
 texture_t sdl_create_texture(int32_t w, int32_t h);
 texture_t sdl_create_texture_from_pane_pixels(rect_t * pane);
 texture_t sdl_create_filled_circle_texture(int32_t radius, int32_t color);
-texture_t sdl_create_text_texture(int32_t fg_color, int32_t bg_color, int32_t font_id, char * str);
+texture_t sdl_create_text_texture(int32_t fg_color, int32_t bg_color, int32_t font_ptsize, char * str);
 void sdl_update_texture(texture_t texture, uint8_t * pixels, int32_t pitch);
 void sdl_query_texture(texture_t texture, int32_t * width, int32_t * height);
 rect_t sdl_render_texture(rect_t * pane, int32_t x, int32_t y, texture_t texture);

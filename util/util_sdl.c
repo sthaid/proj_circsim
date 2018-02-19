@@ -55,7 +55,7 @@ SOFTWARE.
 // defines
 //
 
-#define MAX_FONT 3
+#define MAX_FONT_PTSIZE   200
 #define MAX_EVENT_REG_TBL 1000
 
 #define min(a,b) \
@@ -94,8 +94,7 @@ static bool             sdl_program_quit;
 
 static Mix_Chunk      * sdl_button_sound;
 
-static sdl_font_t       sdl_font[MAX_FONT];
-static bool             sdl_scale_fonts_when_window_resized;
+static sdl_font_t       sdl_font[MAX_FONT_PTSIZE];
 static char           * sdl_font_path;
 
 static sdl_event_reg_t  sdl_event_reg_tbl[MAX_EVENT_REG_TBL];
@@ -121,7 +120,6 @@ static uint32_t         sdl_color_to_rgba[] = {
 // prototypes
 //
 
-static int32_t sdl_init_fonts(void);
 static void sdl_exit_handler(void);
 static void sdl_set_color(int32_t color); 
 static void sdl_pane_terminate(struct pane_list_head_s * pane_list_head, pane_cx_t * pane_cx);
@@ -143,17 +141,14 @@ static inline uint32_t _bswap32(uint32_t a)
 
 // -----------------  SDL INIT & MISC ROUTINES  ------------------------- 
 
-int32_t sdl_init(int32_t *w, int32_t *h, bool resizeable, bool scale_fonts_when_window_resized)
+int32_t sdl_init(int32_t *w, int32_t *h, bool resizeable)
 {
     #define SDL_FLAGS (resizeable ? SDL_WINDOW_RESIZABLE : 0)
     #define MAX_FONT_SEARCH_PATH 3
 
-    char font_search_path[MAX_FONT_SEARCH_PATH][PATH_MAX];
+    static char font_search_path[MAX_FONT_SEARCH_PATH][PATH_MAX];
 
     static const char * font_filename = "FreeMonoBold.ttf";
-
-    // save configuration params
-    sdl_scale_fonts_when_window_resized = scale_fonts_when_window_resized;
 
     // display available and current video drivers
     int num, i;
@@ -223,12 +218,6 @@ int32_t sdl_init(int32_t *w, int32_t *h, bool resizeable, bool scale_fonts_when_
     }
     INFO("using font %s\n", sdl_font_path);
 
-    // call sdl_init_fonts, this initializes the font sizes based on sdl_win_height
-    if (sdl_init_fonts() != 0) {
-        ERROR("sdl_init_fonts failed\n");
-        return -1;
-    }
-
     // currently the SDL Text Input feature is not being used here
     SDL_StopTextInput();
 
@@ -237,61 +226,6 @@ int32_t sdl_init(int32_t *w, int32_t *h, bool resizeable, bool scale_fonts_when_
 
     // return success
     INFO("success\n");
-    return 0;
-}
-
-static int32_t sdl_init_fonts(void)
-{
-    int32_t i;
-    int32_t font0_ptsize, font1_ptsize, font2_ptsize;
-
-    // if sdl_font_path has not been set then return error
-    if (sdl_font_path == NULL) {
-        return -1;
-    }
-
-    // close fonts if they have been previously opened
-    for (i = 0; i < MAX_FONT; i++) {
-        if (sdl_font[i].font) {
-            TTF_CloseFont(sdl_font[i].font);
-            sdl_font[i].font = NULL;
-        }
-    }
-
-    // initialize font0, the small font
-    font0_ptsize = sdl_win_height / 48 - 1;
-    sdl_font[0].font = TTF_OpenFont(sdl_font_path, font0_ptsize);
-    if (sdl_font[0].font == NULL) {
-        ERROR("failed TTF_OpenFont %s\n", sdl_font_path);
-        return -1;
-    }
-    TTF_SizeText(sdl_font[0].font, "X", &sdl_font[0].char_width, &sdl_font[0].char_height);
-    INFO("font0 psize=%d width=%d height=%d\n", 
-         font0_ptsize, sdl_font[0].char_width, sdl_font[0].char_height);
-
-    // initialize font1, the medium font
-    font1_ptsize = sdl_win_height / 32 - 1;
-    sdl_font[1].font = TTF_OpenFont(sdl_font_path, font1_ptsize);
-    if (sdl_font[1].font == NULL) {
-        ERROR("failed TTF_OpenFont %s\n", sdl_font_path);
-        return -1;
-    }
-    TTF_SizeText(sdl_font[1].font, "X", &sdl_font[1].char_width, &sdl_font[1].char_height);
-    INFO("font1 psize=%d width=%d height=%d\n", 
-         font1_ptsize, sdl_font[1].char_width, sdl_font[1].char_height);
-
-    // initialize font2, the large font
-    font2_ptsize = sdl_win_height / 16 - 1;
-    sdl_font[2].font = TTF_OpenFont(sdl_font_path, font2_ptsize);
-    if (sdl_font[2].font == NULL) {
-        ERROR("failed TTF_OpenFont %s\n", sdl_font_path);
-        return -1;
-    }
-    TTF_SizeText(sdl_font[2].font, "X", &sdl_font[2].char_width, &sdl_font[2].char_height);
-    INFO("font2 psize=%d width=%d height=%d\n", 
-         font2_ptsize, sdl_font[2].char_width, sdl_font[2].char_height);
-
-    // return success
     return 0;
 }
 
@@ -304,8 +238,10 @@ static void sdl_exit_handler(void)
         Mix_CloseAudio();
     }
 
-    for (i = 0; i < MAX_FONT; i++) {
-        TTF_CloseFont(sdl_font[i].font);
+    for (i = 0; i < MAX_FONT_PTSIZE; i++) {
+        if (sdl_font[i].font != NULL) {
+            TTF_CloseFont(sdl_font[i].font);
+        }
     }
     TTF_Quit();
 
@@ -716,24 +652,24 @@ void sdl_display_present(void)
 
 // -----------------  FONT SUPPORT ROUTINES  ---------------------------- 
 
-int32_t sdl_pane_cols(rect_t * pane, int32_t fid)
+int32_t sdl_pane_cols(rect_t * pane, int32_t font_ptsize)
 {
-    return pane->w / sdl_font[fid].char_width;
+    return pane->w / sdl_font[font_ptsize].char_width;
 }
 
-int32_t sdl_pane_rows(rect_t * pane, int32_t fid)
+int32_t sdl_pane_rows(rect_t * pane, int32_t font_ptsize)
 {
-    return pane->h / sdl_font[fid].char_height;
+    return pane->h / sdl_font[font_ptsize].char_height;
 }
 
-int32_t sdl_font_char_width(int32_t fid)
+int32_t sdl_font_char_width(int32_t font_ptsize)
 {
-    return sdl_font[fid].char_width;
+    return sdl_font[font_ptsize].char_width;
 }
 
-int32_t sdl_font_char_height(int32_t fid)
+int32_t sdl_font_char_height(int32_t font_ptsize)
 {
-    return sdl_font[fid].char_height;
+    return sdl_font[font_ptsize].char_height;
 }
 
 // -----------------  EVENT HANDLING  ----------------------------------- 
@@ -763,11 +699,11 @@ void sdl_register_event(rect_t * pane, rect_t * loc, int32_t event_id, int32_t e
 }
 
 void sdl_render_text_and_register_event(rect_t * pane, int32_t x, int32_t y,
-        int32_t font_id, char * str, int32_t fg_color, int32_t bg_color, 
+        int32_t font_ptsize, char * str, int32_t fg_color, int32_t bg_color, 
         int32_t event_id, int32_t event_type, void * event_cx)
 {
     rect_t loc_clipped;
-    loc_clipped = sdl_render_text(pane, x, y, font_id, str, fg_color, bg_color);
+    loc_clipped = sdl_render_text(pane, x, y, font_ptsize, str, fg_color, bg_color);
     sdl_register_event(pane, &loc_clipped, event_id, event_type, event_cx);
 }
 
@@ -1078,9 +1014,6 @@ sdl_event_t * sdl_poll_event(void)
                 sdl_win_width = ev.window.data1;
                 sdl_win_height = ev.window.data2;
                 event.event_id = SDL_EVENT_WIN_SIZE_CHANGE;
-                if (sdl_scale_fonts_when_window_resized) {
-                    sdl_init_fonts(); 
-                }
                 break;
             case SDL_WINDOWEVENT_MINIMIZED:
                 sdl_win_minimized = true;
@@ -1131,7 +1064,7 @@ void sdl_play_event_sound(void)
 
 // -----------------  RENDER TEXT  -------------------------------------- 
 
-rect_t sdl_render_text(rect_t * pane, int32_t x, int32_t y, int32_t font_id, char * str, 
+rect_t sdl_render_text(rect_t * pane, int32_t x, int32_t y, int32_t font_ptsize, char * str, 
                        int32_t fg_color, int32_t bg_color)
 {
     texture_t texture;
@@ -1139,7 +1072,7 @@ rect_t sdl_render_text(rect_t * pane, int32_t x, int32_t y, int32_t font_id, cha
     rect_t    loc, loc_clipped = {0,0,0,0};
     
     // create the text texture
-    texture =  sdl_create_text_texture(fg_color, bg_color, font_id, str);
+    texture =  sdl_create_text_texture(fg_color, bg_color, font_ptsize, str);
     if (texture == NULL) {
         ERROR("sdl_create_text_texture failed\n");
         return loc_clipped;
@@ -1172,19 +1105,17 @@ rect_t sdl_render_text(rect_t * pane, int32_t x, int32_t y, int32_t font_id, cha
     return loc_clipped;
 }
 
-void sdl_render_printf(rect_t * pane, int32_t x, int32_t y, int32_t font_id,
+void sdl_render_printf(rect_t * pane, int32_t x, int32_t y, int32_t font_ptsize,
                        int32_t fg_color, int32_t bg_color, char * fmt, ...) 
 {
     char str[1000];
     va_list ap;
 
-// XXX check first if text is to be printed
-
     va_start(ap, fmt);
     vsnprintf(str, sizeof(str), fmt, ap);
     va_end(ap);
     
-    sdl_render_text(pane, x, y, font_id, str, fg_color, bg_color);
+    sdl_render_text(pane, x, y, font_ptsize, str, fg_color, bg_color);
 }
 
 // -----------------  RENDER RECTANGLES & LINES  ------------------------ 
@@ -1614,7 +1545,7 @@ texture_t sdl_create_filled_circle_texture(int32_t radius, int32_t color)
     return (texture_t)texture;
 }
 
-texture_t sdl_create_text_texture(int32_t fg_color, int32_t bg_color, int32_t font_id, char * str)
+texture_t sdl_create_text_texture(int32_t fg_color, int32_t bg_color, int32_t font_ptsize, char * str)
 {
     SDL_Surface * surface;
     SDL_Texture * texture;
@@ -1639,7 +1570,21 @@ texture_t sdl_create_text_texture(int32_t fg_color, int32_t bg_color, int32_t fo
     bg_sdl_color.b = (bg_rgba >>  8) & 0xff;
     bg_sdl_color.a = (bg_rgba >>  0) & 0xff;
 
-    surface = TTF_RenderText_Shaded(sdl_font[font_id].font, str, fg_sdl_color, bg_sdl_color);
+    // if the font has not been initialized then do so
+    if (sdl_font[font_ptsize].font == NULL) {
+        assert(sdl_font_path);
+        sdl_font[font_ptsize].font = TTF_OpenFont(sdl_font_path, font_ptsize);
+        if (sdl_font[font_ptsize].font == NULL) {
+            FATAL("failed TTF_OpenFont(%s,%d)\n", sdl_font_path, font_ptsize);
+            return NULL;
+        }
+        TTF_SizeText(sdl_font[font_ptsize].font, "X", &sdl_font[font_ptsize].char_width, &sdl_font[font_ptsize].char_height);
+        INFO("font_ptsize=%d width=%d height=%d\n",
+             font_ptsize, sdl_font[font_ptsize].char_width, sdl_font[font_ptsize].char_height);
+    }
+
+    // xxx comments
+    surface = TTF_RenderText_Shaded(sdl_font[font_ptsize].font, str, fg_sdl_color, bg_sdl_color);
     if (surface == NULL) {
         ERROR("failed to allocate surface\n");
         return NULL;
@@ -1683,7 +1628,6 @@ rect_t sdl_render_texture(rect_t * pane, int32_t x, int32_t y, texture_t texture
     int32_t width, height;
     rect_t loc, loc_clipped = {0,0,0,0};
 
-// XXX also check first
     // verify texture arg
     if (texture == NULL) {
         return loc_clipped;

@@ -10,10 +10,6 @@
 #define PH_SCHEMATIC_W 1500
 #define PH_SCHEMATIC_H 1000
 
-#define FONT_SMALL  0  // xxx more fonts, and move these defines
-#define FONT_MEDIUM 1 
-#define FONT_LARGE  2
-
 #define MIN_GRID_SCALE     100
 #define MAX_GRID_SCALE     400
 
@@ -98,7 +94,7 @@ void display_handler(void)
     // use sdl to display the schematic
     win_width  = DEFAULT_WIN_WIDTH;
     win_height = DEFAULT_WIN_HEIGHT;
-    if (sdl_init(&win_width, &win_height, true, false) < 0) {
+    if (sdl_init(&win_width, &win_height, true) < 0) {
         FATAL("sdl_init %dx%d failed\n", win_width, win_height);
     }
     sdl_pane_manager(
@@ -189,11 +185,14 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
     if (request == PANE_HANDLER_REQ_RENDER) {
         // xxx try to adjust font size when zoomed
-        int32_t fid   = FONT_SMALL;
         int32_t x_min = -grid_scale;
         int32_t x_max = PH_SCHEMATIC_W + grid_scale;
         int32_t y_min = -grid_scale;
         int32_t y_max = PH_SCHEMATIC_H + grid_scale;
+        int32_t fpsz;
+
+        // select font point size based on grid_scale
+        fpsz = grid_scale * 40 / MAX_GRID_SCALE;
 
         // draw grid, if enabled
         if (strcmp(PARAM_GRID, "on") == 0) {
@@ -219,11 +218,11 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             for (glx = 0; glx < MAX_GRID_X; glx++) {
                 for (gly = 0; gly < MAX_GRID_Y; gly++) {
                     x = glx * grid_scale + grid_xoff + 2;
-                    y = gly * grid_scale + grid_yoff - 2 - sdl_font_char_height(fid);
+                    y = gly * grid_scale + grid_yoff - 2 - sdl_font_char_height(fpsz);
                     if (OUT_OF_PANE(x,y)) {
                         continue;
                     }
-                    sdl_render_printf(pane, x, y, fid, BLUE, BLACK, "%s", grid[glx][gly].glstr);
+                    sdl_render_printf(pane, x, y, fpsz, BLUE, BLACK, "%s", grid[glx][gly].glstr);
                 }
             }
         }
@@ -357,22 +356,22 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 }
 
                 if (c->term[1].gridloc.x == c->term[0].gridloc.x + 1) {         // right
-                    x += grid_scale / 2 - strlen(s) * sdl_font_char_width(fid) / 2;
-                    y -= 2 * sdl_font_char_height(fid);
+                    x += grid_scale / 2 - strlen(s) * sdl_font_char_width(fpsz) / 2;
+                    y -= 2 * sdl_font_char_height(fpsz);
                 } else if (c->term[1].gridloc.x == c->term[0].gridloc.x - 1) {  // left
-                    x -= grid_scale / 2 + strlen(s) * sdl_font_char_width(fid) / 2;
-                    y -= 2 * sdl_font_char_height(fid);
+                    x -= grid_scale / 2 + strlen(s) * sdl_font_char_width(fpsz) / 2;
+                    y -= 2 * sdl_font_char_height(fpsz);
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y + 1) {  // down 
-                    x += 2 * sdl_font_char_width(fid);
-                    y += grid_scale / 2 - sdl_font_char_height(fid) / 2;
+                    x += 2 * sdl_font_char_width(fpsz);
+                    y += grid_scale / 2 - sdl_font_char_height(fpsz) / 2;
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y - 1) {  // up
-                    x += 2 * sdl_font_char_width(fid);
-                    y -= grid_scale / 2 + sdl_font_char_height(fid) / 2;
+                    x += 2 * sdl_font_char_width(fpsz);
+                    y -= grid_scale / 2 + sdl_font_char_height(fpsz) / 2;
                 } else {
                     x += 2;
                     y += 2;
                 }
-                sdl_render_printf(pane, x, y, fid, WHITE, BLACK, "%s", s);
+                sdl_render_printf(pane, x, y, fpsz, WHITE, BLACK, "%s", s);
             }
         } 
 
@@ -397,12 +396,12 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                         continue;
                     }
                     x = term->gridloc.x * grid_scale + grid_xoff + 2;
-                    y = term->gridloc.y * grid_scale + grid_yoff - 2 - sdl_font_char_height(fid);
+                    y = term->gridloc.y * grid_scale + grid_yoff - 2 - sdl_font_char_height(fpsz);
                     if (OUT_OF_PANE(x,y)) {
                         continue;
                     }
                     val_to_str(NODE_V_CURR(n), UNITS_VOLTS, s);
-                    sdl_render_printf(pane, x, y, fid, WHITE, BLACK, "%s", s);
+                    sdl_render_printf(pane, x, y, fpsz, WHITE, BLACK, "%s", s);
                 }
             }
         }
@@ -439,29 +438,29 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 if (c->term[1].gridloc.x == c->term[0].gridloc.x + 1) {         // right
                     if (current > 0) post_str = " >";
                     else if (current < 0) pre_str = "< ";
-                    x += grid_scale / 2 - (strlen(current_str)+2) * sdl_font_char_width(fid) / 2;
-                    y += 1 * sdl_font_char_height(fid);
+                    x += grid_scale / 2 - (strlen(current_str)+2) * sdl_font_char_width(fpsz) / 2;
+                    y += 1 * sdl_font_char_height(fpsz);
                 } else if (c->term[1].gridloc.x == c->term[0].gridloc.x - 1) {  // left
                     if (current > 0) pre_str = "< ";
                     else if (current < 0) post_str = " >";
-                    x -= grid_scale / 2 + (strlen(current_str)+2) * sdl_font_char_width(fid) / 2;
-                    y += 1 * sdl_font_char_height(fid);
+                    x -= grid_scale / 2 + (strlen(current_str)+2) * sdl_font_char_width(fpsz) / 2;
+                    y += 1 * sdl_font_char_height(fpsz);
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y + 1) {  // down 
                     if (current > 0) pre_str = "v ";
                     else if (current < 0) pre_str = "^ ";
-                    x += 2 * sdl_font_char_width(fid);
-                    y += grid_scale / 2 - sdl_font_char_height(fid) / 2 - 2 * sdl_font_char_height(fid);
+                    x += 2 * sdl_font_char_width(fpsz);
+                    y += grid_scale / 2 - sdl_font_char_height(fpsz) / 2 - 2 * sdl_font_char_height(fpsz);
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y - 1) {  // up
                     if (current > 0) pre_str = "^ ";
                     else if (current < 0) pre_str = "v ";
-                    x += 2 * sdl_font_char_width(fid);
-                    y -= grid_scale / 2 + sdl_font_char_height(fid) / 2 + 2 * sdl_font_char_height(fid);
+                    x += 2 * sdl_font_char_width(fpsz);
+                    y -= grid_scale / 2 + sdl_font_char_height(fpsz) / 2 + 2 * sdl_font_char_height(fpsz);
                 } else {
                     // COMP_POWER may or may not be adjacent
                     continue;
                 }
 
-                sdl_render_printf(pane, x, y, fid, WHITE, BLACK, "%s%s%s", pre_str, current_str, post_str);
+                sdl_render_printf(pane, x, y, fpsz, WHITE, BLACK, "%s%s%s", pre_str, current_str, post_str);
             }
         }
 
@@ -532,6 +531,8 @@ static bool has_comp_power(grid_t * g)
 
 static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event) 
 {
+    #define FPSZ_MEDIUM 30
+
     struct {
         int32_t none;
     } * vars = pane_cx->vars;
@@ -554,14 +555,14 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
         int32_t i;
 
         // state
-        sdl_render_printf(pane, 0, ROW2Y(0,FONT_MEDIUM), FONT_MEDIUM, WHITE, BLACK, 
+        sdl_render_printf(pane, 0, ROW2Y(0,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
                           "%s", MODEL_STATE_STR(model_state));
-        sdl_render_printf(pane, 0, ROW2Y(1,FONT_MEDIUM), FONT_MEDIUM, WHITE, BLACK, 
+        sdl_render_printf(pane, 0, ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
                           "%0.6f SECS", model_time);
 
         // params
         for (i = 0; params_tbl[i].name; i++) {
-            sdl_render_printf(pane, 0, ROW2Y(3+i,FONT_MEDIUM), FONT_MEDIUM, WHITE, BLACK, 
+            sdl_render_printf(pane, 0, ROW2Y(3+i,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
                               "%-12s %s",
                               params_tbl[i].name,
                               params_tbl[i].value);
