@@ -360,8 +360,6 @@ static int32_t cmd_read(char *args)
         return -1;
     }
 
-    // XXX this causes multiple model reset calls
-
     // open the file for reading
     fp = fopen(filename, "r");
     if (fp == NULL) {
@@ -436,7 +434,6 @@ static int32_t cmd_write(char *args)
     }
     fprintf(fp, "\n");
 
-    // xxx can we say not-set or use default ground
     if (ground_is_set) {
         fprintf(fp, "ground %s\n", gridloc_to_str(&ground,s));
         fprintf(fp, "\n");
@@ -879,14 +876,19 @@ int32_t str_to_val(char * s, int32_t units, double * val_result)
     // scanf the string, return error if failed
     units_str[0] = '\0';
     cnt = sscanf(s, "%lf%n%s%n", &v, &n, units_str, &n);
-printf("xxx cnt %d  units_str '%s'  n %d  val %lf\n", cnt, units_str, n, v);
     if (cnt != 1 && cnt != 2) {
         return -1;
     }
-
-    // search tbl for matching units, and
-    // return value scaled by the units factor
-    // xxx comment
+    
+    // if the scanned units_str is empty then 
+    //   just return the scanned value
+    // else
+    //   search the units tbl for a conversion factor that 
+    //    matches the units_str;  if no match found then return 
+    //    error, otherwise return the value converted to the 
+    //    specified units;  for example if units_str is 'pF' then
+    //    return the value multiplied by 1e-12
+    // endif
     if (units_str[0] == '\0') {
         *val_result = v;
         return 0;        
@@ -894,14 +896,12 @@ printf("xxx cnt %d  units_str '%s'  n %d  val %lf\n", cnt, units_str, n, v);
         t = tbl;
         while (true) {
             if (t->factor == 0) {
-printf("xxx factor 0\n");
                 return -1;
             }
             if (strcmp(units_str, t->units) == 0) {
                 *val_result = v * t->factor;
                 return n;
             }
-printf("xxx units_str is not '%s'\n", t->units);
             t++;
         }
     }

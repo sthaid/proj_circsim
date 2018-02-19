@@ -7,8 +7,8 @@
 #define DEFAULT_WIN_WIDTH  1900
 #define DEFAULT_WIN_HEIGHT 1000
 
-#define PH_SCHEMATIC_W 1500
-#define PH_SCHEMATIC_H 1000
+#define PH_SCHEMATIC_W     1500
+#define PH_SCHEMATIC_H     1000
 
 #define MIN_GRID_SCALE     100
 #define MAX_GRID_SCALE     400
@@ -107,7 +107,7 @@ void display_handler(void)
         pane_hndlr_status,    NULL, PH_SCHEMATIC_W, 0,  400,            400,            PANE_BORDER_STYLE_MINIMAL);
 }
 
-// ------------------------------------------------------------------------
+// -----------------  xxxxxxxxxxxx  ---------------------------------------
 
 static void display_start(void * cx)
 {
@@ -184,11 +184,10 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
     // ------------------------
 
     if (request == PANE_HANDLER_REQ_RENDER) {
-        // xxx try to adjust font size when zoomed
-        int32_t x_min = -grid_scale;
-        int32_t x_max = PH_SCHEMATIC_W + grid_scale;
-        int32_t y_min = -grid_scale;
-        int32_t y_max = PH_SCHEMATIC_H + grid_scale;
+        int32_t x_min = -grid_scale;                  // used by OUT_OF_PANE
+        int32_t x_max = PH_SCHEMATIC_W + grid_scale;  //   '      '
+        int32_t y_min = -grid_scale;                  //   '      '
+        int32_t y_max = PH_SCHEMATIC_H + grid_scale;  //   '      '
         int32_t fpsz;
 
         // select font point size based on grid_scale
@@ -395,11 +394,13 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     if (n == NULL) {
                         continue;
                     }
+
                     x = term->gridloc.x * grid_scale + grid_xoff + 2;
                     y = term->gridloc.y * grid_scale + grid_yoff - 2 - sdl_font_char_height(fpsz);
                     if (OUT_OF_PANE(x,y)) {
                         continue;
                     }
+
                     val_to_str(NODE_V_CURR(n), UNITS_VOLTS, s);
                     sdl_render_printf(pane, x, y, fpsz, WHITE, BLACK, "%s", s);
                 }

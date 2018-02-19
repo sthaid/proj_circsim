@@ -89,6 +89,10 @@ static int32_t model_reset(void)
 {
     int32_t i;
 
+    if (model_state == MODEL_STATE_RESET) {
+        return 0;
+    }
+
     SET_MODEL_REQ(MODEL_STATE_RESET);
 
     for (i = 0; i < max_node; i++) {
