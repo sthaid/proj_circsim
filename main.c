@@ -34,7 +34,7 @@ static int32_t cmd_write(char *args);
 static int32_t cmd_add(char *args);
 static int32_t cmd_del(char *args);
 static int32_t cmd_ground(char *args);
-static int32_t cmd_sim(char *args);
+static int32_t cmd_model(char *args);
 
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
 static int32_t del_component(char * comp_str);
@@ -107,14 +107,15 @@ static void help(void)
 
 static void * cli_thread(void * cx)
 {
-    char *cmd_str = NULL;
+    char *cmd_str = NULL, prompt_str[100];
     sdl_event_t event;
 
     // use readline/add_history to read commands, and
     // call process_cmd to process them
     while (true) {
         free(cmd_str);
-        if ((cmd_str = readline("> ")) == NULL) {
+        sprintf(prompt_str, "%s> ", MODEL_STATE_STR(model_state));
+        if ((cmd_str = readline(prompt_str)) == NULL) {
             break;
         }
         if (cmd_str[0] != '\0') {
@@ -153,7 +154,7 @@ static struct {
     { "del",             cmd_del,             "<comp_str>"                       },
     { "ground",          cmd_ground,          "<gl>"                             },
 
-    { "sim",             cmd_sim,             "<reset|run|pause|cont>"           },
+    { "model",           cmd_model,           "<reset|run|pause|cont>"           },
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -197,9 +198,6 @@ static int32_t process_cmd(char * cmdline)
             break;
         }
     }
-printf("cmd '%s' args '%s'\n", cmd, args);
-
-    // if no cmd then return success
 
     // find cmd in cmd_tbl
     for (i = 0; i < MAX_CMD_TBL; i++) {
@@ -328,8 +326,8 @@ static int32_t cmd_center(char *args)
 
 static int32_t cmd_clear_schematic(char *args)                                        
 {
-    // reset circuit simulator
-    model_cmd("reset");
+    // reset model
+    model_reset();
 
     // remove all components
     max_component = 0;
@@ -506,22 +504,22 @@ static int32_t cmd_ground(char *args)
         return -1;
     }
 
-    // reset circuit simulator,
+    // reset model
     // set the new_ground,
     // identify grid ground locations
-    model_cmd("reset");
+    model_reset();
     ground = new_ground;
     ground_is_set = true;
     identify_grid_ground(NULL);
     return 0;
 }
 
-static int32_t cmd_sim(char *args)
+static int32_t cmd_model(char *args)
 {
-    char *cmd = args;
+    char *cmdline = args;
 
     // pass cmd to the model
-    return model_cmd(cmd);
+    return model_cmd(cmdline);
 }
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------
@@ -676,8 +674,8 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
 
     // commit the new component ...
 
-    // - reset the circuit simulator
-    model_cmd("reset");
+    // - reset the model
+    model_reset();
 
     // - add new_comp to component list
     c = &component[idx];
@@ -724,8 +722,8 @@ static int32_t del_component(char * comp_str)
 
     // remove the component ...
 
-    // - reset the circuit simulator
-    model_cmd("reset");
+    // - reset the model
+    model_reset();
 
     // - remove the component's 2 terminals from the grid
     for (i = 0; i < 2; i++) {

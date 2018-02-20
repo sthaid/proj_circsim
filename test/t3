@@ -5310,6 +5310,13 @@ add power A26 a1   0.5v
 add power A27 a1   -0.5v
 ground a1 
 
+#add power A26 A27 1v
+#ground A27
+
 set center A26
 set scale 200
 center
+
+model run .1
+
+

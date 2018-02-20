@@ -1,5 +1,5 @@
 clear_schematic
-add power      b1  c1 5v,60hz
+add power      b1  c1 5v
 add resistor   b1  b2 100
 add resistor   b2  c2 100
 add resistor   d2  c2 100
@@ -12,4 +12,4 @@ set scale 200
 set grid off
 center
 
-sim run
+model run 1.0

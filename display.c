@@ -136,6 +136,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         } points[20][20];
     } component_image_t;
 
+// XXX no + -  and maybe smaller
     static component_image_t power_image =
         { { { {0,0}, {300,0}, {-1,-1} },
             { {300,0}, {358,142}, {500,200}, {642,142}, {700,0,}, {642,-142}, {500,-200}, {358,-142}, {300,0}, {-1,-1} },

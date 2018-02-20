@@ -1,0 +1,19 @@
+clear_schematic
+add power        b1  c1 5v
+add connection   b1  b2 
+add resistor     b2  c2 500
+add capacitor    c2  d2 .5mf
+add connection   c2  c3
+add connection   d2  d3
+add capacitor    c3  d3 .5mf
+add resistor     d2  d1 500
+add connection   d1  c1 
+ground c1
+
+set delta_t_us 1
+set center c4
+set scale 200
+set grid off
+center
+
+model run 1

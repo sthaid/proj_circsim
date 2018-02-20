@@ -10,4 +10,4 @@ add connection d5  d6
 add resistor   c6  d6 200.000000
 ground c4
 
-sim run
+model run 1

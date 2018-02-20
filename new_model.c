@@ -1,5 +1,8 @@
+// XXX -O0
+                //       SUM (Vn/Rn)
+                //   V = -----------
+                //       SUM (1/Rn)
 #if 0
-XXX -O0
 XXX TESTS
 - series/parallel resistors
 - infinite resistor array
@@ -22,9 +25,6 @@ XXX TESTS
         } \
     } while (0)
 
-#define MAX_DELTA_TIME_S     (100e-6)   // 100 us
-#define DC_POWER_RAMP_TIME_S (10e-3)    // 10 ms
-
 //
 // typedefs
 //
@@ -35,21 +35,21 @@ XXX TESTS
 
 static int32_t  model_state_req;
 static node_t * ground_node;
-static double   model_pause_time_s;
 
 //
 // prototypes
 //
   
-static int32_t model_run(double duration_s);
+static int32_t model_reset(void);
+static int32_t model_run(void);
 static int32_t model_pause(void);
-static int32_t model_cont(double duration_s);
+static int32_t model_continue(void);
 static int32_t model_init_nodes(void);
 static node_t * allocate_node(void);
 static void add_terms_to_node(node_t *node, gridloc_t *gl);
 static void debug_print_nodes(void);
 static void * model_thread(void * cx);
-static double get_comp_power_voltage(component_t * c);
+//static double get_comp_power_voltage(component_t * c);
 
 // -----------------  PUBLIC ---------------------------------------------------------
 
@@ -66,37 +66,19 @@ void model_init(void)
     pthread_create(&thread_id, NULL, model_thread, NULL);
 }
 
-int32_t model_cmd(char *cmdline)
+int32_t model_cmd(char *cmd)
 {
     int32_t rc;
-    char *cmd, *arg;
-    double duration_s = 0;
-
-    // extract cmd and arg from cmdline
-    cmd = strtok(cmdline, " ");
-    if (cmd == NULL) {
-        ERROR("usage: XXX\n");
-        return 0;
-    }
-    arg = strtok(NULL, " ");
 
     // parse and process the cmd
     if (strcmp(cmd, "reset") == 0) {
         rc = model_reset();
     } else if (strcmp(cmd, "run") == 0) {
-        if (arg && sscanf(arg, "%lf",&duration_s) == -1) {
-            ERROR("invalid duration '%s'\n", arg);
-            return -1;
-        }
-        rc = model_run(duration_s);
+        rc = model_run();
     } else if (strcmp(cmd, "pause") == 0) {
         rc = model_pause();
     } else if (strcmp(cmd, "cont") == 0) {
-        if (arg && sscanf(arg, "%lf",&duration_s) == -1) {
-            ERROR("invalid duration '%s'\n", arg);
-            return -1;
-        }
-        rc = model_cont(duration_s);
+        rc = model_continue();
     } else {
         ERROR("unsupported cmd '%s'\n", cmd);
         rc = -1;
@@ -105,9 +87,11 @@ int32_t model_cmd(char *cmdline)
     return rc;
 }
 
+// XXX run and cont cmd should give a duration
+
 // -----------------  MODEL SUPPORT  -------------------------------------------------
 
-int32_t model_reset(void)
+static int32_t model_reset(void)
 {
     int32_t i;
 
@@ -134,14 +118,13 @@ int32_t model_reset(void)
     }
 
     model_time_s = 0;
-    model_pause_time_s = 0;
     max_node = 0;
 
     INFO("success\n");
     return 0;
 }
 
-static int32_t model_run(double duration_s)          
+static int32_t model_run(void)
 {
     int32_t rc;
 
@@ -154,8 +137,6 @@ static int32_t model_run(double duration_s)
     if (rc < 0) {
         return -1;
     }
-
-    model_pause_time_s = (duration_s ? model_time_s + duration_s : 0);
 
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
@@ -174,14 +155,12 @@ static int32_t model_pause(void)
     return 0;
 }
 
-static int32_t model_cont(double duration_s)
+static int32_t model_continue(void)
 {
     if (model_state != MODEL_STATE_PAUSED) {
         ERROR("not paused\n");
         return -1;
     }
-
-    model_pause_time_s = (duration_s ? model_time_s + duration_s : 0);
 
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
@@ -362,7 +341,7 @@ static void debug_print_nodes(void)
     char s[200], s1[100], *p;
     int32_t i, j;
 
-    // XXX needs larger string, or do something about gridloc
+    // XXX needs larger string
     return;
  
     INFO("max_node = %d\n", max_node);
@@ -411,72 +390,154 @@ static void debug_print_nodes(void)
 static void * model_thread(void * cx) 
 {
     int32_t i,j;
-    double delta_t_us, delta_t_s;
+    double delta_t_us, delta_t_s;  // XXX how to validity check
 
     while (true) {
-        // handle request to transition model_state
-        while (true) {
-            if (model_state_req != model_state) {
-                INFO("model_state is %s\n", MODEL_STATE_STR(model_state_req));
-            }
+        // wait here until requested to run the model
+        while (model_state_req != MODEL_STATE_RUNNING) {
             model_state = model_state_req;
-            __sync_synchronize();
-            if (model_state == MODEL_STATE_RUNNING) {
-                break;
-            }
             usleep(1000);
         }
+        model_state = MODEL_STATE_RUNNING;
+        __sync_synchronize();
 
         // get delta time (secs) from param
         sscanf(PARAM_DELTA_T_US, "%lf", &delta_t_us);
         delta_t_s = delta_t_us * 1e-6;
-        if (delta_t_s <= 0 || delta_t_s >= MAX_DELTA_TIME_S) {
-            ERROR("delta_t_us must be in range 0 to %.0lf\n", MAX_DELTA_TIME_S*1e6);
-            model_state_req = MODEL_STATE_PAUSED;
-            continue;
-        }
 
-        // loop over all nodes, computing the next voltage for that node
-        for (i = 0; i < max_node; i++) {
-            node_t * n = & node[i];
-
-            if (n->ground) {
-                NODE_V_NEXT(n) = 0;
-            } else if (n->power) {
-                component_t * c = n->power->component;
-                NODE_V_NEXT(n) = get_comp_power_voltage(c);
-            } else {
-                double r_sum_num=0, r_sum_denom=0;
-                double c_sum_num=0, c_sum_denom=0;
-                for (j = 0; j < n->max_term; j++) {
-                    component_t *c = n->term[j]->component;
-                    int32_t other_termid = (n->term[j]->termid ^ 1);
-                    node_t *other_n = c->term[other_termid].node;
-
-                    switch (c->type) {
-                    case COMP_RESISTOR:
-                        r_sum_num += (NODE_V_CURR(other_n) / c->resistor.ohms);
-                        r_sum_denom += (1 / c->resistor.ohms);
-                        break;
-                    case COMP_CAPACITOR:
-                        c_sum_num += (NODE_V_CURR(n) + NODE_V_CURR(other_n) - NODE_V_PRIOR(other_n)) *
-                                     (c->capacitor.farads / delta_t_s);
-                        c_sum_denom += c->capacitor.farads / delta_t_s;
-                        break;
-                    default:
-                        FATAL("comp type %s not supported\n", c->type_str);
-                    }
-                }
-                NODE_V_NEXT(n) = (r_sum_num + c_sum_num) / 
-                                 (r_sum_denom + c_sum_denom);
+        // adjust power compoents
+        // xxx need predefined list
+        for (i = 0; i < max_component; i++) {
+            component_t *c = &component[i];
+            if (c->type != COMP_POWER) {
+                continue;
             }
+
+            //if (model_time_s > .001) {
+                //break;
+            //}
+
+            // xxx this is for dc
+            // xxx deltat_t should be <= 1 us
+            // adjust rate is from 0 to voltage in 10 ms
+            // apply adjustment equally to both sides;  (excpet when powers are connected togethor)
+
+            node_t *n0, *n1;
+            static double v;
+
+            n0 = c->term[0].node;
+            n1 = c->term[1].node;
+            //v0 = NODE_V_CURR(n0);
+            //v1 = NODE_V_CURR(n1);
+
+            if (model_time_s <= .001) {
+                v = 5. * sin(model_time_s * (M_PI_2 / .001));
+            } 
+#if 0
+            else {
+                if (model_time_s < .0011) {
+                    printf("BREAK\n");
+                }
+                break;
+            }
+#endif
+#if 0
+            if (model_time_s < .0011 || model_time_s > .99999) {
+                printf("n0 c-p = %.15lf\n", NODE_V_CURR(n0) - NODE_V_PRIOR(n0));
+                printf("n1 c-p = %.15lf\n", NODE_V_CURR(n1) - NODE_V_PRIOR(n1));
+                printf("------------\n");
+            }
+#endif
+
+#if 0
+            static double offset;
+            double a = -(NODE_V_CURR(n0) - NODE_V_PRIOR(n0));
+            double b = NODE_V_CURR(n1) - NODE_V_PRIOR(n1);
+
+            if (a > b) {
+                offset += .0001;
+            } else {
+                offset -= .0001;
+            }
+            if (model_time_s < .0011 || model_time_s > .99999) {
+                printf("a = %.15lf b = %.15lf offset = %lf\n", a, b, offset);
+            }
+#else
+            static double offset = 0;
+#endif
+
+
+            double a = -c->term[0].current;
+            double b = c->term[1].current;
+            if (a > b + .0001) {
+                offset -= .0001;
+            } else if (a < b - .001) {
+                offset += .00001;
+            }
+
+            
+
+            NODE_V_CURR(n0) =  1 * v + offset;
+            NODE_V_CURR(n1) = -0 * v + offset;
+            NODE_V_PRIOR(n0) = NODE_V_CURR(n0);
+            NODE_V_PRIOR(n1) = NODE_V_CURR(n1);
+
+#if 0
+            // if (model_time_s < .0011 || model_time_s > .99999) 
+            {
+                printf("%lf  POWER TERM CURRENT  %lf  %lf  offset=%lf   v %lf %lf\n",
+                        model_time_s, a, b, offset,
+                        NODE_V_CURR(n0), NODE_V_CURR(n1));
+            }
+#endif
         }
 
-        // compute the current from each node terminal, using the voltage just calculated   xxx
+        // xxx comment
+        for (i = 0; i < max_node; i++) {
+            node_t * n = &node[i];
+            double r_sum_num=0, r_sum_denom=0;
+            double c_sum_num=0, c_sum_denom=0;
+
+            for (j = 0; j < n->max_term; j++) {
+                component_t *c = n->term[j]->component;
+                int32_t other_termid = (n->term[j]->termid ^ 1);
+                node_t *other_n = c->term[other_termid].node;
+
+                switch (c->type) {
+                case COMP_POWER: {
+                    double farads = 1000;  // xxx or more?
+                    c_sum_num += (NODE_V_CURR(n) + NODE_V_CURR(other_n) - NODE_V_PRIOR(other_n)) *
+                                 (farads / delta_t_s);
+                    c_sum_denom += farads / delta_t_s;
+                    break; }
+                case COMP_RESISTOR:
+                    r_sum_num += (NODE_V_CURR(other_n) / c->resistor.ohms);
+                    r_sum_denom += (1 / c->resistor.ohms);
+                    break;
+                case COMP_CAPACITOR:
+                    c_sum_num += (NODE_V_CURR(n) + NODE_V_CURR(other_n) - NODE_V_PRIOR(other_n)) *
+                                 (c->capacitor.farads / delta_t_s);
+                    c_sum_denom += c->capacitor.farads / delta_t_s;
+                    break;
+                default:
+                    FATAL("comp type %s not supported\n", c->type_str);
+                }
+            }
+            NODE_V_NEXT(n) = (r_sum_num + c_sum_num) / 
+                             (r_sum_denom + c_sum_denom);
+#if 0
+            if (model_time_s < 0.0011 || model_time_s > .99999) {
+                printf("%lf  P,C,N = %.12lf %.12lf %.12lf    node %d\n",  
+                    model_time_s, NODE_V_PRIOR(n), NODE_V_CURR(n), NODE_V_NEXT(n), i);
+            }
+#endif
+        }
+
+        // compute the current from each node terminal
         for (i = 0; i < max_node; i++) {
             node_t * n = & node[i];
             double total_current = 0;
-
+            terminal_t *power_term = NULL;
             for (j = 0; j < n->max_term; j++) {
                 terminal_t *term = n->term[j];
                 component_t *c = term->component;
@@ -484,6 +545,17 @@ static void * model_thread(void * cx)
                 node_t *other_n = c->term[other_termid].node;
 
                 switch (c->type) {
+                case COMP_POWER:
+                    power_term = term;
+#if 0
+                    term->current = ((NODE_V_NEXT(n) - NODE_V_CURR(n)) - (NODE_V_NEXT(other_n) - NODE_V_CURR(other_n)))
+                                     * 1000. / delta_t_s;
+                    //if (model_time_s < 0.001100 || model_time_s > 0.99999) {
+                        //printf("TIME %lf  POWER CURRENT %lf termid %d  node %d\n", model_time_s, term->current, term->termid, i);
+                    //}
+                    //XXX
+#endif
+                    break;
                 case COMP_RESISTOR:
                     term->current = (NODE_V_NEXT(n) - NODE_V_NEXT(other_n)) / c->resistor.ohms;
                     total_current += term->current;
@@ -492,18 +564,26 @@ static void * model_thread(void * cx)
                     term->current = ((NODE_V_NEXT(n) - NODE_V_CURR(n)) - (NODE_V_NEXT(other_n) - NODE_V_CURR(other_n)))
                                      * c->capacitor.farads / delta_t_s;
                     total_current += term->current;
+#if 0
+                    if (model_time_s > 0.99999) {
+                        printf("time=%lf     %le  %le    farads=%lf  delta_t=%lf  current=%lf   termid %d  node %d\n",
+                            model_time_s,
+                            (NODE_V_NEXT(n) - NODE_V_CURR(n)),
+                            (NODE_V_NEXT(other_n) - NODE_V_CURR(other_n)),
+                            c->capacitor.farads, delta_t_s,
+                            term->current, term->termid, i);
+                    }
+#endif
                     break;
                 }
             }
 
-            if (n->power) {
-                n->power->current = -total_current;
+            if (power_term) {
+                power_term->current = -total_current;
             }
         }
-        // XXX what about ground node current
 
-        // increment the idx values which affect the operation of the 
-        // macros which return the prior, current, and next values
+        // xxx better comment
         // - update the current and prior node voltage
         node_v_prior_idx = (node_v_prior_idx + 1) % 3;
         node_v_curr_idx  = (node_v_curr_idx + 1) % 3;
@@ -512,28 +592,36 @@ static void * model_thread(void * cx)
         // increment time
         model_time_s += delta_t_s;
 
-        // if model pause time is specified and model time exceeds pause time then pause
-        if (model_pause_time_s > 0 && model_time_s >= model_pause_time_s) {                
+        //usleep(100000);  // xxx temp
+        if (model_time_s > 1) {  // xxx make this an option
             model_state_req = MODEL_STATE_PAUSED;
         }
     }
     return NULL;
 }
 
+#if 0
 static double get_comp_power_voltage(component_t * c)
 {
     double v;
 
+    // xxx 
+    //return c->power.volts;
+
+// XXX try without this
+
     if (c->power.hz != 0) {
-        FATAL("AC not supported yet\n");
+        // XXX FATAL("AC not supported yet\n");
     }
-    
-    if (model_time_s > DC_POWER_RAMP_TIME_S) {
+
+    // ramp up to dc voltage in 100 ms
+    if (model_time_s > .1) {
         v = c->power.volts;
     } else {
-        v = c->power.volts * sin(model_time_s * (M_PI_2 / DC_POWER_RAMP_TIME_S));
+        v = model_time_s / .1 * c->power.volts;
     }
+    // xxx INFO("volts %f\n", v);
 
     return v;
 }
-
+#endif

@@ -42,7 +42,7 @@
     ((x) == MODEL_STATE_RESET    ? "RESET"   : \
      (x) == MODEL_STATE_RUNNING  ? "RUNNING" : \
      (x) == MODEL_STATE_PAUSED   ? "PAUSED"  : \
-                                     "????")
+                                   "????")
 
 #define NODE_V_PRIOR(n) ((n)->voltage[node_v_prior_idx])
 #define NODE_V_CURR(n)  ((n)->voltage[node_v_curr_idx])
@@ -210,8 +210,9 @@ void display_unlock(void);
 int32_t display_center(void);
 void display_handler(void);
 
-// circsum.c
+// model.c
 void model_init(void);
-int32_t model_cmd(char *cmd);
+int32_t model_cmd(char *cmdline);
+int32_t model_reset(void);
 
 #endif
