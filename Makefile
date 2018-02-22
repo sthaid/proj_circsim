@@ -1,4 +1,4 @@
-TARGETS = circsim
+TARGETS = model
 
 CC = gcc
 OUTPUT_OPTION=-MMD -MP -o $@
@@ -6,18 +6,18 @@ OUTPUT_OPTION=-MMD -MP -o $@
 CFLAGS_SDL2 = $(shell sdl2-config --cflags)
 CFLAGS = -g -O0 -Wall -Iutil $(CFLAGS_PROFILING) $(CFLAGS_SDL2)
 
-SRC_CIRSIM = main.c \
-             display.c \
-             model.c \
-             util/util_sdl.c \
-             util/util_sdl_predefined_panes.c \
-             util/util_jpeg.c \
-             util/util_png.c \
-             util/util_misc.c
+SRC_MODEL = main.c \
+            display.c \
+            model.c \
+            util/util_sdl.c \
+            util/util_sdl_predefined_panes.c \
+            util/util_jpeg.c \
+            util/util_png.c \
+            util/util_misc.c
 
-OBJ_CIRSIM=$(SRC_CIRSIM:.c=.o)
+OBJ_MODEL=$(SRC_MODEL:.c=.o)
 
-DEP=$(SRC_CIRSIM:.c=.d)
+DEP=$(SRC_MODEL:.c=.d)
 
 #
 # build rules
@@ -25,9 +25,9 @@ DEP=$(SRC_CIRSIM:.c=.d)
 
 all: $(TARGETS)
 
-circsim: $(OBJ_CIRSIM) 
+model: $(OBJ_MODEL) 
 	$(CC) -pthread -lrt -lm -lreadline -lpng -ljpeg -lSDL2 -lSDL2_ttf -lSDL2_mixer $(CFLAGS_PROFILING) \
-              -o $@ $(OBJ_CIRSIM)
+              -o $@ $(OBJ_MODEL)
 
 -include $(DEP)
 
@@ -36,5 +36,5 @@ circsim: $(OBJ_CIRSIM)
 #
 
 clean:
-	rm -f $(TARGETS) $(OBJ_CIRSIM) $(DEP) gmon.out
+	rm -f $(TARGETS) $(OBJ_MODEL) $(DEP) gmon.out
 

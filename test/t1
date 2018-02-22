@@ -9,7 +9,6 @@ ground c1
 
 set center c4
 set scale 200
-set grid off
-center
+set grid on
 
 model run 1.0

@@ -1,3 +1,58 @@
+debug param to enable prints
+
+
+model step cmd
+
+click display for pause, rn , cont
+
+white on black
+
+---
+
+optimization, and multi threads
+
+
+review T3 screen
+
+
+ac simple circuit
+   power / capacitor
+   verify 90 dgrees
+
+reevaluate new_model.c
+
+remote connecions on grid
+
+smooth display values
+  T5 unstable after 1 sec
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  CODED xxxxxxxxxxxxxxxxxxxxxxxx
+
+update center and scale params when display is panned
+ - get rid of center cmd
+
+make time params in units  S, ms, us, ns
+- and debug print them out when the model decodes them for initial debug
+
+disable DEBUG levle prints
+
+deltat secs - .0001e-6
+
+rename to model
+
+issue prompt after a delay
+
+experiment with dc ramp time, make a param
+
+- - - - - - - - - - -  AND TESTED
+
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  CANCELLED
+
+model cont can continue from reset
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
 NEW COMMANDS
 =============
 

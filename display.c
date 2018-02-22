@@ -24,8 +24,8 @@
 static pthread_mutex_t mutex;
 static int32_t win_width, win_height;
 
-static int32_t grid_xoff;
-static int32_t grid_yoff;
+static int32_t grid_xoff, grid_xadj;
+static int32_t grid_yoff, grid_yadj;
 static double  grid_scale;
 
 //
@@ -47,8 +47,6 @@ void display_init(void)
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&mutex, &attr);
-
-    display_center();
 }
 
 void display_lock(void)
@@ -59,34 +57,6 @@ void display_lock(void)
 void display_unlock(void)
 {
     pthread_mutex_unlock(&mutex);
-}
-
-int32_t display_center(void)
-{
-    int32_t rc;
-    gridloc_t gl;
-    double new_grid_scale;
-
-    rc = str_to_gridloc(PARAM_CENTER, &gl);
-    if (rc < 0) {
-        ERROR("invalid grid center loc '%s'\n", PARAM_CENTER);
-        return -1;
-    }
-
-    if (sscanf(PARAM_SCALE, "%lf", &new_grid_scale) != 1) {
-        ERROR("invalid grid scale '%s'\n", PARAM_SCALE);
-        return -1;
-    }
-    if (new_grid_scale < MIN_GRID_SCALE) new_grid_scale = MIN_GRID_SCALE;
-    if (new_grid_scale > MAX_GRID_SCALE) new_grid_scale = MAX_GRID_SCALE;
-
-    display_lock();
-    grid_scale = new_grid_scale;
-    grid_xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2;
-    grid_yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2;
-    display_unlock();
-
-    return 0;
 }
 
 void display_handler(void)
@@ -107,7 +77,7 @@ void display_handler(void)
         pane_hndlr_status,    NULL, PH_SCHEMATIC_W, 0,  400,            400,            PANE_BORDER_STYLE_MINIMAL);
 }
 
-// -----------------  xxxxxxxxxxxx  ---------------------------------------
+// -----------------  xxx -------------------------------------------------
 
 static void display_start(void * cx)
 {
@@ -185,11 +155,44 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
     // ------------------------
 
     if (request == PANE_HANDLER_REQ_RENDER) {
-        int32_t x_min = -grid_scale;                  // used by OUT_OF_PANE
-        int32_t x_max = PH_SCHEMATIC_W + grid_scale;  //   '      '
-        int32_t y_min = -grid_scale;                  //   '      '
-        int32_t y_max = PH_SCHEMATIC_H + grid_scale;  //   '      '
+        int32_t x_min, x_max, y_min, y_max;
         int32_t fpsz;
+
+        // xxx try to clear xadj,yadj when the set center cmd is issued
+
+        // determine grid_xoff, grid_yoff, grid_scale from
+        // PARAM_CENTER, PARAM_SCALE, grid_xadj, and grid_yadj
+        { gridloc_t gl;
+          int32_t cnt;
+        if ((cnt = sscanf(PARAM_SCALE, "%lf", &grid_scale)) != 1 ||
+            grid_scale > MAX_GRID_SCALE || grid_scale < MIN_GRID_SCALE) 
+        {
+            ERROR("invalid grid scale '%s'\n", PARAM_SCALE);
+            if (cnt != 1) {
+                strcpy(PARAM_SCALE, DEFAULT_SCALE);
+            } else if (grid_scale < MIN_GRID_SCALE) {
+                sprintf(PARAM_SCALE, "%d", MIN_GRID_SCALE);
+            } else {
+                sprintf(PARAM_SCALE, "%d", MAX_GRID_SCALE);
+            }
+            cnt = sscanf(PARAM_SCALE, "%lf", &grid_scale);
+            assert(cnt==1);
+        }
+
+        if (str_to_gridloc(PARAM_CENTER, &gl) < 0) {
+            ERROR("invalid grid center loc '%s'\n", PARAM_CENTER);
+            strcpy(PARAM_CENTER, DEFAULT_CENTER);
+        }
+        grid_xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2 + grid_xadj;
+        grid_yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2 + grid_yadj;
+        }
+
+        // initialize range of x,y that will be rendered by the 
+        // the subsequent code; these variables are used by the OUT_OF_PANE macro
+        x_min = -grid_scale;                  
+        x_max = PH_SCHEMATIC_W + grid_scale; 
+        y_min = -grid_scale;                
+        y_max = PH_SCHEMATIC_H + grid_scale;
 
         // select font point size based on grid_scale
         fpsz = grid_scale * 40 / MAX_GRID_SCALE;
@@ -482,20 +485,41 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
     if (request == PANE_HANDLER_REQ_EVENT) {
         switch(event->event_id) {
-        case SDL_EVENT_MOUSE_MOTION:
+        case SDL_EVENT_MOUSE_MOTION: {
+            gridloc_t gl;
+            int32_t xoff, yoff;
+
+            // xxx comments
             grid_xoff += event->mouse_motion.delta_x;
             grid_yoff += event->mouse_motion.delta_y;
-            return PANE_HANDLER_RET_DISPLAY_REDRAW;
+
+            gl.x = (grid_xoff - (PH_SCHEMATIC_W/2) - grid_scale/2) / (-grid_scale);
+            gl.y = (grid_yoff - (PH_SCHEMATIC_H/2) - grid_scale/2) / (-grid_scale);
+
+            if (gl.x < 0) gl.x = 0;
+            if (gl.x >= MAX_GRID_X) gl.x = MAX_GRID_X-1;
+            if (gl.y < 0) gl.y = 0;
+            if (gl.y >= MAX_GRID_X) gl.y = MAX_GRID_Y-1;
+
+            gridloc_to_str(&gl, PARAM_CENTER);
+            xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2;
+            yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2;
+
+            grid_xadj = (grid_xoff - xoff);
+            grid_yadj = (grid_yoff - yoff);
+            return PANE_HANDLER_RET_DISPLAY_REDRAW; }
         case SDL_EVENT_MOUSE_WHEEL: {
-            if (event->mouse_motion.delta_y > 0 && grid_scale < MAX_GRID_SCALE) {
-                grid_scale *= 1.1;
-                grid_xoff = pane->w/2 - 1.1 * (pane->w/2 - grid_xoff);
-                grid_yoff = pane->h/2 - 1.1 * (pane->h/2 - grid_yoff);
+            double new_grid_scale = 0;
+
+            // xxx comments
+            if (event->mouse_motion.delta_y > 0) {
+                new_grid_scale = grid_scale * 1.1;
+            } if (event->mouse_motion.delta_y < 0) {
+                new_grid_scale = grid_scale * (1./1.1);
             }
-            if (event->mouse_motion.delta_y < 0 && grid_scale > MIN_GRID_SCALE) {
-                grid_scale *= (1./1.1);
-                grid_xoff = pane->w/2 - (1./1.1) * (pane->w/2 - grid_xoff);
-                grid_yoff = pane->h/2 - (1./1.1) * (pane->h/2 - grid_yoff);
+            if (new_grid_scale >= MIN_GRID_SCALE && new_grid_scale <= MAX_GRID_SCALE) {
+                grid_scale = new_grid_scale;
+                sprintf(PARAM_SCALE, "%.0lf", grid_scale);
             }
             return PANE_HANDLER_RET_DISPLAY_REDRAW; }
         }

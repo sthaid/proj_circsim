@@ -27,7 +27,6 @@ static int32_t process_cmd(char * cmdline);
 static int32_t cmd_help(char *args);
 static int32_t cmd_set(char *args);
 static int32_t cmd_show(char *args);
-static int32_t cmd_center(char *args);
 static int32_t cmd_clear_schematic(char *args);
 static int32_t cmd_read(char *args);
 static int32_t cmd_write(char *args);
@@ -47,7 +46,6 @@ static void init_grid(void);
 int32_t main(int32_t argc, char ** argv)
 {
     pthread_t thread_id;
-    int32_t rc;
 
     // call initialization routines
     main_init();
@@ -55,25 +53,27 @@ int32_t main(int32_t argc, char ** argv)
     model_init();
 
     // get and process options
-    // -f <file> : read commands from file
     while (true) {
-        char opt_char = getopt(argc, argv, "f:h");
+        char opt_char = getopt(argc, argv, "h");
         if (opt_char == -1) {
             break;
         }
         switch (opt_char) {
-        case 'f':
-            rc = cmd_read(optarg);
-            if (rc < 0) {
-                exit(1);
-            }
-            break;
         case 'h':
             help();
             return 0;
         default:
             return 1;
             break;
+        }
+    }
+
+    // if filename arg is supplied then call cmd_read to 
+    // open the filename and read/process the cmds
+    if (argc - optind >= 1) {
+        char *filename = argv[optind];
+        if (cmd_read(filename) < 0) {
+            return -1;
         }
     }
 
@@ -94,8 +94,7 @@ static void main_init(void)
 
 static void help(void)
 {
-    INFO("usage: circsim [-f <filename>] [-h]\n");
-    INFO("  -f: read commands from filename\n");
+    INFO("usage: model [-h] [<filename>]\n");
     INFO("  -h: help\n");
     BLANK_LINE;
 
@@ -109,6 +108,9 @@ static void * cli_thread(void * cx)
 {
     char *cmd_str = NULL, prompt_str[100];
     sdl_event_t event;
+
+    // give display time to initialize before starting cli
+    sleep(1);
 
     // use readline/add_history to read commands, and
     // call process_cmd to process them
@@ -145,7 +147,6 @@ static struct {
 
     { "set",             cmd_set,             "<param_name> <param_value>"       },
     { "show",            cmd_show,            "[<components|params|ground>]"     },
-    { "center",          cmd_center,          ""                                 },
 
     { "clear_schematic", cmd_clear_schematic, "",                                },
     { "read",            cmd_read,            "<filename>"                       },
@@ -317,11 +318,6 @@ static int32_t cmd_show(char *args)
 
     // return success
     return 0;
-}
-
-static int32_t cmd_center(char *args)
-{
-    return display_center();
 }
 
 static int32_t cmd_clear_schematic(char *args)                                        
@@ -853,8 +849,9 @@ static convert_t volts_tbl[]  = { {"kV",1e3}, {"V",1}, {"mV",1e-3}, {"uV",1e-6},
 static convert_t amps_tbl[]   = { {"A",1}, {"mA",1e-3}, {"uA",1e-6},                              {"A",0} };
 static convert_t ohms_tbl[]   = { {"M",1e6}, {"K",1e3}, {"",1},                                   {"OHMS",0} };
 static convert_t farads_tbl[] = { {"F",1}, {"mF",1e-3}, {"uF",1e-6}, {"nF",1e-9}, {"pF",1e-12},   {"F",0} };
-static convert_t henrys_tbl[] = { {"H", 1}, {"mH",1e-3}, {"uH",1e-6},                              {"H",0} };
+static convert_t henrys_tbl[] = { {"H", 1}, {"mH",1e-3}, {"uH",1e-6},                             {"H",0} };
 static convert_t hz_tbl[]     = { {"MHz",1e6}, {"kHz",1e3}, {"Hz",1},                             {"Hz",0} };
+static convert_t time_tbl[]   = { {"s",1}, {"ms",1e-3}, {"us",1e-6}, {"ns",1e-9},                 {"s",0} };
 
 // returns -1 on error, otherwise the number of chars from s that were processed;
 //
@@ -874,13 +871,14 @@ int32_t str_to_val(char * s, int32_t units, double * val_result)
     }
 
     // pick the conversion table
-    tbl = (units == UNITS_VOLTS  ? volts_tbl  :
-           units == UNITS_AMPS   ? amps_tbl   :
-           units == UNITS_OHMS   ? ohms_tbl   :
-           units == UNITS_FARADS ? farads_tbl :
-           units == UNITS_HENRYS ? henrys_tbl :
-           units == UNITS_HZ     ? hz_tbl     :
-                                   NULL);
+    tbl = (units == UNITS_VOLTS    ? volts_tbl  :
+           units == UNITS_AMPS     ? amps_tbl   :
+           units == UNITS_OHMS     ? ohms_tbl   :
+           units == UNITS_FARADS   ? farads_tbl :
+           units == UNITS_HENRYS   ? henrys_tbl :
+           units == UNITS_HZ       ? hz_tbl     :
+           units == UNITS_SECONDS  ? time_tbl   :
+                                     NULL);
     assert(tbl);
 
     // scanf the string, return error if failed
@@ -926,13 +924,14 @@ char * val_to_str(double val, int32_t units, char *s)
     double absval = fabs(val);
 
     // pick the conversion table
-    tbl = (units == UNITS_VOLTS  ? volts_tbl  :
-           units == UNITS_AMPS   ? amps_tbl   :
-           units == UNITS_OHMS   ? ohms_tbl   :
-           units == UNITS_FARADS ? farads_tbl :
-           units == UNITS_HENRYS ? henrys_tbl :
-           units == UNITS_HZ     ? hz_tbl     :
-                                   NULL);
+    tbl = (units == UNITS_VOLTS    ? volts_tbl  :
+           units == UNITS_AMPS     ? amps_tbl   :
+           units == UNITS_OHMS     ? ohms_tbl   :
+           units == UNITS_FARADS   ? farads_tbl :
+           units == UNITS_HENRYS   ? henrys_tbl :
+           units == UNITS_HZ       ? hz_tbl     :
+           units == UNITS_SECONDS  ? time_tbl   :
+                                     NULL);
     assert(tbl);
     
     // scan the conversion table for the appropriate units string to use, 

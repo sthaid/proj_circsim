@@ -22,8 +22,8 @@ XXX TESTS
         } \
     } while (0)
 
-#define MAX_DELTA_TIME_S     (100e-6)   // 100 us
-#define DC_POWER_RAMP_TIME_S (10e-3)    // 10 ms
+#define MAX_DELTA_T_S       (1e-3)  // 1 ms
+#define MIN_DCPWR_RAMP_T_S  (1e-3)  // 1 ms
 
 //
 // typedefs
@@ -34,8 +34,12 @@ XXX TESTS
 //
 
 static int32_t  model_state_req;
-static node_t * ground_node;
 static double   model_pause_time_s;
+
+static node_t * ground_node;
+
+static double   delta_t_s;
+static double   dcpwr_ramp_t_s;
 
 //
 // prototypes
@@ -410,8 +414,7 @@ static void debug_print_nodes(void)
 
 static void * model_thread(void * cx) 
 {
-    int32_t i,j;
-    double delta_t_us, delta_t_s;
+    int32_t i,j,rc;
 
     while (true) {
         // handle request to transition model_state
@@ -427,13 +430,29 @@ static void * model_thread(void * cx)
             usleep(1000);
         }
 
-        // get delta time (secs) from param
-        sscanf(PARAM_DELTA_T_US, "%lf", &delta_t_us);
-        delta_t_s = delta_t_us * 1e-6;
-        if (delta_t_s <= 0 || delta_t_s >= MAX_DELTA_TIME_S) {
-            ERROR("delta_t_us must be in range 0 to %.0lf\n", MAX_DELTA_TIME_S*1e6);
+        // XXX only when starting model ?
+        //     or when param has changed
+
+        // get delta_t_s from param
+        rc = str_to_val(PARAM_DELTA_T, UNITS_SECONDS, &delta_t_s);
+        if (rc < 0 || delta_t_s <= 0 || delta_t_s >= MAX_DELTA_T_S) {
+            ERROR("delta_t_us must be in range 0 to %.3le seconds\n", MAX_DELTA_T_S);
             model_state_req = MODEL_STATE_PAUSED;
             continue;
+        }
+        // get dcpwr_ramp_t_s from param
+        rc = str_to_val(PARAM_DCPWR_RAMP_T, UNITS_SECONDS, &dcpwr_ramp_t_s);
+        if (rc < 0 || dcpwr_ramp_t_s < MIN_DCPWR_RAMP_T_S) {
+            ERROR("dcpwr_ramp_t must be >= %.3lf seconds\n", MIN_DCPWR_RAMP_T_S);
+            model_state_req = MODEL_STATE_PAUSED;
+            continue;
+        }
+
+        // XXX 
+        static bool first = true;
+        if (first) {
+            first = false;
+            INFO("XXXXXXXXXX delta_t_s=%.3le   dcpwr_ramp_t_s=%.6lf\n", delta_t_s, dcpwr_ramp_t_s);
         }
 
         // loop over all nodes, computing the next voltage for that node
@@ -491,6 +510,7 @@ static void * model_thread(void * cx)
                 case COMP_CAPACITOR:
                     term->current = ((NODE_V_NEXT(n) - NODE_V_CURR(n)) - (NODE_V_NEXT(other_n) - NODE_V_CURR(other_n)))
                                      * c->capacitor.farads / delta_t_s;
+                    //printf("NODE %d CAP TERMID %d  CURRENT %lf\n", i, term->termid, term->current);
                     total_current += term->current;
                     break;
                 }
@@ -528,10 +548,10 @@ static double get_comp_power_voltage(component_t * c)
         FATAL("AC not supported yet\n");
     }
     
-    if (model_time_s > DC_POWER_RAMP_TIME_S) {
+    if (model_time_s > dcpwr_ramp_t_s) {
         v = c->power.volts;
     } else {
-        v = c->power.volts * sin(model_time_s * (M_PI_2 / DC_POWER_RAMP_TIME_S));
+        v = c->power.volts * sin((model_time_s / dcpwr_ramp_t_s) * M_PI_2);
     }
 
     return v;

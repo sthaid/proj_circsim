@@ -60,12 +60,13 @@
 #define NO_VALUE  NAN  // xxx how is this being used
 
 // for str_to_val and val_to_str
-#define UNITS_VOLTS  1
-#define UNITS_AMPS   2
-#define UNITS_OHMS   3
-#define UNITS_FARADS 4
-#define UNITS_HENRYS 5
-#define UNITS_HZ     6
+#define UNITS_VOLTS     1
+#define UNITS_AMPS      2
+#define UNITS_OHMS      3
+#define UNITS_FARADS    4
+#define UNITS_HENRYS    5
+#define UNITS_HZ        6
+#define UNITS_SECONDS   7
 
 #define strcmp strcasecmp
 
@@ -162,13 +163,17 @@ int32_t     model_state;
 // parameters
 // 
 
-#define PARAM_DELTA_T_US (params_tbl[0].value)
-#define PARAM_GRID       (params_tbl[1].value)
-#define PARAM_CURRENT    (params_tbl[2].value)
-#define PARAM_VOLTAGE    (params_tbl[3].value)
-#define PARAM_COMPONENT  (params_tbl[4].value)
-#define PARAM_CENTER     (params_tbl[5].value)
-#define PARAM_SCALE      (params_tbl[6].value)
+#define PARAM_DELTA_T       (params_tbl[0].value)
+#define PARAM_DCPWR_RAMP_T  (params_tbl[1].value)
+#define PARAM_GRID          (params_tbl[2].value)
+#define PARAM_CURRENT       (params_tbl[3].value)
+#define PARAM_VOLTAGE       (params_tbl[4].value)
+#define PARAM_COMPONENT     (params_tbl[5].value)
+#define PARAM_CENTER        (params_tbl[6].value)
+#define PARAM_SCALE         (params_tbl[7].value)
+
+#define DEFAULT_SCALE   "200"
+#define DEFAULT_CENTER  "c3"
 
 typedef struct {
     char *name;
@@ -177,17 +182,18 @@ typedef struct {
 
 #ifdef MAIN
 params_tbl_entry_t params_tbl[] = { 
-        { "delta_t_us",     "1"      },   // model time increment
-        { "grid",          "off"     },   // on, off
-        { "current",       "on"      },   // on, off
-        { "voltage",       "on"      },   // on, off
-        { "component",     "value"   },   // id, value, off
-        { "center",        "c3"      },   // gridloc of display center
-        { "scale",         "200"     },   // display scale, pixels between components
-        { NULL,            ""        }
-                                          };
+        { "delta_t",       ".1ns"          },    // model time increment, units=seconds
+        { "dcpwr_ramp_t",  "10ms"          },    // dc power supply time to ramp to voltage, seconds
+        { "grid",          "off"           },   // on, off
+        { "current",       "on"            },   // on, off
+        { "voltage",       "on"            },   // on, off
+        { "component",     "value"         },   // id, value, off
+        { "center",        DEFAULT_CENTER  },   // gridloc of display center
+        { "scale",         DEFAULT_SCALE   },   // display scale, pixels between components
+        { NULL,            ""              }
+                                                };
 #else
-params_tbl_entry_t params_tbl[0];
+params_tbl_entry_t params_tbl[20];
 #endif
 
 //
@@ -207,7 +213,6 @@ char * val_to_str(double val, int32_t units, char * s);
 void display_init(void);
 void display_lock(void);
 void display_unlock(void);
-int32_t display_center(void);
 void display_handler(void);
 
 // model.c
