@@ -1,3 +1,6 @@
+// XXX set delta_t 1ms not working,   .9999ms okay
+// XXX use WIRE instead of CONNECTION
+// XXX use model stop - instead of pause
 #include "common.h"
 
 //
@@ -35,7 +38,7 @@ static double  grid_scale;
 static void display_start(void * cx);
 static void display_end(void * cx);
 static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event);
-static bool has_comp_power(grid_t * g);
+// static bool has_comp_power(grid_t * g);
 static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event);
 
 // -----------------  PUBLIC  ---------------------------------------------
@@ -236,14 +239,16 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             component_t * c  = &component[i];
             switch (c->type) {
             case COMP_CONNECTION: {
-                int32_t x1 = c->term[0].gridloc.x * grid_scale + grid_xoff;
-                int32_t y1 = c->term[0].gridloc.y * grid_scale + grid_yoff;
-                int32_t x2 = c->term[1].gridloc.x * grid_scale + grid_xoff;
-                int32_t y2 = c->term[1].gridloc.y * grid_scale + grid_yoff;
-                if (OUT_OF_PANE(x1,y1) || OUT_OF_PANE(x2,y2)) {
-                    continue;
+                if (c->connection.remote == false) {
+                    int32_t x1 = c->term[0].gridloc.x * grid_scale + grid_xoff;
+                    int32_t y1 = c->term[0].gridloc.y * grid_scale + grid_yoff;
+                    int32_t x2 = c->term[1].gridloc.x * grid_scale + grid_xoff;
+                    int32_t y2 = c->term[1].gridloc.y * grid_scale + grid_yoff;
+                    if (OUT_OF_PANE(x1,y1) || OUT_OF_PANE(x2,y2)) {
+                        continue;
+                    }
+                    sdl_render_line(pane, x1, y1, x2, y2, WHITE);
                 }
-                sdl_render_line(pane, x1, y1, x2, y2, WHITE);
                 break; }
             case COMP_POWER:
             case COMP_RESISTOR:
@@ -285,12 +290,12 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                             points[k].x = x + ci->points[j][k].y * grid_scale / 1000;  // up
                             points[k].y = y - ci->points[j][k].x * grid_scale / 1000; 
                         } else {
-                            // COMP_POWER may or may not be adjacent
-                            break;
+                            char s0[10], s1[10];
+                            FATAL("component %s incorrect term locations %s %s\n",
+                                  c->comp_str, 
+                                  gridloc_to_str(&c->term[0].gridloc,s0),
+                                  gridloc_to_str(&c->term[1].gridloc,s1));
                         }
-                    }
-                    if (k == 0) {
-                        continue;
                     }
                     sdl_render_lines(pane, points, k, WHITE);
                 }
@@ -304,11 +309,14 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         } }
 
         // draw a point at all grid locations that have at least one terminal as follows:
+        // xxx comment
         // - just one terminal connected : YELLOW  (this is a warning)
         // - power                       : RED
         // - ground                      : GREEN
         // - otherwise                   : WHITE
         { int32_t glx, gly, color;
+          static int32_t count;
+          count++;
         for (glx = 0; glx < MAX_GRID_X; glx++) {
             for (gly = 0; gly < MAX_GRID_Y; gly++) {
                 int32_t x, y;
@@ -324,10 +332,11 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     continue;
                 }
 
-                color = (g->max_term == 1  ? YELLOW :
-                         has_comp_power(g) ? RED :
-                         g->ground         ? GREEN :
-                                             WHITE);
+                // XXX try alternating color if ground and remote
+                color = (g->has_remote_connection && g->ground && (count % 20 < 10) ? GREEN :
+                         g->has_remote_connection ? g->remote_connection_color :
+                         g->ground                ? GREEN 
+                                                  : WHITE);
                 sdl_render_point(pane, x, y, color, 4);
             }
         } }
@@ -343,7 +352,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
             for (i = 0; i < max_component; i++) {
                 c = &component[i];
-                if (c->type == COMP_NONE || c->type == COMP_CONNECTION) {
+                if (c->type == COMP_NONE) {
                     continue;
                 }
 
@@ -371,6 +380,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     x += 2 * sdl_font_char_width(fpsz);
                     y -= grid_scale / 2 + sdl_font_char_height(fpsz) / 2;
                 } else {
+                    // XXX always use this for remote conn
                     x += 2;
                     y += 2;
                 }
@@ -540,6 +550,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
     return PANE_HANDLER_RET_NO_ACTION;
 }
 
+#if 0 // XXX
 static bool has_comp_power(grid_t * g)
 {
     int32_t i;
@@ -552,6 +563,7 @@ static bool has_comp_power(grid_t * g)
     }
     return false;
 }
+#endif
 
 // -----------------  PANE HNDLR STATUS  ----------------------------------
 

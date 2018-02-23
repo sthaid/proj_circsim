@@ -1105,6 +1105,7 @@ rect_t sdl_render_text(rect_t * pane, int32_t x, int32_t y, int32_t font_ptsize,
     return loc_clipped;
 }
 
+// XXX what is str len is zero
 void sdl_render_printf(rect_t * pane, int32_t x, int32_t y, int32_t font_ptsize,
                        int32_t fg_color, int32_t bg_color, char * fmt, ...) 
 {

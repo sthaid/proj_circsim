@@ -98,6 +98,10 @@ typedef struct component_s {
     terminal_t term[2];
     union {
         struct {
+            bool remote;
+            int32_t remote_color;
+        } connection;
+        struct {
             double volts;
             double hz;  // 0 = DC
         } power;
@@ -122,6 +126,8 @@ typedef struct grid_s {
     char glstr[4];
     int32_t max_term;
     bool ground;
+    bool has_remote_connection;
+    int32_t remote_connection_color;
 } grid_t;
 
 typedef struct node_s {

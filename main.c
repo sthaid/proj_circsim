@@ -1,3 +1,5 @@
+// XXX use of assert vs FATAL
+//     could make my ASSERT
 #define MAIN
 #include "common.h"
 
@@ -520,6 +522,7 @@ static int32_t cmd_model(char *args)
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------
 
+// XXX review
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str)
 {
     component_t new_comp, *c;
@@ -546,7 +549,8 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         capacitor_id = 1;
     }
 
-    // convert type_str to type
+    // convert type_str to type; 
+    // if type_str does not exist then return error
     for (i = 0; i <= COMP_LAST; i++) {
         if (strcmp(component_type_str[i], type_str) == 0) {
             type = i;
@@ -579,7 +583,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     // - set comp_str
     switch (new_comp.type) {
     case COMP_CONNECTION:
-        sprintf(new_comp.comp_str, "X%d", connection_id++);
+        sprintf(new_comp.comp_str, "W%d", connection_id++);
         break;
     case COMP_POWER:
         sprintf(new_comp.comp_str, "P%d", power_id++);
@@ -604,6 +608,19 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     }
     // - set component value
     switch (new_comp.type) {
+    case COMP_CONNECTION:
+        value_str = strtok(value_str, ",");
+        if (value_str) {
+            if (strcmp(value_str,"remote") != 0) {
+                ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
+                return -1;
+            }
+            value_str = strtok(value_str, "");
+            // xxx parse color  NOT GREEN or WHITE
+            new_comp.connection.remote = true;
+            new_comp.connection.remote_color = RED;
+        }
+        break;
     case COMP_POWER:
         value_str = strtok(value_str, ",");
         rc = str_to_val(value_str, UNITS_VOLTS, &new_comp.power.volts);
@@ -645,18 +662,17 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
 
     // verify terminals are adjacent, except for:
     // - COMP_CONNECTION where they just need to be in the same row or column
-    // - COMP_POWER where the model model will enforce restrictions on 
-    //   how the power supplies are connected
+    // xxx comment
+    // xxx also check x0,y0 not x0,y1
     x0 = new_comp.term[0].gridloc.x;
     y0 = new_comp.term[0].gridloc.y;
     x1 = new_comp.term[1].gridloc.x;
     y1 = new_comp.term[1].gridloc.y;
     ok = false;
-    if (type == COMP_POWER) {
-        ok = true;
-    } else if (type == COMP_CONNECTION) {
-        ok = (x0 == x1 && y0 != y1) ||
-             (y0 == y1 && x0 != x1);
+    if (new_comp.type == COMP_CONNECTION) {
+        ok = ((new_comp.connection.remote == true) ||
+              ((x0 == x1 && y0 != y1) ||
+               (y0 == y1 && x0 != x1)));
     } else {
         ok = (x0 == x1 && (y0 == y1-1 || y0 == y1+1)) ||
              (y0 == y1 && (x0 == x1-1 || x0 == x1+1));
@@ -666,6 +682,18 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         return -1;
     }
 
+    // if the new component is a remote connection then verify that the
+    // 2 grid locations don't already have a remote connection
+    if (new_comp.type == COMP_CONNECTION && new_comp.connection.remote) {
+        for (i = 0; i < 2; i++) {
+            grid_t * g = &grid[new_comp.term[i].gridloc.x][new_comp.term[i].gridloc.y];
+            if (g->has_remote_connection) {
+                ERROR("gridloc %s already has a remote connection\n", g->glstr);
+                return -1;
+            }
+        }
+    }
+        
     // xxx verify not overlapping with existing component
 
     // commit the new component ...
@@ -681,6 +709,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     }
 
     // - add the new component to grid
+    // xxx how do we know max_term is okay
     for (i = 0; i < 2; i++) {
         int32_t x = c->term[i].gridloc.x;
         int32_t y = c->term[i].gridloc.y;
@@ -690,6 +719,11 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
             return -1;
         }
         g->term[g->max_term++] = &c->term[i];
+        if (c->type == COMP_CONNECTION && c->connection.remote == true) {
+            assert(g->has_remote_connection == false);
+            g->has_remote_connection = true;
+            g->remote_connection_color = c->connection.remote_color;
+        }
     }
 
     // - search grid to identify the ground locations
@@ -736,6 +770,16 @@ static int32_t del_component(char * comp_str)
             }
         }
         assert(found);
+    }
+
+    // - if the component is a remote connection then clear the 
+    //   grid has_remote_connection flag
+    if (c->type == COMP_CONNECTION && c->connection.remote) {
+        for (i = 0; i < 2; i++) {
+            grid_t * g = &grid[c->term[i].gridloc.x][c->term[i].gridloc.y];
+            assert(g->has_remote_connection);
+            g->has_remote_connection = false;
+        }
     }
 
     // - remove from component list

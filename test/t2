@@ -1,13 +1,23 @@
 clear_schematic
-add power      b4  c4 5v
-add connection b4  b5 
-add resistor   b5  c5 100.000000
-add resistor   c5  d5 200.000000
-add connection d5  d4 
-add connection d4  c4 
-add connection c5  c6 
-add connection d5  d6 
-add resistor   c6  d6 200.000000
+
+add power      b4   c4   5.00V
+add connection b4   b5   
+add resistor   b5   c5   100
+add resistor   c5   d5   200
+add connection d5   d4   
+add connection d4   c4   
+add connection c5   c6   
+add connection d5   d6   
+add resistor   c6   d6   200
+
 ground c4
 
-model run 1
+set delta_t      .1ns
+set dcpwr_ramp_t 10ms
+set grid         off
+set current      on
+set voltage      on
+set component    value
+set center       c6
+set scale        200
+
