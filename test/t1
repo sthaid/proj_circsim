@@ -10,5 +10,6 @@ ground c1
 set center c4
 set scale 200
 set grid on
+set run_intvl_t 10ms
 
 model run 1.0

@@ -1,6 +1,3 @@
-// XXX set delta_t 1ms not working,   .9999ms okay
-// XXX use WIRE instead of CONNECTION
-// XXX use model stop - instead of pause
 #include "common.h"
 
 //
@@ -111,12 +108,14 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
 // XXX no + -  and maybe smaller
     static component_image_t power_image =
-        { { { {0,0}, {300,0}, {-1,-1} },
-            { {300,0}, {358,142}, {500,200}, {642,142}, {700,0,}, {642,-142}, {500,-200}, {358,-142}, {300,0}, {-1,-1} },
-            { {350,0}, {400, 0}, {-1,-1} },
-            { {375,25}, {375, -25}, {-1,-1} },
-            { {625,25}, {625, -25}, {-1,-1} },
-            { {700,0}, {1000,0}, {-1,-1} },
+        { { { {0,0}, {400,0}, {-1,-1} },
+            //{ {300,0}, {358,142}, {500,200}, {642,142}, {700,0,}, {642,-142}, {500,-200}, {358,-142}, {300,0}, {-1,-1} },
+            { {400,0}, {429,71}, {500,100}, {571,71}, {600,0,}, {571,-71}, {500,-100}, {429,-71}, {400,0}, {-1,-1} },
+
+            //{ {350,0}, {400, 0}, {-1,-1} },
+            //{ {375,25}, {375, -25}, {-1,-1} },
+            //{ {625,25}, {625, -25}, {-1,-1} },
+            { {600,0}, {1000,0}, {-1,-1} },
             { {-1,-1} } } };
 
     static component_image_t resistor_image = 
@@ -238,8 +237,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         for (i = 0; i < max_component; i++) {
             component_t * c  = &component[i];
             switch (c->type) {
-            case COMP_CONNECTION: {
-                if (c->connection.remote == false) {
+            case COMP_WIRE: {
+                if (c->wire.remote == false) {
                     int32_t x1 = c->term[0].gridloc.x * grid_scale + grid_xoff;
                     int32_t y1 = c->term[0].gridloc.y * grid_scale + grid_yoff;
                     int32_t x2 = c->term[1].gridloc.x * grid_scale + grid_xoff;
@@ -333,8 +332,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 }
 
                 // XXX try alternating color if ground and remote
-                color = (g->has_remote_connection && g->ground && (count % 20 < 10) ? GREEN :
-                         g->has_remote_connection ? g->remote_connection_color :
+                color = (g->has_remote_wire && g->ground && (count % 20 < 10) ? GREEN :
+                         g->has_remote_wire ? g->remote_wire_color :
                          g->ground                ? GREEN 
                                                   : WHITE);
                 sdl_render_point(pane, x, y, color, 4);
@@ -399,7 +398,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
             for (i = 0; i < max_component; i++) {
                 c  = &component[i];
-                if (c->type == COMP_NONE || c->type == COMP_CONNECTION) {
+                if (c->type == COMP_NONE || c->type == COMP_WIRE) {
                     continue;
                 }
                 for (j = 0; j < 2; j++) {
@@ -431,7 +430,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
             for (i = 0; i < max_component; i++) {
                 c  = &component[i];
-                if (c->type == COMP_NONE || c->type == COMP_CONNECTION) {
+                if (c->type == COMP_NONE || c->type == COMP_WIRE) {
                     continue;
                 }
 
@@ -591,12 +590,14 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
 
     if (request == PANE_HANDLER_REQ_RENDER) {
         int32_t i;
+        char s[100];
 
         // state
         sdl_render_printf(pane, 0, ROW2Y(0,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
                           "%s", MODEL_STATE_STR(model_state));
+// XXX put this on same line as above
         sdl_render_printf(pane, 0, ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
-                          "%0.6f SECS", model_time_s);
+                          val_to_str(model_time_s, UNITS_SECONDS, s));
 
         // params
         for (i = 0; params_tbl[i].name; i++) {

@@ -34,7 +34,7 @@ XXX TESTS
 //
 
 static int32_t  model_state_req;
-static double   model_pause_time_s;
+static double   model_stop_time_s;
 
 static node_t * ground_node;
 
@@ -45,9 +45,10 @@ static double   dcpwr_ramp_t_s;
 // prototypes
 //
   
-static int32_t model_run(double duration_s);
-static int32_t model_pause(void);
-static int32_t model_cont(double duration_s);
+static int32_t model_run(double run_intvl_s);
+static int32_t model_stop(void);
+static int32_t model_cont(double run_intvl_s);
+static int32_t model_step(void);
 static int32_t model_init_nodes(void);
 static node_t * allocate_node(void);
 static void add_terms_to_node(node_t *node, gridloc_t *gl);
@@ -73,34 +74,33 @@ void model_init(void)
 int32_t model_cmd(char *cmdline)
 {
     int32_t rc;
-    char *cmd, *arg;
-    double duration_s = 0;
+    char *cmd;
+    double run_intvl_s;
 
-    // extract cmd and arg from cmdline
+    // extract cmd from cmdline
     cmd = strtok(cmdline, " ");
     if (cmd == NULL) {
         ERROR("usage: XXX\n");
         return 0;
     }
-    arg = strtok(NULL, " ");
+
+    // scan PARAM_RUN_INTVL_T
+    if (str_to_val(PARAM_RUN_INTVL_T, UNITS_SECONDS, &run_intvl_s) == -1) {
+        ERROR("invalid interval '%s'\n", PARAM_RUN_INTVL_T);
+        return -1;
+    }
 
     // parse and process the cmd
     if (strcmp(cmd, "reset") == 0) {
         rc = model_reset();
     } else if (strcmp(cmd, "run") == 0) {
-        if (arg && sscanf(arg, "%lf",&duration_s) == -1) {
-            ERROR("invalid duration '%s'\n", arg);
-            return -1;
-        }
-        rc = model_run(duration_s);
-    } else if (strcmp(cmd, "pause") == 0) {
-        rc = model_pause();
+        rc = model_run(run_intvl_s);
+    } else if (strcmp(cmd, "stop") == 0) {
+        rc = model_stop();
     } else if (strcmp(cmd, "cont") == 0) {
-        if (arg && sscanf(arg, "%lf",&duration_s) == -1) {
-            ERROR("invalid duration '%s'\n", arg);
-            return -1;
-        }
-        rc = model_cont(duration_s);
+        rc = model_cont(run_intvl_s);
+    } else if (strcmp(cmd, "step") == 0) {
+        rc = model_step();
     } else {
         ERROR("unsupported cmd '%s'\n", cmd);
         rc = -1;
@@ -114,10 +114,6 @@ int32_t model_cmd(char *cmdline)
 int32_t model_reset(void)
 {
     int32_t i;
-
-    if (model_state == MODEL_STATE_RESET) {
-        return 0;
-    }
 
     SET_MODEL_REQ(MODEL_STATE_RESET);
 
@@ -138,14 +134,13 @@ int32_t model_reset(void)
     }
 
     model_time_s = 0;
-    model_pause_time_s = 0;
+    model_stop_time_s = 0;
     max_node = 0;
 
-    INFO("success\n");
     return 0;
 }
 
-static int32_t model_run(double duration_s)          
+static int32_t model_run(double run_intvl_s)          
 {
     int32_t rc;
 
@@ -159,49 +154,66 @@ static int32_t model_run(double duration_s)
         return -1;
     }
 
-    model_pause_time_s = (duration_s ? model_time_s + duration_s : 0);
+    model_stop_time_s = run_intvl_s;
 
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
     return 0;
 }
 
-static int32_t model_pause(void)
+static int32_t model_stop(void)
 {
     if (model_state != MODEL_STATE_RUNNING) {
         ERROR("not running\n");
         return -1;
     }
 
-    SET_MODEL_REQ(MODEL_STATE_PAUSED);
+    SET_MODEL_REQ(MODEL_STATE_STOPPED);
 
     return 0;
 }
 
-static int32_t model_cont(double duration_s)
+static int32_t model_cont(double run_intvl_s)
 {
-    if (model_state != MODEL_STATE_PAUSED) {
-        ERROR("not paused\n");
+    if (model_state != MODEL_STATE_STOPPED) {
+        ERROR("not stopped\n");
         return -1;
     }
 
-    model_pause_time_s = (duration_s ? model_time_s + duration_s : 0);
+    model_stop_time_s = (run_intvl_s ? model_time_s + run_intvl_s : 0);
 
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
     return 0;
 }
 
+static int32_t model_step(void)
+{
+    if (model_state != MODEL_STATE_STOPPED && model_state != MODEL_STATE_RESET) {
+        ERROR("not stopped or reset\n");
+        return -1;
+    }
+
+    if (model_state == MODEL_STATE_RESET) {
+        model_run(1e-30);
+    } else {
+        model_cont(1e-30);
+    }
+
+    return 0;
+}
+
+
 static int32_t model_init_nodes(void)
 {
     int32_t i, j, ground_node_count, power_count;
 
-    // create a list of nodes, eliminating the connection component;
+    // create a list of nodes, eliminating the wire component;
     // so that each node provides a list of connected real components
     // such as resistors, capacitors, diodes etc.
     //
     // loop over all components 
-    //   if the component is a CONNECTION then continue
+    //   if the component is a WIRE then continue
     //   loop over the component's terminals
     //     if the terminal is already part of a node then continue;
     //     allocate a new node;
@@ -211,7 +223,7 @@ static int32_t model_init_nodes(void)
     // endloop
     for (i = 0; i < max_component; i++) {
         component_t * c = &component[i];
-        if (c->type == COMP_NONE || c->type == COMP_CONNECTION) {
+        if (c->type == COMP_NONE || c->type == COMP_WIRE) {
             continue;
         }
         for (j = 0; j < 2; j++) {
@@ -234,6 +246,7 @@ static int32_t model_init_nodes(void)
     }
 
     // verify that exactly one node is a ground node
+    ground_node_count = 0;
     for (i = 0; i < max_node; i++) {
         if (node[i].ground) {
             ground_node_count++;
@@ -281,7 +294,6 @@ static int32_t model_init_nodes(void)
     }
 
     // return success
-    INFO("success\n");
     return 0;
 }
 
@@ -317,7 +329,7 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
     // XXX assert(n->max_gridloc < n->max_alloced_gridloc);
     if (n->max_gridloc >= n->max_alloced_gridloc) {
         n->max_alloced_gridloc = (n->max_gridloc == 0 ? 8 : n->max_gridloc * 2);
-        INFO("%ld: MAX_ALLOCED_GRIDLOC IS NOW %d\n", n-node, n->max_alloced_gridloc);
+        DEBUG("%ld: MAX_ALLOCED_GRIDLOC IS NOW %d\n", n-node, n->max_alloced_gridloc);
         n->gridloc = realloc(n->gridloc, n->max_alloced_gridloc * sizeof(gridloc_t));
     }
     n->gridloc[n->max_gridloc++] = *gl;
@@ -329,7 +341,7 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
     for (i = 0; i < g->max_term; i++) {
         terminal_t * term = g->term[i];
         component_t * c = term->component;
-        if (c->type == COMP_CONNECTION) {
+        if (c->type == COMP_WIRE) {
             int32_t other_term_id = (term->termid ^ 1);
             terminal_t * other_term = &c->term[other_term_id];
             add_terms_to_node(n, &other_term->gridloc);
@@ -339,11 +351,11 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
             // XXX assert(n->max_term < n->max_alloced_term);
             if (n->max_term >= n->max_alloced_term) {
                 n->max_alloced_term = (n->max_term == 0 ? 8 : n->max_term * 2);
-                INFO("%ld: MAX_ALLOCED_TERM IS NOW %d\n", n-node, n->max_alloced_term);
+                DEBUG("%ld: MAX_ALLOCED_TERM IS NOW %d\n", n-node, n->max_alloced_term);
                 n->term = realloc(n->term, n->max_alloced_term * sizeof(terminal_t));
             }
             n->term[n->max_term] = term;
-            term->current = NO_VALUE;   // XXX be sure to reset this too
+            term->current = NO_VALUE;
             n->max_term++;
 
             term->node = n;
@@ -435,24 +447,17 @@ static void * model_thread(void * cx)
 
         // get delta_t_s from param
         rc = str_to_val(PARAM_DELTA_T, UNITS_SECONDS, &delta_t_s);
-        if (rc < 0 || delta_t_s <= 0 || delta_t_s >= MAX_DELTA_T_S) {
+        if (rc < 0 || delta_t_s <= 0 || delta_t_s > MAX_DELTA_T_S) {
             ERROR("delta_t_us must be in range 0 to %.3le seconds\n", MAX_DELTA_T_S);
-            model_state_req = MODEL_STATE_PAUSED;
+            model_state_req = MODEL_STATE_STOPPED;
             continue;
         }
         // get dcpwr_ramp_t_s from param
         rc = str_to_val(PARAM_DCPWR_RAMP_T, UNITS_SECONDS, &dcpwr_ramp_t_s);
         if (rc < 0 || dcpwr_ramp_t_s < MIN_DCPWR_RAMP_T_S) {
             ERROR("dcpwr_ramp_t must be >= %.3lf seconds\n", MIN_DCPWR_RAMP_T_S);
-            model_state_req = MODEL_STATE_PAUSED;
+            model_state_req = MODEL_STATE_STOPPED;
             continue;
-        }
-
-        // XXX 
-        static bool first = true;
-        if (first) {
-            first = false;
-            INFO("XXXXXXXXXX delta_t_s=%.3le   dcpwr_ramp_t_s=%.6lf\n", delta_t_s, dcpwr_ramp_t_s);
         }
 
         // loop over all nodes, computing the next voltage for that node
@@ -532,9 +537,9 @@ static void * model_thread(void * cx)
         // increment time
         model_time_s += delta_t_s;
 
-        // if model pause time is specified and model time exceeds pause time then pause
-        if (model_pause_time_s > 0 && model_time_s >= model_pause_time_s) {                
-            model_state_req = MODEL_STATE_PAUSED;
+        // if model stop time is specified and model time exceeds stop time then stop
+        if (model_stop_time_s > 0 && model_time_s >= model_stop_time_s) {                
+            model_state_req = MODEL_STATE_STOPPED;   
         }
     }
     return NULL;

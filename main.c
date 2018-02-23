@@ -157,7 +157,7 @@ static struct {
     { "del",             cmd_del,             "<comp_str>"                       },
     { "ground",          cmd_ground,          "<gl>"                             },
 
-    { "model",           cmd_model,           "<reset|run|pause|cont>"           },
+    { "model",           cmd_model,           "<reset|run|stop|cont|step>"       },
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -430,7 +430,7 @@ static int32_t cmd_write(char *args)
     }
     fprintf(fp, "\n");
 
-    if (ground_is_set) {
+    if (ground_is_set) {  // xxx is there a default
         fprintf(fp, "ground %s\n", gridloc_to_str(&ground,s));
         fprintf(fp, "\n");
     }
@@ -438,6 +438,9 @@ static int32_t cmd_write(char *args)
     for (i = 0; params_tbl[i].name; i++) {
         fprintf(fp, "set %-12s %s\n", params_tbl[i].name, params_tbl[i].value);
     }
+    fprintf(fp, "\n");
+
+    fprintf(fp, "model run");
     fprintf(fp, "\n");
 
     // close the file
@@ -532,18 +535,18 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
 
     static char * component_type_str[] = {
                     "none",
-                    "connection",
+                    "wire",
                     "power",
                     "resistor",
                     "capacitor",
                     "inductor",
                     "diode",
                         };
-    static int32_t connection_id, power_id, resistor_id, capacitor_id;
+    static int32_t wire_id, power_id, resistor_id, capacitor_id;
 
     // if max_component is zero then reset resistor,capacitor,... id variables
     if (max_component == 0) {
-        connection_id = 1;
+        wire_id = 1;
         power_id = 1;
         resistor_id = 1;
         capacitor_id = 1;
@@ -582,8 +585,8 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     new_comp.type_str = component_type_str[i];
     // - set comp_str
     switch (new_comp.type) {
-    case COMP_CONNECTION:
-        sprintf(new_comp.comp_str, "W%d", connection_id++);
+    case COMP_WIRE:
+        sprintf(new_comp.comp_str, "W%d", wire_id++);
         break;
     case COMP_POWER:
         sprintf(new_comp.comp_str, "P%d", power_id++);
@@ -608,7 +611,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     }
     // - set component value
     switch (new_comp.type) {
-    case COMP_CONNECTION:
+    case COMP_WIRE:
         value_str = strtok(value_str, ",");
         if (value_str) {
             if (strcmp(value_str,"remote") != 0) {
@@ -617,8 +620,8 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
             }
             value_str = strtok(value_str, "");
             // xxx parse color  NOT GREEN or WHITE
-            new_comp.connection.remote = true;
-            new_comp.connection.remote_color = RED;
+            new_comp.wire.remote = true;
+            new_comp.wire.remote_color = RED;
         }
         break;
     case COMP_POWER:
@@ -661,7 +664,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     }
 
     // verify terminals are adjacent, except for:
-    // - COMP_CONNECTION where they just need to be in the same row or column
+    // - COMP_WIRE where they just need to be in the same row or column
     // xxx comment
     // xxx also check x0,y0 not x0,y1
     x0 = new_comp.term[0].gridloc.x;
@@ -669,8 +672,8 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     x1 = new_comp.term[1].gridloc.x;
     y1 = new_comp.term[1].gridloc.y;
     ok = false;
-    if (new_comp.type == COMP_CONNECTION) {
-        ok = ((new_comp.connection.remote == true) ||
+    if (new_comp.type == COMP_WIRE) {
+        ok = ((new_comp.wire.remote == true) ||
               ((x0 == x1 && y0 != y1) ||
                (y0 == y1 && x0 != x1)));
     } else {
@@ -682,13 +685,13 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         return -1;
     }
 
-    // if the new component is a remote connection then verify that the
-    // 2 grid locations don't already have a remote connection
-    if (new_comp.type == COMP_CONNECTION && new_comp.connection.remote) {
+    // if the new component is a remote wire then verify that the
+    // 2 grid locations don't already have a remote wire
+    if (new_comp.type == COMP_WIRE && new_comp.wire.remote) {
         for (i = 0; i < 2; i++) {
             grid_t * g = &grid[new_comp.term[i].gridloc.x][new_comp.term[i].gridloc.y];
-            if (g->has_remote_connection) {
-                ERROR("gridloc %s already has a remote connection\n", g->glstr);
+            if (g->has_remote_wire) {
+                ERROR("gridloc %s already has a remote wire\n", g->glstr);
                 return -1;
             }
         }
@@ -719,10 +722,10 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
             return -1;
         }
         g->term[g->max_term++] = &c->term[i];
-        if (c->type == COMP_CONNECTION && c->connection.remote == true) {
-            assert(g->has_remote_connection == false);
-            g->has_remote_connection = true;
-            g->remote_connection_color = c->connection.remote_color;
+        if (c->type == COMP_WIRE && c->wire.remote == true) {
+            assert(g->has_remote_wire == false);
+            g->has_remote_wire = true;
+            g->remote_wire_color = c->wire.remote_color;
         }
     }
 
@@ -772,13 +775,13 @@ static int32_t del_component(char * comp_str)
         assert(found);
     }
 
-    // - if the component is a remote connection then clear the 
-    //   grid has_remote_connection flag
-    if (c->type == COMP_CONNECTION && c->connection.remote) {
+    // - if the component is a remote wire then clear the 
+    //   grid has_remote_wire flag
+    if (c->type == COMP_WIRE && c->wire.remote) {
         for (i = 0; i < 2; i++) {
             grid_t * g = &grid[c->term[i].gridloc.x][c->term[i].gridloc.y];
-            assert(g->has_remote_connection);
-            g->has_remote_connection = false;
+            assert(g->has_remote_wire);
+            g->has_remote_wire = false;
         }
     }
 
@@ -860,7 +863,7 @@ char * component_to_value_str(component_t * c, char *s)
     case COMP_INDUCTOR:
         val_to_str(c->inductor.henrys, UNITS_HENRYS, s);
         break;
-    case COMP_CONNECTION:
+    case COMP_WIRE:
     case COMP_DIODE:
     default:
         break;
@@ -1041,12 +1044,12 @@ static void identify_grid_ground(gridloc_t *gl)
     ground_gridloc[max_ground_gridloc++] = *gl;
 
     // loop over this grid location's terminals;
-    // if the terminal is a CONNECTION then determine the
-    // gridloc on the other side of the connection and 
+    // if the terminal is a WIRE then determine the
+    // gridloc on the other side of the wire and 
     // call identify_grid_ground for that gridloc
     for (i = 0; i < g->max_term; i++) {
         component_t * c = g->term[i]->component;
-        if (c->type == COMP_CONNECTION) {
+        if (c->type == COMP_WIRE) {
             int32_t      other_term_id = (g->term[i]->termid ^ 1);
             terminal_t * other_term = &c->term[other_term_id];
             gridloc_t  * other_gl = &other_term->gridloc;

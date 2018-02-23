@@ -17,13 +17,11 @@ int32_t main(int32_t argc, char **argv)
 
     for (x = 0; x < MAX_GRID_X-1; x++) {
         for (y = 0; y < MAX_GRID_Y; y++) {
-            if (y == 0 || y == MAX_GRID_Y-1) {
-                c.type = COMP_CONNECTION;
-                c.type_str = "connection";
-            } else {
-                c.type = COMP_RESISTOR;
-                c.type_str = "resistor";
+            if (y == 26) {
+                continue;
             }
+            c.type = COMP_RESISTOR;
+            c.type_str = "resistor";
             c.term[0].termid = 0;
             c.term[0].gridloc.x = x;
             c.term[0].gridloc.y = y;
@@ -38,13 +36,13 @@ int32_t main(int32_t argc, char **argv)
 
     for (x = 0; x < MAX_GRID_X; x++) {
         for (y = 0; y < MAX_GRID_Y-1; y++) {
-            if (x == 0 || x == MAX_GRID_X-1) {
-                c.type = COMP_CONNECTION;
-                c.type_str = "connection";
+            if (y == 26) {
+                c.type = COMP_WIRE;
+                c.type_str = "wire";
             } else {
                 c.type = COMP_RESISTOR;
                 c.type_str = "resistor";
-            }
+            } 
             c.term[0].termid = 0;
             c.term[0].gridloc.x = x;
             c.term[0].gridloc.y = y;
@@ -103,18 +101,13 @@ static char * make_component_str(component_t * c)
                  make_gridloc_str(&c->term[1].gridloc));
 
     switch (c->type) {
-    case COMP_POWER:
-        p += sprintf(p, "%.2f,%.2f", c->power.volts, c->power.hz);
+    case COMP_WIRE:
         break;
     case COMP_RESISTOR:
         p += sprintf(p, "%.2f", c->resistor.ohms);
         break;
-    case COMP_CAPACITOR:
-        // xxx tbd
-        break;
-    case COMP_INDUCTOR:
-        // xxx tbd
-        break;
+    default:
+        assert(0);
     }
 
     return s;

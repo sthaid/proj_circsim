@@ -36,12 +36,12 @@
 
 #define MODEL_STATE_RESET    0
 #define MODEL_STATE_RUNNING  1
-#define MODEL_STATE_PAUSED   2
+#define MODEL_STATE_STOPPED  2
 
 #define MODEL_STATE_STR(x) \
     ((x) == MODEL_STATE_RESET    ? "RESET"   : \
      (x) == MODEL_STATE_RUNNING  ? "RUNNING" : \
-     (x) == MODEL_STATE_PAUSED   ? "PAUSED"  : \
+     (x) == MODEL_STATE_STOPPED  ? "STOPPED" : \
                                    "????")
 
 #define NODE_V_PRIOR(n) ((n)->voltage[node_v_prior_idx])
@@ -49,7 +49,7 @@
 #define NODE_V_NEXT(n)  ((n)->voltage[node_v_next_idx])
 
 #define COMP_NONE           0
-#define COMP_CONNECTION     1
+#define COMP_WIRE           1
 #define COMP_POWER          2
 #define COMP_RESISTOR       3
 #define COMP_CAPACITOR      4
@@ -100,7 +100,7 @@ typedef struct component_s {
         struct {
             bool remote;
             int32_t remote_color;
-        } connection;
+        } wire;
         struct {
             double volts;
             double hz;  // 0 = DC
@@ -126,8 +126,8 @@ typedef struct grid_s {
     char glstr[4];
     int32_t max_term;
     bool ground;
-    bool has_remote_connection;
-    int32_t remote_connection_color;
+    bool has_remote_wire;
+    int32_t remote_wire_color;
 } grid_t;
 
 typedef struct node_s {
@@ -171,12 +171,13 @@ int32_t     model_state;
 
 #define PARAM_DELTA_T       (params_tbl[0].value)
 #define PARAM_DCPWR_RAMP_T  (params_tbl[1].value)
-#define PARAM_GRID          (params_tbl[2].value)
-#define PARAM_CURRENT       (params_tbl[3].value)
-#define PARAM_VOLTAGE       (params_tbl[4].value)
-#define PARAM_COMPONENT     (params_tbl[5].value)
-#define PARAM_CENTER        (params_tbl[6].value)
-#define PARAM_SCALE         (params_tbl[7].value)
+#define PARAM_RUN_INTVL_T   (params_tbl[2].value)
+#define PARAM_GRID          (params_tbl[3].value)
+#define PARAM_CURRENT       (params_tbl[4].value)
+#define PARAM_VOLTAGE       (params_tbl[5].value)
+#define PARAM_COMPONENT     (params_tbl[6].value)
+#define PARAM_CENTER        (params_tbl[7].value)
+#define PARAM_SCALE         (params_tbl[8].value)
 
 #define DEFAULT_SCALE   "200"
 #define DEFAULT_CENTER  "c3"
@@ -188,8 +189,9 @@ typedef struct {
 
 #ifdef MAIN
 params_tbl_entry_t params_tbl[] = { 
-        { "delta_t",       ".1ns"          },    // model time increment, units=seconds
-        { "dcpwr_ramp_t",  "10ms"          },    // dc power supply time to ramp to voltage, seconds
+        { "delta_t",       "1ns"           },   // model time increment, units=seconds
+        { "dcpwr_ramp_t",  "1ms"           },   // dc power supply time to ramp to voltage, seconds
+        { "run_intvl_t",   "100ms"         },   // model run and model cont interval
         { "grid",          "off"           },   // on, off
         { "current",       "on"            },   // on, off
         { "voltage",       "on"            },   // on, off
