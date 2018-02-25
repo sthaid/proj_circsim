@@ -177,6 +177,10 @@ static int32_t process_cmd(char * cmdline)
 
     // make a copy of cmdline, to be used if an error is encountered
     strcpy(cmdline_orig, cmdline);
+    len = strlen(cmdline_orig);
+    if (len > 0 && cmdline_orig[len-1] == '\n') {
+        cmdline_orig[len-1] = '\0';
+    }
 
     // get command, if no cmd then return 
     cmd = strtok(cmdline, " \n");
@@ -263,8 +267,12 @@ static int32_t cmd_set(char *args)
         return -1;
     }
 
+//XXX routine
     // store new param value
     strcpy(params_tbl[i].value, value);
+    param_update_count++;
+
+    // success
     return 0;
 }
 
@@ -542,7 +550,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
                     "inductor",
                     "diode",
                         };
-    static int32_t wire_id, power_id, resistor_id, capacitor_id;
+    static int32_t wire_id, power_id, resistor_id, capacitor_id, inductor_id;
 
     // if max_component is zero then reset resistor,capacitor,... id variables
     if (max_component == 0) {
@@ -550,6 +558,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         power_id = 1;
         resistor_id = 1;
         capacitor_id = 1;
+        inductor_id = 1;
     }
 
     // convert type_str to type; 
@@ -596,6 +605,9 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         break;
     case COMP_CAPACITOR:
         sprintf(new_comp.comp_str, "C%d", capacitor_id++);
+        break;
+    case COMP_INDUCTOR:
+        sprintf(new_comp.comp_str, "C%d", inductor_id++);
         break;
     }
     // - set term
@@ -887,7 +899,6 @@ char * component_to_full_str(component_t * c, char * s)
     return s;
 }
 
-// xxx check henrys
 typedef struct {
     char * units;
     double factor;  // 0 is table terminator

@@ -9,7 +9,8 @@ ground c1
 
 set center c4
 set scale 200
-set grid on
-set run_intvl_t 10ms
+set grid off
+set dcpwr_ramp_t 1ms
+set stop_t 10ms
 
-model run 1.0
+model run 10ms

@@ -24,7 +24,7 @@
 static pthread_mutex_t mutex;
 static int32_t win_width, win_height;
 
-static int32_t grid_xoff, grid_xadj;
+static int32_t grid_xoff, grid_xadj;  // xxx incorporate in 'set center'
 static int32_t grid_yoff, grid_yadj;
 static double  grid_scale;
 
@@ -103,18 +103,12 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         struct {
             int32_t x;
             int32_t y;
-        } points[20][20];
+        } points[20][50];
     } component_image_t;
 
-// XXX no + -  and maybe smaller
     static component_image_t power_image =
         { { { {0,0}, {400,0}, {-1,-1} },
-            //{ {300,0}, {358,142}, {500,200}, {642,142}, {700,0,}, {642,-142}, {500,-200}, {358,-142}, {300,0}, {-1,-1} },
             { {400,0}, {429,71}, {500,100}, {571,71}, {600,0,}, {571,-71}, {500,-100}, {429,-71}, {400,0}, {-1,-1} },
-
-            //{ {350,0}, {400, 0}, {-1,-1} },
-            //{ {375,25}, {375, -25}, {-1,-1} },
-            //{ {625,25}, {625, -25}, {-1,-1} },
             { {600,0}, {1000,0}, {-1,-1} },
             { {-1,-1} } } };
 
@@ -127,6 +121,18 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             { {550,0}, {1000,0}, {-1,-1} },
             { {450,-70}, {450,70}, {-1,-1} },
             { {550,-70}, {550,70}, {-1,-1} },
+            { {-1,-1} } } };
+
+    static component_image_t inductor_image =  
+        { { { {0,0}, {275,0}, 
+              {275,50}, {300,75}, {325,75}, {350,50}, {350,0}, 
+              {350,50}, {375,75}, {400,75}, {425,50}, {425,0}, 
+              {425,50}, {450,75}, {475,75}, {500,50}, {500,0}, 
+              {500,50}, {525,75}, {550,75}, {575,50}, {575,0}, 
+              {575,50}, {600,75}, {625,75}, {650,50}, {650,0}, 
+              {650,50}, {675,75}, {700,75}, {725,50}, {725,0}, 
+              {1000,0},
+              {-1,-1} },
             { {-1,-1} } } };
 
     static component_image_t diode_image = 
@@ -171,10 +177,13 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         {
             ERROR("invalid grid scale '%s'\n", PARAM_SCALE);
             if (cnt != 1) {
+                // xxx
                 strcpy(PARAM_SCALE, DEFAULT_SCALE);
             } else if (grid_scale < MIN_GRID_SCALE) {
+                // xxx
                 sprintf(PARAM_SCALE, "%d", MIN_GRID_SCALE);
             } else {
+                // xxx
                 sprintf(PARAM_SCALE, "%d", MAX_GRID_SCALE);
             }
             cnt = sscanf(PARAM_SCALE, "%lf", &grid_scale);
@@ -183,6 +192,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
         if (str_to_gridloc(PARAM_CENTER, &gl) < 0) {
             ERROR("invalid grid center loc '%s'\n", PARAM_CENTER);
+            // xxx
             strcpy(PARAM_CENTER, DEFAULT_CENTER);
         }
         grid_xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2 + grid_xadj;
@@ -252,6 +262,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             case COMP_POWER:
             case COMP_RESISTOR:
             case COMP_CAPACITOR:
+            case COMP_INDUCTOR:
             case COMP_DIODE: {
                 component_image_t * ci = NULL;
                 int32_t x, y, j, k;
@@ -269,6 +280,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     ci = &resistor_image;
                 } else if (c->type == COMP_CAPACITOR) {
                     ci = &capacitor_image;
+                } else if (c->type == COMP_INDUCTOR) {
+                    ci = &inductor_image;
                 } else if (c->type == COMP_DIODE) {
                     ci = &diode_image;
                 } else {
@@ -331,11 +344,11 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     continue;
                 }
 
-                // XXX try alternating color if ground and remote
+                // alternate color if ground and remote
                 color = (g->has_remote_wire && g->ground && (count % 20 < 10) ? GREEN :
-                         g->has_remote_wire ? g->remote_wire_color :
-                         g->ground                ? GREEN 
-                                                  : WHITE);
+                         g->has_remote_wire                                   ? g->remote_wire_color :
+                         g->ground                                            ? GREEN 
+                                                                              : WHITE);
                 sdl_render_point(pane, x, y, color, 4);
             }
         } }
@@ -510,6 +523,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             if (gl.y < 0) gl.y = 0;
             if (gl.y >= MAX_GRID_X) gl.y = MAX_GRID_Y-1;
 
+            // XXX routine
             gridloc_to_str(&gl, PARAM_CENTER);
             xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2;
             yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2;
@@ -528,6 +542,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             }
             if (new_grid_scale >= MIN_GRID_SCALE && new_grid_scale <= MAX_GRID_SCALE) {
                 grid_scale = new_grid_scale;
+                // XXX routine
                 sprintf(PARAM_SCALE, "%.0lf", grid_scale);
             }
             return PANE_HANDLER_RET_DISPLAY_REDRAW; }
@@ -570,6 +585,11 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
 {
     #define FPSZ_MEDIUM 30
 
+    #define SDL_EVENT_MODEL_RESET  (SDL_EVENT_USER_DEFINED + 0)
+    #define SDL_EVENT_MODEL_RUN    (SDL_EVENT_USER_DEFINED + 1)
+    #define SDL_EVENT_MODEL_STOP   (SDL_EVENT_USER_DEFINED + 2)
+    #define SDL_EVENT_MODEL_CONT   (SDL_EVENT_USER_DEFINED + 3)
+
     struct {
         int32_t none;
     } * vars = pane_cx->vars;
@@ -594,9 +614,8 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
 
         // state
         sdl_render_printf(pane, 0, ROW2Y(0,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
-                          "%s", MODEL_STATE_STR(model_state));
-// XXX put this on same line as above
-        sdl_render_printf(pane, 0, ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
+                          "%-8s %s", 
+                          MODEL_STATE_STR(model_state),
                           val_to_str(model_time_s, UNITS_SECONDS, s));
 
         // params
@@ -607,6 +626,27 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
                               params_tbl[i].value);
         }
 
+        sdl_render_text_and_register_event(
+            pane, COL2X(0,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "RESET", LIGHT_BLUE, BLACK,
+            SDL_EVENT_MODEL_RESET, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
+        switch (model_state) {
+        case MODEL_STATE_RESET:
+            sdl_render_text_and_register_event(
+                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "RUN", LIGHT_BLUE, BLACK,
+                SDL_EVENT_MODEL_RUN, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
+            break;
+        case MODEL_STATE_RUNNING:
+            sdl_render_text_and_register_event(
+                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "STOP", LIGHT_BLUE, BLACK,
+                SDL_EVENT_MODEL_STOP, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
+            break;
+        case MODEL_STATE_STOPPED:
+            sdl_render_text_and_register_event(
+                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "CONT", LIGHT_BLUE, BLACK,
+                SDL_EVENT_MODEL_CONT, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
+            break;
+        }
+
         return PANE_HANDLER_RET_NO_ACTION;
     }
 
@@ -615,6 +655,20 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
     // -----------------------
 
     if (request == PANE_HANDLER_REQ_EVENT) {
+        switch(event->event_id) {
+        case SDL_EVENT_MODEL_RESET:
+            model_reset();
+            break;
+        case SDL_EVENT_MODEL_RUN:
+            model_run();
+            break;
+        case SDL_EVENT_MODEL_STOP:
+            model_stop();
+            break;
+        case SDL_EVENT_MODEL_CONT:
+            model_cont();
+            break;
+        }
         return PANE_HANDLER_RET_NO_ACTION;
     }
 

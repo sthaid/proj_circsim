@@ -1,14 +1,25 @@
 clear_schematic
-add power        b1  c1 5v
-add wire   b1  b2 
-add resistor     b2  c2 5
-add capacitor    c2  d2 100mf
-add resistor     d2  d1 5
-add wire   d1  c1 
+
+add power      b1   c1   5.00V
+add wire       b1   b2   
+add resistor   b2   c2   3.33
+add capacitor  c2   d2   200mF
+add resistor   d2   e2   3.33
+add capacitor  e2   f2   200mF
+add resistor   f2   g2   3.33
+add wire       g2   g1   
+add wire       g1   c1   
+
 ground c1
 
-set center c4
-set scale 300
-set grid off
+set delta_t      .1ns
+set dcpwr_ramp_t 1ms
+set run_intvl_t  1s
+set grid         off
+set current      on
+set voltage      on
+set component    value
+set center       e4
+set scale        154
 
-#model run 1
+model run

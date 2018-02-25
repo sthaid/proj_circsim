@@ -118,7 +118,7 @@ typedef struct component_s {
     // component state, used by model.c, follow:
     // when clearing component state, zero from here
     int32_t zero_init_component_state;
-    int32_t xxx_tbd;
+    double inductor_current;
 } component_t;
 
 typedef struct grid_s {
@@ -169,9 +169,9 @@ int32_t     model_state;
 // parameters
 // 
 
-#define PARAM_DELTA_T       (params_tbl[0].value)
-#define PARAM_DCPWR_RAMP_T  (params_tbl[1].value)
-#define PARAM_RUN_INTVL_T   (params_tbl[2].value)
+#define PARAM_STOP_T        (params_tbl[0].value)
+#define PARAM_DELTA_T       (params_tbl[1].value)
+#define PARAM_DCPWR_RAMP_T  (params_tbl[2].value)
 #define PARAM_GRID          (params_tbl[3].value)
 #define PARAM_CURRENT       (params_tbl[4].value)
 #define PARAM_VOLTAGE       (params_tbl[5].value)
@@ -189,9 +189,9 @@ typedef struct {
 
 #ifdef MAIN
 params_tbl_entry_t params_tbl[] = { 
+        { "stop_t",        "100ms"         },   // model stop time
         { "delta_t",       "1ns"           },   // model time increment, units=seconds
         { "dcpwr_ramp_t",  "1ms"           },   // dc power supply time to ramp to voltage, seconds
-        { "run_intvl_t",   "100ms"         },   // model run and model cont interval
         { "grid",          "off"           },   // on, off
         { "current",       "on"            },   // on, off
         { "voltage",       "on"            },   // on, off
@@ -203,6 +203,7 @@ params_tbl_entry_t params_tbl[] = {
 #else
 params_tbl_entry_t params_tbl[20];
 #endif
+int32_t param_update_count;
 
 //
 // prototypes
@@ -227,5 +228,9 @@ void display_handler(void);
 void model_init(void);
 int32_t model_cmd(char *cmdline);
 int32_t model_reset(void);
+int32_t model_run(void);
+int32_t model_stop(void);
+int32_t model_cont(void);
+int32_t model_step(void);
 
 #endif

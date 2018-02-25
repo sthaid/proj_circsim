@@ -1,10 +1,22 @@
 #if 0
+XXX NEXT STEPS
+- support inductor and run test
+- stabilize model with RL and RC circuits
+- try an LC circuit,   new cmd to powr the capacitor
+- add scope and/or meters display options
+
 XXX -O0
+
 XXX TESTS
 - series/parallel resistors
 - infinite resistor array
 - resistor / capacitor time constant
 - capacitor / inductor resonant circuit
+
+XXX instability in the model
+
+XXX add display scopes and meters
+
 #endif
 
 #include "common.h"
@@ -34,21 +46,22 @@ XXX TESTS
 //
 
 static int32_t  model_state_req;
-static double   model_stop_time_s;
+static bool     model_step_req;
 
 static node_t * ground_node;
 
-static double   delta_t_s;
-static double   dcpwr_ramp_t_s;
+static double   delta_t;
+static double   dcpwr_ramp_t;
+static double   stop_t;
 
 //
 // prototypes
 //
   
-static int32_t model_run(double run_intvl_s);
-static int32_t model_stop(void);
-static int32_t model_cont(double run_intvl_s);
-static int32_t model_step(void);
+//static int32_t model_run(void);
+//static int32_t model_stop(void);
+//static int32_t model_cont(void);
+//static int32_t model_step(void);
 static int32_t model_init_nodes(void);
 static node_t * allocate_node(void);
 static void add_terms_to_node(node_t *node, gridloc_t *gl);
@@ -74,8 +87,7 @@ void model_init(void)
 int32_t model_cmd(char *cmdline)
 {
     int32_t rc;
-    char *cmd;
-    double run_intvl_s;
+    char *cmd, *arg;
 
     // extract cmd from cmdline
     cmd = strtok(cmdline, " ");
@@ -84,21 +96,43 @@ int32_t model_cmd(char *cmdline)
         return 0;
     }
 
-    // scan PARAM_RUN_INTVL_T
-    if (str_to_val(PARAM_RUN_INTVL_T, UNITS_SECONDS, &run_intvl_s) == -1) {
-        ERROR("invalid interval '%s'\n", PARAM_RUN_INTVL_T);
-        return -1;
+    // if arg supplied then use it to set the stop time;
+    // only for the "run" and "cont" cmds
+    if ((strcmp(cmd, "run") == 0 || strcmp(cmd, "cont") == 0) &&
+        ((arg = strtok(NULL, " ")) != NULL)) 
+    {
+        bool add_flag = false;
+        double arg_val, lcl_stop_t;
+        if (arg[0] == '+') {
+            add_flag = true;
+            arg++;
+        }
+        if (str_to_val(arg, UNITS_SECONDS, &arg_val) == -1 || arg_val <= 0) {
+            ERROR("invalid time '%s'\n", arg);
+            return -1;
+        }
+        if (add_flag) {
+            if (str_to_val(PARAM_STOP_T, UNITS_SECONDS, &lcl_stop_t) == -1 || lcl_stop_t <= 0) {
+                ERROR("invalid time '%s'\n", PARAM_STOP_T);
+                return -1;
+            }
+            lcl_stop_t += arg_val;
+        } else {
+            lcl_stop_t = arg_val;
+        }
+        val_to_str(lcl_stop_t, UNITS_SECONDS, PARAM_STOP_T);  // XXX routine
+        param_update_count++;
     }
 
     // parse and process the cmd
     if (strcmp(cmd, "reset") == 0) {
         rc = model_reset();
     } else if (strcmp(cmd, "run") == 0) {
-        rc = model_run(run_intvl_s);
+        rc = model_run();
     } else if (strcmp(cmd, "stop") == 0) {
         rc = model_stop();
     } else if (strcmp(cmd, "cont") == 0) {
-        rc = model_cont(run_intvl_s);
+        rc = model_cont();
     } else if (strcmp(cmd, "step") == 0) {
         rc = model_step();
     } else {
@@ -108,8 +142,6 @@ int32_t model_cmd(char *cmdline)
 
     return rc;
 }
-
-// -----------------  MODEL SUPPORT  -------------------------------------------------
 
 int32_t model_reset(void)
 {
@@ -134,13 +166,12 @@ int32_t model_reset(void)
     }
 
     model_time_s = 0;
-    model_stop_time_s = 0;
     max_node = 0;
 
     return 0;
 }
 
-static int32_t model_run(double run_intvl_s)          
+int32_t model_run(void)
 {
     int32_t rc;
 
@@ -154,14 +185,12 @@ static int32_t model_run(double run_intvl_s)
         return -1;
     }
 
-    model_stop_time_s = run_intvl_s;
-
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
     return 0;
 }
 
-static int32_t model_stop(void)
+int32_t model_stop(void)
 {
     if (model_state != MODEL_STATE_RUNNING) {
         ERROR("not running\n");
@@ -173,36 +202,37 @@ static int32_t model_stop(void)
     return 0;
 }
 
-static int32_t model_cont(double run_intvl_s)
+int32_t model_cont(void)
 {
     if (model_state != MODEL_STATE_STOPPED) {
         ERROR("not stopped\n");
         return -1;
     }
 
-    model_stop_time_s = (run_intvl_s ? model_time_s + run_intvl_s : 0);
-
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
     return 0;
 }
 
-static int32_t model_step(void)
+int32_t model_step(void)
 {
     if (model_state != MODEL_STATE_STOPPED && model_state != MODEL_STATE_RESET) {
-        ERROR("not stopped or reset\n");
+        ERROR("model state is not stopped or reset\n");
         return -1;
     }
 
+    model_step_req = true;
+
     if (model_state == MODEL_STATE_RESET) {
-        model_run(1e-30);
+        model_run();
     } else {
-        model_cont(1e-30);
+        model_cont();
     }
 
     return 0;
 }
 
+// -----------------  MODEL SUPPORT  -------------------------------------------------
 
 static int32_t model_init_nodes(void)
 {
@@ -427,6 +457,7 @@ static void debug_print_nodes(void)
 static void * model_thread(void * cx) 
 {
     int32_t i,j,rc;
+    static int32_t last_param_update_count = -1;
 
     while (true) {
         // handle request to transition model_state
@@ -442,22 +473,40 @@ static void * model_thread(void * cx)
             usleep(1000);
         }
 
-        // XXX only when starting model ?
-        //     or when param has changed
-
-        // get delta_t_s from param
-        rc = str_to_val(PARAM_DELTA_T, UNITS_SECONDS, &delta_t_s);
-        if (rc < 0 || delta_t_s <= 0 || delta_t_s > MAX_DELTA_T_S) {
-            ERROR("delta_t_us must be in range 0 to %.3le seconds\n", MAX_DELTA_T_S);
-            model_state_req = MODEL_STATE_STOPPED;
-            continue;
-        }
-        // get dcpwr_ramp_t_s from param
-        rc = str_to_val(PARAM_DCPWR_RAMP_T, UNITS_SECONDS, &dcpwr_ramp_t_s);
-        if (rc < 0 || dcpwr_ramp_t_s < MIN_DCPWR_RAMP_T_S) {
-            ERROR("dcpwr_ramp_t must be >= %.3lf seconds\n", MIN_DCPWR_RAMP_T_S);
-            model_state_req = MODEL_STATE_STOPPED;
-            continue;
+        // if any parameters have changed then rescan the parameters used
+        // by this routine for possible updates
+        if (param_update_count != last_param_update_count) {
+            bool error = false;
+            rc = str_to_val(PARAM_STOP_T, UNITS_SECONDS, &stop_t);
+            if (rc < 0 || stop_t <= 0) {
+                ERROR("invalid stop_t\n");
+                error = true;
+            }
+            rc = str_to_val(PARAM_DELTA_T, UNITS_SECONDS, &delta_t);
+            if (rc < 0 || delta_t <= 0 || delta_t > MAX_DELTA_T_S) {
+                ERROR("delta_t_us must be in range 0 to %.3le seconds\n", MAX_DELTA_T_S);
+                error = true;
+            }
+            rc = str_to_val(PARAM_DCPWR_RAMP_T, UNITS_SECONDS, &dcpwr_ramp_t);
+#if 1
+            if (rc < 0 || dcpwr_ramp_t < MIN_DCPWR_RAMP_T_S) {
+                ERROR("dcpwr_ramp_t must be >= %.3lf seconds\n", MIN_DCPWR_RAMP_T_S);
+                error = true;
+            }
+#else
+            if (rc < 0) {
+                ERROR("invalid dcpwr_ramp_t\n");
+                error = true;
+            }
+#endif
+            if (error) {
+                model_state_req = MODEL_STATE_STOPPED;
+                model_step_req = false;
+                continue;
+            }
+            INFO("stop_t = %e delta_t = %e dcpwr_ramp_t = %e\n",
+                 stop_t, delta_t, dcpwr_ramp_t);
+            last_param_update_count = param_update_count;
         }
 
         // loop over all nodes, computing the next voltage for that node
@@ -484,8 +533,11 @@ static void * model_thread(void * cx)
                         break;
                     case COMP_CAPACITOR:
                         c_sum_num += (NODE_V_CURR(n) + NODE_V_CURR(other_n) - NODE_V_PRIOR(other_n)) *
-                                     (c->capacitor.farads / delta_t_s);
-                        c_sum_denom += c->capacitor.farads / delta_t_s;
+                                     (c->capacitor.farads / delta_t);
+                        c_sum_denom += c->capacitor.farads / delta_t;
+                        break;
+                    case COMP_INDUCTOR:
+                        // XXX AAA
                         break;
                     default:
                         FATAL("comp type %s not supported\n", c->type_str);
@@ -514,9 +566,12 @@ static void * model_thread(void * cx)
                     break;
                 case COMP_CAPACITOR:
                     term->current = ((NODE_V_NEXT(n) - NODE_V_CURR(n)) - (NODE_V_NEXT(other_n) - NODE_V_CURR(other_n)))
-                                     * c->capacitor.farads / delta_t_s;
+                                     * c->capacitor.farads / delta_t;
                     //printf("NODE %d CAP TERMID %d  CURRENT %lf\n", i, term->termid, term->current);
                     total_current += term->current;
+                    break;
+                case COMP_INDUCTOR:
+                    // XXX AAA
                     break;
                 }
             }
@@ -525,6 +580,7 @@ static void * model_thread(void * cx)
                 n->power->current = -total_current;
             }
         }
+
         // XXX what about ground node current
 
         // increment the idx values which affect the operation of the 
@@ -535,11 +591,13 @@ static void * model_thread(void * cx)
         node_v_next_idx  = (node_v_next_idx + 1) % 3;
 
         // increment time
-        model_time_s += delta_t_s;
+        model_time_s += delta_t;
 
-        // if model stop time is specified and model time exceeds stop time then stop
-        if (model_stop_time_s > 0 && model_time_s >= model_stop_time_s) {                
+        // if model has reached the stop time, or is being single stepped
+        // then stop the model
+        if (model_time_s >= stop_t || model_step_req) {                
             model_state_req = MODEL_STATE_STOPPED;   
+            model_step_req = false;
         }
     }
     return NULL;
@@ -553,10 +611,10 @@ static double get_comp_power_voltage(component_t * c)
         FATAL("AC not supported yet\n");
     }
     
-    if (model_time_s > dcpwr_ramp_t_s) {
+    if (model_time_s > dcpwr_ramp_t) {
         v = c->power.volts;
     } else {
-        v = c->power.volts * sin((model_time_s / dcpwr_ramp_t_s) * M_PI_2);
+        v = c->power.volts * sin((model_time_s / dcpwr_ramp_t) * M_PI_2);
     }
 
     return v;
