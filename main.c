@@ -448,9 +448,6 @@ static int32_t cmd_write(char *args)
     }
     fprintf(fp, "\n");
 
-    fprintf(fp, "model run");
-    fprintf(fp, "\n");
-
     // close the file
     fclose(fp);
 

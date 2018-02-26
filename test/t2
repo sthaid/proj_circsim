@@ -12,12 +12,7 @@ add resistor   c6   d6   200
 
 ground c4
 
-set delta_t      .1ns
-set dcpwr_ramp_t 10ms
-set grid         off
-set current      on
-set voltage      on
-set component    value
-set center       c6
-set scale        200
-
+set center c6
+set scale 200
+set dcpwr_ramp_t 0
+set stop_t 1ms

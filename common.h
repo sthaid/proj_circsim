@@ -44,10 +44,6 @@
      (x) == MODEL_STATE_STOPPED  ? "STOPPED" : \
                                    "????")
 
-#define NODE_V_PRIOR(n) ((n)->voltage[node_v_prior_idx])
-#define NODE_V_CURR(n)  ((n)->voltage[node_v_curr_idx])
-#define NODE_V_NEXT(n)  ((n)->voltage[node_v_next_idx])
-
 #define COMP_NONE           0
 #define COMP_WIRE           1
 #define COMP_POWER          2
@@ -87,7 +83,6 @@ typedef struct terminal_s {
     int32_t termid;
     gridloc_t gridloc;
     struct node_s * node;
-    double current;  // xxx prior ?
 } terminal_t;
 
 typedef struct component_s {
@@ -118,7 +113,9 @@ typedef struct component_s {
     // component state, used by model.c, follow:
     // when clearing component state, zero from here
     int32_t zero_init_component_state;
-    double inductor_current;
+    double i_next;   // xxx are these all used
+    double i_current;
+    double i_prior;
 } component_t;
 
 typedef struct grid_s {
@@ -141,7 +138,9 @@ typedef struct node_s {
     int32_t max_gridloc;
     bool ground;
     terminal_t * power;
-    double voltage[3];   // circular buffer of: prior, curr, new 
+    double v_next;
+    double v_current;
+    double v_prior;
 } node_t;
 
 //
@@ -158,9 +157,6 @@ grid_t      grid[MAX_GRID_X][MAX_GRID_Y];
 
 node_t      node[MAX_NODE];
 int32_t     max_node;
-int32_t     node_v_prior_idx; //xxx should these be here?
-int32_t     node_v_curr_idx;
-int32_t     node_v_next_idx;
 
 double      model_time_s;
 int32_t     model_state;

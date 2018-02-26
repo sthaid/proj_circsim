@@ -34,8 +34,9 @@ XXX add display scopes and meters
         } \
     } while (0)
 
-#define MAX_DELTA_T_S       (1e-3)  // 1 ms
-#define MIN_DCPWR_RAMP_T_S  (1e-3)  // 1 ms
+//#define MAX_DELTA_T_S       (1e-3)  // 1 ms
+//#define MIN_DCPWR_RAMP_T_S  (1e-3)  // 1 ms
+//#define MIN_DCPWR_RAMP_T_S  0
 
 //
 // typedefs
@@ -58,27 +59,19 @@ static double   stop_t;
 // prototypes
 //
   
-//static int32_t model_run(void);
-//static int32_t model_stop(void);
-//static int32_t model_cont(void);
-//static int32_t model_step(void);
 static int32_t model_init_nodes(void);
 static node_t * allocate_node(void);
 static void add_terms_to_node(node_t *node, gridloc_t *gl);
 static void debug_print_nodes(void);
 static void * model_thread(void * cx);
 static double get_comp_power_voltage(component_t * c);
+static int32_t check_for_param_updates(void);
 
 // -----------------  PUBLIC ---------------------------------------------------------
 
 void model_init(void)
 {
     pthread_t thread_id;
-
-    // init variables
-    node_v_prior_idx = 0;
-    node_v_curr_idx  = 1;
-    node_v_next_idx  = 2;
 
     // create the model_thread
     pthread_create(&thread_id, NULL, model_thread, NULL);
@@ -385,7 +378,7 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
                 n->term = realloc(n->term, n->max_alloced_term * sizeof(terminal_t));
             }
             n->term[n->max_term] = term;
-            term->current = NO_VALUE;
+            //xxx term->current = NO_VALUE;  this is now in component
             n->max_term++;
 
             term->node = n;
@@ -453,14 +446,16 @@ static void debug_print_nodes(void)
 //       SUM (Vn/Rn)
 //   V = -----------
 //       SUM (1/Rn)
+//
+// XXX what about ground node current
 
 static void * model_thread(void * cx) 
 {
-    int32_t i,j,rc;
-    static int32_t last_param_update_count = -1;
+    int32_t i,j;
 
     while (true) {
-        // handle request to transition model_state
+        // handle request to transition model_state; and
+        // remain in this loop until model_state equals MODEL_STATE_RUNNING
         while (true) {
             if (model_state_req != model_state) {
                 INFO("model_state is %s\n", MODEL_STATE_STR(model_state_req));
@@ -473,125 +468,118 @@ static void * model_thread(void * cx)
             usleep(1000);
         }
 
-        // if any parameters have changed then rescan the parameters used
-        // by this routine for possible updates
-        if (param_update_count != last_param_update_count) {
-            bool error = false;
-            rc = str_to_val(PARAM_STOP_T, UNITS_SECONDS, &stop_t);
-            if (rc < 0 || stop_t <= 0) {
-                ERROR("invalid stop_t\n");
-                error = true;
-            }
-            rc = str_to_val(PARAM_DELTA_T, UNITS_SECONDS, &delta_t);
-            if (rc < 0 || delta_t <= 0 || delta_t > MAX_DELTA_T_S) {
-                ERROR("delta_t_us must be in range 0 to %.3le seconds\n", MAX_DELTA_T_S);
-                error = true;
-            }
-            rc = str_to_val(PARAM_DCPWR_RAMP_T, UNITS_SECONDS, &dcpwr_ramp_t);
-#if 1
-            if (rc < 0 || dcpwr_ramp_t < MIN_DCPWR_RAMP_T_S) {
-                ERROR("dcpwr_ramp_t must be >= %.3lf seconds\n", MIN_DCPWR_RAMP_T_S);
-                error = true;
-            }
-#else
-            if (rc < 0) {
-                ERROR("invalid dcpwr_ramp_t\n");
-                error = true;
-            }
-#endif
-            if (error) {
-                model_state_req = MODEL_STATE_STOPPED;
-                model_step_req = false;
-                continue;
-            }
-            INFO("stop_t = %e delta_t = %e dcpwr_ramp_t = %e\n",
-                 stop_t, delta_t, dcpwr_ramp_t);
-            last_param_update_count = param_update_count;
+        // get param updates for stop_t, delta_t, and dcpwr_ramp_t
+        if (check_for_param_updates() < 0) {
+            model_state_req = MODEL_STATE_STOPPED;
+            model_step_req = false;
+            continue;
         }
+
+        // xxx comments
+
+        // increment time
+        model_time_s += delta_t;
 
         // loop over all nodes, computing the next voltage for that node
         for (i = 0; i < max_node; i++) {
             node_t * n = & node[i];
 
             if (n->ground) {
-                NODE_V_NEXT(n) = 0;
+                n->v_next = 0;
             } else if (n->power) {
-                component_t * c = n->power->component;
-                NODE_V_NEXT(n) = get_comp_power_voltage(c);
+                n->v_next = get_comp_power_voltage(n->power->component);
             } else {
                 double r_sum_num=0, r_sum_denom=0;
                 double c_sum_num=0, c_sum_denom=0;
+                double l_sum_num=0, l_sum_denom=0;
                 for (j = 0; j < n->max_term; j++) {
                     component_t *c = n->term[j]->component;
-                    int32_t other_termid = (n->term[j]->termid ^ 1);
+                    int32_t termid = n->term[j]->termid;
+                    int32_t other_termid = (termid ^ 1);
                     node_t *other_n = c->term[other_termid].node;
 
                     switch (c->type) {
                     case COMP_RESISTOR:
-                        r_sum_num += (NODE_V_CURR(other_n) / c->resistor.ohms);
+                        r_sum_num += (other_n->v_current / c->resistor.ohms);
                         r_sum_denom += (1 / c->resistor.ohms);
                         break;
                     case COMP_CAPACITOR:
-                        c_sum_num += (NODE_V_CURR(n) + NODE_V_CURR(other_n) - NODE_V_PRIOR(other_n)) *
+                        c_sum_num += (n->v_current + other_n->v_current - other_n->v_prior) *
                                      (c->capacitor.farads / delta_t);
                         c_sum_denom += c->capacitor.farads / delta_t;
                         break;
                     case COMP_INDUCTOR:
-                        // XXX AAA
+                        l_sum_num += 
+                            (delta_t / c->inductor.henrys) * (other_n->v_current + other_n->v_current - other_n->v_prior);
+                        if (termid == 0) {
+                            l_sum_num -= c->i_current;
+                        } else {
+                            l_sum_num += c->i_current;
+                        }
+
+                        l_sum_denom += delta_t / c->inductor.henrys;
                         break;
                     default:
                         FATAL("comp type %s not supported\n", c->type_str);
                     }
                 }
-                NODE_V_NEXT(n) = (r_sum_num + c_sum_num) / 
-                                 (r_sum_denom + c_sum_denom);
+                n->v_next = (r_sum_num + c_sum_num + l_sum_num) / 
+                            (r_sum_denom + c_sum_denom + l_sum_denom);
             }
         }
 
-        // compute the current from each node terminal, using the voltage just calculated   xxx
+        // comute the current through each component
+        for (i = 0; i < max_component; i++) {
+            component_t *c = &component[i];
+            node_t *n0 = c->term[0].node;
+            node_t *n1 = c->term[1].node;
+            switch (c->type) {
+            case COMP_RESISTOR:
+                c->i_next = (n0->v_next - n1->v_next) / c->resistor.ohms;
+                break;
+            case COMP_CAPACITOR:
+                c->i_next = ((n0->v_next - n0->v_current) - (n1->v_next - n1->v_current)) *
+                            c->capacitor.farads / delta_t;
+                break;
+            case COMP_INDUCTOR: {
+                double v0 = (n0->v_next + n0->v_current) / 2.;
+                double v1 = (n1->v_next + n1->v_current) / 2.;
+                c->i_next = c->i_current + (delta_t / c->inductor.henrys) * (v0 - v1);
+                break; }
+            }
+        }
+
+        // compute the power supply current
         for (i = 0; i < max_node; i++) {
             node_t * n = & node[i];
+            if (n->power == NULL) {
+                continue;
+            }
             double total_current = 0;
-
             for (j = 0; j < n->max_term; j++) {
-                terminal_t *term = n->term[j];
-                component_t *c = term->component;
-                int32_t other_termid = (term->termid ^ 1);
-                node_t *other_n = c->term[other_termid].node;
-
-                switch (c->type) {
-                case COMP_RESISTOR:
-                    term->current = (NODE_V_NEXT(n) - NODE_V_NEXT(other_n)) / c->resistor.ohms;
-                    total_current += term->current;
-                    break;
-                case COMP_CAPACITOR:
-                    term->current = ((NODE_V_NEXT(n) - NODE_V_CURR(n)) - (NODE_V_NEXT(other_n) - NODE_V_CURR(other_n)))
-                                     * c->capacitor.farads / delta_t;
-                    //printf("NODE %d CAP TERMID %d  CURRENT %lf\n", i, term->termid, term->current);
-                    total_current += term->current;
-                    break;
-                case COMP_INDUCTOR:
-                    // XXX AAA
-                    break;
+                if (n->term[j] == n->power) {
+                    continue;
+                }
+                if (n->term[j]->termid == 0) {
+                    total_current += n->term[j]->component->i_next;
+                } else {
+                    total_current -= n->term[j]->component->i_next;
                 }
             }
-
-            if (n->power) {
-                n->power->current = -total_current;
-            }
+            n->power->component->i_next = -total_current;
         }
 
-        // XXX what about ground node current
-
-        // increment the idx values which affect the operation of the 
-        // macros which return the prior, current, and next values
-        // - update the current and prior node voltage
-        node_v_prior_idx = (node_v_prior_idx + 1) % 3;
-        node_v_curr_idx  = (node_v_curr_idx + 1) % 3;
-        node_v_next_idx  = (node_v_next_idx + 1) % 3;
-
-        // increment time
-        model_time_s += delta_t;
+        // xxx
+        for (i = 0; i < max_node; i++) {
+            node_t * n = &node[i];
+            n->v_prior = n->v_current;
+            n->v_current = n->v_next;
+        }
+        for (i = 0; i < max_component; i++) {
+            component_t *c = &component[i];
+            c->i_prior = c->i_current;
+            c->i_current = c->i_next;
+        }
 
         // if model has reached the stop time, or is being single stepped
         // then stop the model
@@ -611,7 +599,7 @@ static double get_comp_power_voltage(component_t * c)
         FATAL("AC not supported yet\n");
     }
     
-    if (model_time_s > dcpwr_ramp_t) {
+    if (model_time_s >= dcpwr_ramp_t) {
         v = c->power.volts;
     } else {
         v = c->power.volts * sin((model_time_s / dcpwr_ramp_t) * M_PI_2);
@@ -620,3 +608,40 @@ static double get_comp_power_voltage(component_t * c)
     return v;
 }
 
+static int32_t check_for_param_updates(void)
+{
+    int32_t rc;
+    bool error = false;
+    static int32_t last_param_update_count = -1;
+
+    // if no updates then return
+    if (param_update_count == last_param_update_count) {
+        return 0;
+    }
+
+    // scan new values of stop_t, delta_t, and dcpwr_ramp_t
+    rc = str_to_val(PARAM_STOP_T, UNITS_SECONDS, &stop_t);
+    if (rc < 0 || stop_t <= 0) {
+        ERROR("invalid stop_t\n");
+        error = true;
+    }
+    rc = str_to_val(PARAM_DELTA_T, UNITS_SECONDS, &delta_t);
+    if (rc < 0 || delta_t <= 0) {
+        ERROR("invalid delta_t\n");
+        error = true;
+    }
+    rc = str_to_val(PARAM_DCPWR_RAMP_T, UNITS_SECONDS, &dcpwr_ramp_t);
+    if (rc < 0 || dcpwr_ramp_t < 0) {
+        ERROR("invalid dcpwr_ramp_t\n");
+        error = true;
+    }
+    INFO("stop_t = %e delta_t = %e dcpwr_ramp_t = %e\n",
+         stop_t, delta_t, dcpwr_ramp_t);
+
+    // remember the param_update_count, so that on subsequent calls, if
+    // no param changes have been made this routine will simply return
+    last_param_update_count = param_update_count;
+
+    // return status
+    return error ? -1 : 0;
+}

@@ -1,6 +1,7 @@
 clear_schematic
 add power      b1  c1 5v
-add resistor   b1  b2 100
+#add resistor   b1  b2 100
+add resistor   b2  b1 100
 add resistor   b2  c2 100
 add resistor   d2  c2 100
 add resistor   d2  d1 100
@@ -9,8 +10,6 @@ ground c1
 
 set center c4
 set scale 200
-set grid off
-set dcpwr_ramp_t 1ms
-set stop_t 10ms
+set dcpwr_ramp_t 0
+set stop_t 1ms
 
-model run 10ms

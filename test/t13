@@ -1,0 +1,24 @@
+clear_schematic
+
+add power      b1   c1   5.00V
+add wire       b1   b2   
+add resistor   b2   c2   5 
+add inductor   c2   d2   20H
+add inductor   c3   d3   20H
+add wire       c2   c3
+add wire       d2   d3
+add resistor   d2   d1   5
+add wire       d1   c1   
+
+ground c1
+
+set stop_t       1s
+set delta_t      1ns
+set dcpwr_ramp_t 1ms
+set grid         off
+set current      on
+set voltage      on
+set component    value
+set center       c2,-29,-25
+set scale        293
+

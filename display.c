@@ -24,8 +24,8 @@
 static pthread_mutex_t mutex;
 static int32_t win_width, win_height;
 
-static int32_t grid_xoff, grid_xadj;  // xxx incorporate in 'set center'
-static int32_t grid_yoff, grid_yadj;
+static int32_t grid_xoff; 
+static int32_t grid_yoff;
 static double  grid_scale;
 
 //
@@ -166,37 +166,44 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         int32_t x_min, x_max, y_min, y_max;
         int32_t fpsz;
 
-        // xxx try to clear xadj,yadj when the set center cmd is issued
-
         // determine grid_xoff, grid_yoff, grid_scale from
-        // PARAM_CENTER, PARAM_SCALE, grid_xadj, and grid_yadj
-        { gridloc_t gl;
-          int32_t cnt;
-        if ((cnt = sscanf(PARAM_SCALE, "%lf", &grid_scale)) != 1 ||
-            grid_scale > MAX_GRID_SCALE || grid_scale < MIN_GRID_SCALE) 
-        {
-            ERROR("invalid grid scale '%s'\n", PARAM_SCALE);
-            if (cnt != 1) {
-                // xxx
-                strcpy(PARAM_SCALE, DEFAULT_SCALE);
-            } else if (grid_scale < MIN_GRID_SCALE) {
-                // xxx
-                sprintf(PARAM_SCALE, "%d", MIN_GRID_SCALE);
-            } else {
-                // xxx
-                sprintf(PARAM_SCALE, "%d", MAX_GRID_SCALE);
+        // PARAM_CENTER, PARAM_SCALE
+        while (true) { 
+            gridloc_t gl;
+            int32_t cnt, xadj, yadj;
+            char *p;
+            if ((cnt = sscanf(PARAM_SCALE, "%lf", &grid_scale)) != 1 ||
+                grid_scale > MAX_GRID_SCALE || grid_scale < MIN_GRID_SCALE) 
+            {
+                ERROR("invalid grid scale '%s'\n", PARAM_SCALE);
+                if (cnt != 1) {
+                    strcpy(PARAM_SCALE, DEFAULT_SCALE); // xxx
+                } else if (grid_scale < MIN_GRID_SCALE) {
+                    sprintf(PARAM_SCALE, "%d", MIN_GRID_SCALE); // xxx
+                } else {
+                    sprintf(PARAM_SCALE, "%d", MAX_GRID_SCALE); // xxx
+                }
+                continue;
             }
-            cnt = sscanf(PARAM_SCALE, "%lf", &grid_scale);
-            assert(cnt==1);
-        }
 
-        if (str_to_gridloc(PARAM_CENTER, &gl) < 0) {
-            ERROR("invalid grid center loc '%s'\n", PARAM_CENTER);
-            // xxx
-            strcpy(PARAM_CENTER, DEFAULT_CENTER);
-        }
-        grid_xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2 + grid_xadj;
-        grid_yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2 + grid_yadj;
+            xadj = yadj = 0;
+            if (str_to_gridloc(PARAM_CENTER, &gl) < 0) {
+                ERROR("invalid grid center loc '%s'\n", PARAM_CENTER);
+                strcpy(PARAM_CENTER, DEFAULT_CENTER);
+                continue;
+            }
+            if ((p = strchr(PARAM_CENTER, ',')) != NULL) {
+                cnt = sscanf(p+1, "%d,%d", &xadj, &yadj);
+                if (cnt != 2) {
+                    ERROR("invalid grid center loc '%s'\n", PARAM_CENTER);
+                    strcpy(PARAM_CENTER, DEFAULT_CENTER);
+                    continue;
+                }
+            }
+            grid_xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2 + xadj;
+            grid_yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2 + yadj;
+
+            break;
         }
 
         // initialize range of x,y that will be rendered by the 
@@ -427,7 +434,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                         continue;
                     }
 
-                    val_to_str(NODE_V_CURR(n), UNITS_VOLTS, s);
+                    val_to_str(n->v_current, UNITS_VOLTS, s);
                     sdl_render_printf(pane, x, y, fpsz, WHITE, BLACK, "%s", s);
                 }
             }
@@ -457,7 +464,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     continue;
                 }
 
-                current = c->term[0].current;
+                current = c->i_current;
                 val_to_str(fabs(current), UNITS_AMPS, current_str);
                 pre_str = "";
                 post_str = "";
@@ -509,7 +516,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         switch(event->event_id) {
         case SDL_EVENT_MOUSE_MOTION: {
             gridloc_t gl;
-            int32_t xoff, yoff;
+            int32_t xoff, yoff, xadj, yadj;
 
             // xxx comments
             grid_xoff += event->mouse_motion.delta_x;
@@ -523,13 +530,17 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             if (gl.y < 0) gl.y = 0;
             if (gl.y >= MAX_GRID_X) gl.y = MAX_GRID_Y-1;
 
-            // XXX routine
-            gridloc_to_str(&gl, PARAM_CENTER);
             xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2;
             yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2;
 
-            grid_xadj = (grid_xoff - xoff);
-            grid_yadj = (grid_yoff - yoff);
+            xadj = (grid_xoff - xoff);
+            yadj = (grid_yoff - yoff);
+
+            // XXX routine
+            sprintf(PARAM_CENTER, "%s,%d,%d",
+                    gridloc_to_str(&gl, PARAM_CENTER),
+                    xadj, yadj);
+
             return PANE_HANDLER_RET_DISPLAY_REDRAW; }
         case SDL_EVENT_MOUSE_WHEEL: {
             double new_grid_scale = 0;
@@ -589,6 +600,7 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
     #define SDL_EVENT_MODEL_RUN    (SDL_EVENT_USER_DEFINED + 1)
     #define SDL_EVENT_MODEL_STOP   (SDL_EVENT_USER_DEFINED + 2)
     #define SDL_EVENT_MODEL_CONT   (SDL_EVENT_USER_DEFINED + 3)
+    #define SDL_EVENT_MODEL_STEP   (SDL_EVENT_USER_DEFINED + 4)
 
     struct {
         int32_t none;
@@ -646,6 +658,9 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
                 SDL_EVENT_MODEL_CONT, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
             break;
         }
+        sdl_render_text_and_register_event(
+            pane, COL2X(15,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "STEP", LIGHT_BLUE, BLACK,
+            SDL_EVENT_MODEL_STEP, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
 
         return PANE_HANDLER_RET_NO_ACTION;
     }
@@ -667,6 +682,9 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
             break;
         case SDL_EVENT_MODEL_CONT:
             model_cont();
+            break;
+        case SDL_EVENT_MODEL_STEP:
+            model_step();
             break;
         }
         return PANE_HANDLER_RET_NO_ACTION;

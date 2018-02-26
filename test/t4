@@ -10,6 +10,5 @@ ground c1
 set center c4
 set scale 200
 set grid off
-center
 
-model run 1
+#model run 1
