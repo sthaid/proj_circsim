@@ -1,4 +1,4 @@
-circsim
+model
 gen_resistor_grid
 *.d
 *.o
