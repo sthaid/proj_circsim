@@ -5318,7 +5318,7 @@ add wire A26 a1 remote,RED
 add wire A27 a2 remote,RED
 
 set delta_t 1us
-set dcpwr_ramp_t 1ms
+set dcpwr_t 1ms
 
 set center A26
 set scale 300

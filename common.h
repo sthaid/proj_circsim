@@ -165,15 +165,15 @@ int32_t     model_state;
 // parameters
 // 
 
-#define PARAM_STOP_T        (params_tbl[0].value)
-#define PARAM_DELTA_T       (params_tbl[1].value)
-#define PARAM_DCPWR_RAMP_T  (params_tbl[2].value)
-#define PARAM_GRID          (params_tbl[3].value)
-#define PARAM_CURRENT       (params_tbl[4].value)
-#define PARAM_VOLTAGE       (params_tbl[5].value)
-#define PARAM_COMPONENT     (params_tbl[6].value)
-#define PARAM_CENTER        (params_tbl[7].value)
-#define PARAM_SCALE         (params_tbl[8].value)
+#define PARAM_STOP_T    (params_tbl[0].value)
+#define PARAM_DELTA_T   (params_tbl[1].value)
+#define PARAM_DCPWR_T   (params_tbl[2].value)
+#define PARAM_GRID      (params_tbl[3].value)
+#define PARAM_CURRENT   (params_tbl[4].value)
+#define PARAM_VOLTAGE   (params_tbl[5].value)
+#define PARAM_COMPONENT (params_tbl[6].value)
+#define PARAM_CENTER    (params_tbl[7].value)
+#define PARAM_SCALE     (params_tbl[8].value)
 
 #define DEFAULT_SCALE   "200"
 #define DEFAULT_CENTER  "c3"
@@ -185,16 +185,16 @@ typedef struct {
 
 #ifdef MAIN
 params_tbl_entry_t params_tbl[] = { 
-        { "stop_t",        "100ms"         },   // model stop time
-        { "delta_t",       "1ns"           },   // model time increment, units=seconds
-        { "dcpwr_ramp_t",  "1ms"           },   // dc power supply time to ramp to voltage, seconds
-        { "grid",          "off"           },   // on, off
-        { "current",       "on"            },   // on, off
-        { "voltage",       "on"            },   // on, off
-        { "component",     "value"         },   // id, value, off
-        { "center",        DEFAULT_CENTER  },   // gridloc of display center
-        { "scale",         DEFAULT_SCALE   },   // display scale, pixels between components
-        { NULL,            ""              }
+        { "stop_t",    "100ms"         },   // model stop time
+        { "delta_t",   "1ns"           },   // model time increment, units=seconds
+        { "dcpwr_t",   "1ms"           },   // dc power supply time to ramp to voltage, seconds
+        { "grid",      "off"           },   // on, off
+        { "current",   "on"            },   // on, off
+        { "voltage",   "on"            },   // on, off
+        { "component", "value"         },   // id, value, off
+        { "center",    DEFAULT_CENTER  },   // gridloc of display center
+        { "scale",     DEFAULT_SCALE   },   // display scale, pixels between components
+        { NULL,        ""              }
                                                 };
 #else
 params_tbl_entry_t params_tbl[20];

@@ -14,7 +14,7 @@ ground d1
 
 set stop_t       1s    
 set delta_t      1ns
-set dcpwr_ramp_t 1ms
+set dcpwr_t 1ms
 set grid         off
 set current      on
 set voltage      on

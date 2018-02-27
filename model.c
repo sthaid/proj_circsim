@@ -1,21 +1,15 @@
 #if 0
 XXX NEXT STEPS
-- support inductor and run test
-- stabilize model with RL and RC circuits
 - try an LC circuit,   new cmd to powr the capacitor
+- stabilize model with RL and RC circuits
 - add scope and/or meters display options
-
-XXX -O0
-
-XXX TESTS
-- series/parallel resistors
-- infinite resistor array
-- resistor / capacitor time constant
-- capacitor / inductor resonant circuit
 
 XXX instability in the model
 
 XXX add display scopes and meters
+
+--- DONE  ---
+- support inductor and run test
 
 #endif
 
@@ -34,10 +28,6 @@ XXX add display scopes and meters
         } \
     } while (0)
 
-//#define MAX_DELTA_T_S       (1e-3)  // 1 ms
-//#define MIN_DCPWR_RAMP_T_S  (1e-3)  // 1 ms
-//#define MIN_DCPWR_RAMP_T_S  0
-
 //
 // typedefs
 //
@@ -52,7 +42,7 @@ static bool     model_step_req;
 static node_t * ground_node;
 
 static double   delta_t;
-static double   dcpwr_ramp_t;
+static double   dcpwr_t;
 static double   stop_t;
 
 //
@@ -157,6 +147,17 @@ int32_t model_reset(void)
                0,
                sizeof(component_t) - offsetof(component_t,zero_init_component_state));
     }
+
+#if 0
+    // XXX temp test, FLAG to turn this on
+    INFO("XXXXXXXXXXXXXX LC TEST\n");
+    for (i = 0; i < max_component; i++) {
+        component_t *c = &component[i];
+        if (c->type == COMP_INDUCTOR) {
+            c->i_next = c->i_current = c->i_prior = 1.0;
+        }
+    }
+#endif
 
     model_time_s = 0;
     max_node = 0;
@@ -468,7 +469,7 @@ static void * model_thread(void * cx)
             usleep(1000);
         }
 
-        // get param updates for stop_t, delta_t, and dcpwr_ramp_t
+        // get param updates for stop_t, delta_t, and dcpwr_t
         if (check_for_param_updates() < 0) {
             model_state_req = MODEL_STATE_STOPPED;
             model_step_req = false;
@@ -516,7 +517,6 @@ static void * model_thread(void * cx)
                         } else {
                             l_sum_num += c->i_current;
                         }
-
                         l_sum_denom += delta_t / c->inductor.henrys;
                         break;
                     default:
@@ -595,14 +595,16 @@ static double get_comp_power_voltage(component_t * c)
 {
     double v;
 
-    if (c->power.hz != 0) {
-        FATAL("AC not supported yet\n");
-    }
-    
-    if (model_time_s >= dcpwr_ramp_t) {
-        v = c->power.volts;
+    if (c->power.hz == 0) {
+        // dc
+        if (model_time_s >= dcpwr_t) {
+            v = c->power.volts;
+        } else {
+            v = c->power.volts * sin((model_time_s / dcpwr_t) * M_PI_2);
+        }
     } else {
-        v = c->power.volts * sin((model_time_s / dcpwr_ramp_t) * M_PI_2);
+        // ac XXX optimize
+        v = sin(model_time_s * c->power.hz * (2. * M_PI));
     }
 
     return v;
@@ -619,7 +621,7 @@ static int32_t check_for_param_updates(void)
         return 0;
     }
 
-    // scan new values of stop_t, delta_t, and dcpwr_ramp_t
+    // scan new values of stop_t, delta_t, and dcpwr_t
     rc = str_to_val(PARAM_STOP_T, UNITS_SECONDS, &stop_t);
     if (rc < 0 || stop_t <= 0) {
         ERROR("invalid stop_t\n");
@@ -630,13 +632,13 @@ static int32_t check_for_param_updates(void)
         ERROR("invalid delta_t\n");
         error = true;
     }
-    rc = str_to_val(PARAM_DCPWR_RAMP_T, UNITS_SECONDS, &dcpwr_ramp_t);
-    if (rc < 0 || dcpwr_ramp_t < 0) {
-        ERROR("invalid dcpwr_ramp_t\n");
+    rc = str_to_val(PARAM_DCPWR_T, UNITS_SECONDS, &dcpwr_t);
+    if (rc < 0 || dcpwr_t < 0) {
+        ERROR("invalid dcpwr_t\n");
         error = true;
     }
-    INFO("stop_t = %e delta_t = %e dcpwr_ramp_t = %e\n",
-         stop_t, delta_t, dcpwr_ramp_t);
+    INFO("stop_t = %e delta_t = %e dcpwr_t = %e\n",
+         stop_t, delta_t, dcpwr_t);
 
     // remember the param_update_count, so that on subsequent calls, if
     // no param changes have been made this routine will simply return

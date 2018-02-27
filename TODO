@@ -1,32 +1,66 @@
-checkins
-
-fix T5, compare to T13
-
-review this file
-
 display meter or scope
 
-debug param to enable prints
+typedef struct {
+    char title_str[32];
+    char x_units_str[32];
+    char y_units_str[32];
+    float x_min;
+    float x_max;
+    float y_min;
+    float y_max;
+    int32_t max_points_alloced;
+    int32_t max_points;
+    struct pane_hndlr_display_graph_point_s {
+        float x;
+        float y;
+    } points[0];
+} pane_hndlr_display_graph_params_t;
 
-XXX issues
+--------------------------------------------------
+
 
 reverse colors
-
-don't allow mulitple remote connection to same gridloc
-
-SDL prints
-
-sdl_create_texture should be called prior to fontsize call
-
-when writing, consider not setting default param values
-
-optimization, and multi threads
 
 ac simple circuit
    power / capacitor
    verify 90 dgrees
 
-shorten param names so they fit better
+XXX issues
+
+verify cmd
+
+other component stuff to track
+  - power
+  - energy
+
+----  model ----
+
+fix T5, compare to T13
+
+create a test suite
+
+---- later ---
+
+don't allow mulitple remote connection to same gridloc
+
+optimization, and multi threads, change O0 to O2
 
 try again to use capacitor for battery, and to evaluate ground current
 
+---- consider ----
+
+debug param to enable prints
+
+when writing, consider not setting default param values
+
+-----------------   CODED  ----------------------
+
+sdl_create_texture should be called prior to fontsize call
+SDL prints
+
+-----------------   DONE   ----------------------
+
+checkins
+review this file
+shorten param names so they fit better
+cap / inductor oscillator test

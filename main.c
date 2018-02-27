@@ -197,7 +197,7 @@ static int32_t process_cmd(char * cmdline)
         args++;
     }
     len = strlen(args); 
-    while (len > 0) {
+    while (len > 0) { // xxx combine
         if (args[len-1] == ' ') {
             args[len-1] = '\0';
             len--;
@@ -284,6 +284,7 @@ static int32_t cmd_show(char *args)
     char s[100];
 
     // determine what is to be shown
+// xxx may not need strtok
     what = strtok(args, " ");
     show_all = (what == NULL);
 
@@ -358,6 +359,7 @@ static int32_t cmd_read(char *args)
     int32_t rc, fileline=0;
 
     // tokenize and verify args
+    // xxx strtok ?
     filename = strtok(args, " ");
     if (filename == NULL) {
         ERROR("insufficient args\n");
@@ -391,6 +393,7 @@ static int32_t cmd_read(char *args)
     return 0;
 }
 
+// xxx confirm overwrite
 static int32_t cmd_write(char *args)
 {
     FILE * fp;
@@ -400,6 +403,7 @@ static int32_t cmd_write(char *args)
 
     // get the filename to be written
     filename = strtok(args, " ");
+    // xxx strtok
     if (filename == NULL) {
         filename = last_filename_used;
         if (filename[0] == '\0') {
@@ -480,6 +484,7 @@ static int32_t cmd_del(char *args)
     char * comp_str;
 
     // get the comp_str which identifies the component, such as 'R1'
+    // xxx strtok
     comp_str = strtok(args, " ");
     if (comp_str == NULL) {
         ERROR("insufficient args\n");
@@ -498,6 +503,7 @@ static int32_t cmd_ground(char *args)
 
     // tokenize and verify arg is supplied
     gl = strtok(args, " ");
+    // xxx strtok
     if (gl == NULL) {
         ERROR("insufficient args\n");
         return -1;
@@ -522,10 +528,8 @@ static int32_t cmd_ground(char *args)
 
 static int32_t cmd_model(char *args)
 {
-    char *cmdline = args;
-
-    // pass cmd to the model
-    return model_cmd(cmdline);
+    // pass args to the model
+    return model_cmd(args);
 }
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------

@@ -21,7 +21,7 @@ SOFTWARE.
 */
 
 // XXX review
-// XXX mouse fliccker problem
+// XXX mouse flicker problem
 // XXX comments on all APIs
 // XXX document examples on how to use this
 
@@ -122,6 +122,7 @@ static uint32_t         sdl_color_to_rgba[] = {
 
 static void sdl_exit_handler(void);
 static void sdl_set_color(int32_t color); 
+static void sdl_font_init(int32_t ptsize);
 static void sdl_pane_terminate(struct pane_list_head_s * pane_list_head, pane_cx_t * pane_cx);
 static int32_t sdl_pane_move_speed(void);
 static char * sdl_print_screen_filename(void);
@@ -153,9 +154,9 @@ int32_t sdl_init(int32_t *w, int32_t *h, bool resizeable)
     // display available and current video drivers
     int num, i;
     num = SDL_GetNumVideoDrivers();
-    INFO("Available Video Drivers: ");
+    DEBUG("Available Video Drivers: ");
     for (i = 0; i < num; i++) {
-        INFO("   %s\n",  SDL_GetVideoDriver(i));
+        DEBUG("   %s\n",  SDL_GetVideoDriver(i));
     }
 
     // initialize Simple DirectMedia Layer  (SDL)
@@ -176,7 +177,7 @@ int32_t sdl_init(int32_t *w, int32_t *h, bool resizeable)
     //   which will update sdl_win_width and sdl_win_height
     // - return the updated window width & height to caller
     sdl_poll_event();
-    INFO("sdl_win_width=%d sdl_win_height=%d\n", sdl_win_width, sdl_win_height);
+    DEBUG("sdl_win_width=%d sdl_win_height=%d\n", sdl_win_width, sdl_win_height);
     *w = sdl_win_width;
     *h = sdl_win_height;
 
@@ -216,7 +217,7 @@ int32_t sdl_init(int32_t *w, int32_t *h, bool resizeable)
         ERROR("failed to locate font file\n");
         return -1;
     }
-    INFO("using font %s\n", sdl_font_path);
+    DEBUG("using font %s\n", sdl_font_path);
 
     // currently the SDL Text Input feature is not being used here
     SDL_StopTextInput();
@@ -225,7 +226,7 @@ int32_t sdl_init(int32_t *w, int32_t *h, bool resizeable)
     atexit(sdl_exit_handler);
 
     // return success
-    INFO("success\n");
+    DEBUG("success\n");
     return 0;
 }
 
@@ -278,6 +279,26 @@ static void sdl_set_color(int32_t color)
     b = (rgba >>  8) & 0xff;
     a = (rgba      ) & 0xff;
     SDL_SetRenderDrawColor(sdl_renderer, r, g, b, a);
+}
+
+static void sdl_font_init(int32_t font_ptsize)
+{
+    // if this font has already been initialized then return
+    if (sdl_font[font_ptsize].font != NULL) {
+        return;
+    }
+
+    // open font for this font_ptsize,
+    assert(sdl_font_path);
+    sdl_font[font_ptsize].font = TTF_OpenFont(sdl_font_path, font_ptsize);
+    if (sdl_font[font_ptsize].font == NULL) {
+        FATAL("failed TTF_OpenFont(%s,%d)\n", sdl_font_path, font_ptsize);
+    }
+
+    // and init the char_width / char_height
+    TTF_SizeText(sdl_font[font_ptsize].font, "X", &sdl_font[font_ptsize].char_width, &sdl_font[font_ptsize].char_height);
+    DEBUG("font_ptsize=%d width=%d height=%d\n",
+         font_ptsize, sdl_font[font_ptsize].char_width, sdl_font[font_ptsize].char_height);
 }
 
 // -----------------  PANE MANAGER  ------------------------------------- 
@@ -654,21 +675,25 @@ void sdl_display_present(void)
 
 int32_t sdl_pane_cols(rect_t * pane, int32_t font_ptsize)
 {
+    sdl_font_init(font_ptsize);
     return pane->w / sdl_font[font_ptsize].char_width;
 }
 
 int32_t sdl_pane_rows(rect_t * pane, int32_t font_ptsize)
 {
+    sdl_font_init(font_ptsize);
     return pane->h / sdl_font[font_ptsize].char_height;
 }
 
 int32_t sdl_font_char_width(int32_t font_ptsize)
 {
+    sdl_font_init(font_ptsize);
     return sdl_font[font_ptsize].char_width;
 }
 
 int32_t sdl_font_char_height(int32_t font_ptsize)
 {
+    sdl_font_init(font_ptsize);
     return sdl_font[font_ptsize].char_height;
 }
 
@@ -1572,18 +1597,7 @@ texture_t sdl_create_text_texture(int32_t fg_color, int32_t bg_color, int32_t fo
     bg_sdl_color.a = (bg_rgba >>  0) & 0xff;
 
     // if the font has not been initialized then do so
-// XXX we can't get a font size until actually used, fix this
-    if (sdl_font[font_ptsize].font == NULL) {
-        assert(sdl_font_path);
-        sdl_font[font_ptsize].font = TTF_OpenFont(sdl_font_path, font_ptsize);
-        if (sdl_font[font_ptsize].font == NULL) {
-            FATAL("failed TTF_OpenFont(%s,%d)\n", sdl_font_path, font_ptsize);
-            return NULL;
-        }
-        TTF_SizeText(sdl_font[font_ptsize].font, "X", &sdl_font[font_ptsize].char_width, &sdl_font[font_ptsize].char_height);
-        INFO("font_ptsize=%d width=%d height=%d\n",
-             font_ptsize, sdl_font[font_ptsize].char_width, sdl_font[font_ptsize].char_height);
-    }
+    sdl_font_init(font_ptsize);
 
     // xxx comments
     surface = TTF_RenderText_Shaded(sdl_font[font_ptsize].font, str, fg_sdl_color, bg_sdl_color);

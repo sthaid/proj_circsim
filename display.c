@@ -633,7 +633,7 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
         // params
         for (i = 0; params_tbl[i].name; i++) {
             sdl_render_printf(pane, 0, ROW2Y(3+i,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
-                              "%-12s %s",
+                              "%-9s %s",
                               params_tbl[i].name,
                               params_tbl[i].value);
         }

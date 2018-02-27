@@ -5260,5 +5260,5 @@ ground A27
 
 set center A26
 set scale 200
-set dcpwr_ramp_t 0
+set dcpwr_t 0
 set stop_t 1ms
