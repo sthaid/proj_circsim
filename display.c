@@ -35,7 +35,6 @@ static long double  grid_scale;
 static void display_start(void * cx);
 static void display_end(void * cx);
 static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event);
-// static bool has_comp_power(grid_t * g);
 static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event);
 
 // -----------------  PUBLIC  ---------------------------------------------
@@ -171,32 +170,34 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         while (true) { 
             gridloc_t gl;
             int32_t cnt, xadj, yadj;
-            char *p;
-            if ((cnt = sscanf(PARAM_SCALE, "%Lf", &grid_scale)) != 1 ||
+            char *p, str[100];
+            if ((cnt = sscanf(PARAM_VALUE(PARAM_SCALE), "%Lf", &grid_scale)) != 1 ||
                 grid_scale > MAX_GRID_SCALE || grid_scale < MIN_GRID_SCALE) 
             {
-                ERROR("invalid grid scale '%s'\n", PARAM_SCALE);
+                ERROR("invalid grid scale '%s'\n", PARAM_VALUE(PARAM_SCALE));
                 if (cnt != 1) {
-                    strcpy(PARAM_SCALE, DEFAULT_SCALE); // xxx
+                    PARAM_SET_VALUE(PARAM_SCALE, DEFAULT_SCALE);
                 } else if (grid_scale < MIN_GRID_SCALE) {
-                    sprintf(PARAM_SCALE, "%d", MIN_GRID_SCALE); // xxx
+                    sprintf(str, "%d", MIN_GRID_SCALE);
+                    PARAM_SET_VALUE(PARAM_SCALE, str);
                 } else {
-                    sprintf(PARAM_SCALE, "%d", MAX_GRID_SCALE); // xxx
+                    sprintf(str, "%d", MAX_GRID_SCALE);
+                    PARAM_SET_VALUE(PARAM_SCALE, str);
                 }
                 continue;
             }
 
             xadj = yadj = 0;
-            if (str_to_gridloc(PARAM_CENTER, &gl) < 0) {
-                ERROR("invalid grid center loc '%s'\n", PARAM_CENTER);
-                strcpy(PARAM_CENTER, DEFAULT_CENTER);
+            if (str_to_gridloc(PARAM_VALUE(PARAM_CENTER), &gl) < 0) {
+                ERROR("invalid grid center loc '%s'\n", PARAM_VALUE(PARAM_CENTER));
+                PARAM_SET_VALUE(PARAM_CENTER, DEFAULT_CENTER);
                 continue;
             }
-            if ((p = strchr(PARAM_CENTER, ',')) != NULL) {
+            if ((p = strchr(PARAM_VALUE(PARAM_CENTER), ',')) != NULL) {
                 cnt = sscanf(p+1, "%d,%d", &xadj, &yadj);
                 if (cnt != 2) {
-                    ERROR("invalid grid center loc '%s'\n", PARAM_CENTER);
-                    strcpy(PARAM_CENTER, DEFAULT_CENTER);
+                    ERROR("invalid grid center loc '%s'\n", PARAM_VALUE(PARAM_CENTER));
+                    PARAM_SET_VALUE(PARAM_CENTER, DEFAULT_CENTER);
                     continue;
                 }
             }
@@ -217,7 +218,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         fpsz = grid_scale * 40 / MAX_GRID_SCALE;
 
         // draw grid, if enabled
-        if (strcmp(PARAM_GRID, "on") == 0) {
+        if (strcmp(PARAM_VALUE(PARAM_GRID), "on") == 0) {
             int32_t glx, gly, x, y, count=0;
             point_t points[MAX_GRID_X*MAX_GRID_Y];
 
@@ -361,10 +362,10 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         } }
 
         // display component id or value, if enabled
-        if (strcmp(PARAM_COMPONENT, "id") == 0 ||
-            strcmp(PARAM_COMPONENT, "value") == 0)
+        if (strcmp(PARAM_VALUE(PARAM_COMPONENT), "id") == 0 ||
+            strcmp(PARAM_VALUE(PARAM_COMPONENT), "value") == 0)
         {
-            bool display_id = (strcmp(PARAM_COMPONENT, "id") == 0 );
+            bool display_id = (strcmp(PARAM_VALUE(PARAM_COMPONENT), "id") == 0 );
             int32_t i, x, y;
             char *s, s1[100];
             component_t *c;
@@ -409,7 +410,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
         // display the voltage at all node gridlocs;
         // note that this will intentionally overwrite the gridloc_str if PARAM_GRID is enabled
-        if (strcmp(PARAM_VOLTAGE, "on") == 0) {
+        if (strcmp(PARAM_VALUE(PARAM_VOLTAGE), "on") == 0) {
             int32_t i, j, x, y;
             component_t *c;
             terminal_t *term;
@@ -442,7 +443,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
         // display current at all node terminals, if enabled
         // XXX if the terms dont match, display in red, and print a message
-        if (strcmp(PARAM_CURRENT, "on") == 0) {
+        if (strcmp(PARAM_VALUE(PARAM_CURRENT), "on") == 0) {
             int32_t i, x, y;
             component_t *c;
             long double current;
@@ -516,15 +517,15 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         switch(event->event_id) {
         case SDL_EVENT_MOUSE_MOTION: {
             gridloc_t gl;
-            int32_t xoff, yoff, xadj, yadj;
+            int32_t xoff, yoff, xadj, yadj, new_grid_xoff, new_grid_yoff;
+            char param_center_str[100], str[100];
 
             // xxx comments
-            grid_xoff += event->mouse_motion.delta_x;
-            grid_yoff += event->mouse_motion.delta_y;
+            new_grid_xoff = grid_xoff + event->mouse_motion.delta_x;
+            new_grid_yoff = grid_yoff + event->mouse_motion.delta_y;
 
-            gl.x = (grid_xoff - (PH_SCHEMATIC_W/2) - grid_scale/2) / (-grid_scale);
-            gl.y = (grid_yoff - (PH_SCHEMATIC_H/2) - grid_scale/2) / (-grid_scale);
-
+            gl.x = (new_grid_xoff - (PH_SCHEMATIC_W/2) - grid_scale/2) / (-grid_scale);
+            gl.y = (new_grid_yoff - (PH_SCHEMATIC_H/2) - grid_scale/2) / (-grid_scale);
             if (gl.x < 0) gl.x = 0;
             if (gl.x >= MAX_GRID_X) gl.x = MAX_GRID_X-1;
             if (gl.y < 0) gl.y = 0;
@@ -532,18 +533,17 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
             xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2;
             yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2;
+            xadj = (new_grid_xoff - xoff);
+            yadj = (new_grid_yoff - yoff);
 
-            xadj = (grid_xoff - xoff);
-            yadj = (grid_yoff - yoff);
-
-            // XXX routine
-            sprintf(PARAM_CENTER, "%s,%d,%d",
-                    gridloc_to_str(&gl, PARAM_CENTER),
-                    xadj, yadj);
-
+            // update PARAM_CENTER
+            sprintf(param_center_str, "%s,%d,%d",
+                    gridloc_to_str(&gl,str), xadj, yadj);
+            PARAM_SET_VALUE(PARAM_CENTER, param_center_str);
             return PANE_HANDLER_RET_DISPLAY_REDRAW; }
         case SDL_EVENT_MOUSE_WHEEL: {
             long double new_grid_scale = 0;
+            char param_scale_str[100];
 
             // xxx comments
             if (event->mouse_motion.delta_y > 0) {
@@ -551,11 +551,17 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             } if (event->mouse_motion.delta_y < 0) {
                 new_grid_scale = grid_scale * (1./1.1);
             }
-            if (new_grid_scale >= MIN_GRID_SCALE && new_grid_scale <= MAX_GRID_SCALE) {
-                grid_scale = new_grid_scale;
-                // XXX routine
-                sprintf(PARAM_SCALE, "%.0Lf", grid_scale);
+
+            // limit range of new grid scale
+            if (new_grid_scale < MIN_GRID_SCALE) {
+                new_grid_scale = MIN_GRID_SCALE;  
+            } else if (new_grid_scale > MAX_GRID_SCALE) {
+                new_grid_scale = MAX_GRID_SCALE;  
             }
+
+            // update the PARAM_SCALE 
+            sprintf(param_scale_str, "%.0Lf", new_grid_scale);
+            PARAM_SET_VALUE(PARAM_SCALE, param_scale_str);
             return PANE_HANDLER_RET_DISPLAY_REDRAW; }
         }
         return PANE_HANDLER_RET_NO_ACTION;
@@ -574,21 +580,6 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
     assert(0);
     return PANE_HANDLER_RET_NO_ACTION;
 }
-
-#if 0 // XXX
-static bool has_comp_power(grid_t * g)
-{
-    int32_t i;
-
-    for (i = 0; i < g->max_term; i++) {
-        terminal_t *t = g->term[i];
-        if (t->termid == 0 && t->component->type == COMP_POWER) {
-            return true;
-        }
-    }
-    return false;
-}
-#endif
 
 // -----------------  PANE HNDLR STATUS  ----------------------------------
 
@@ -632,11 +623,9 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
         //INFO("xxxx %s\n", val_to_str(model_time_s, UNITS_SECONDS, s));
 
         // params
-        for (i = 0; params_tbl[i].name; i++) {
+        for (i = 0; PARAM_NAME(i); i++) {
             sdl_render_printf(pane, 0, ROW2Y(3+i,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
-                              "%-9s %s",
-                              params_tbl[i].name,
-                              params_tbl[i].value);
+                              "%-9s %s", PARAM_NAME(i), PARAM_VALUE(i));
         }
 
         sdl_render_text_and_register_event(

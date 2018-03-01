@@ -162,15 +162,35 @@ int32_t     model_state;
 // parameters
 // 
 
-#define PARAM_STOP_T    (params_tbl[0].value)
-#define PARAM_DELTA_T   (params_tbl[1].value)
-#define PARAM_DCPWR_T   (params_tbl[2].value)
-#define PARAM_GRID      (params_tbl[3].value)
-#define PARAM_CURRENT   (params_tbl[4].value)
-#define PARAM_VOLTAGE   (params_tbl[5].value)
-#define PARAM_COMPONENT (params_tbl[6].value)
-#define PARAM_CENTER    (params_tbl[7].value)
-#define PARAM_SCALE     (params_tbl[8].value)
+#define PARAM_STOP_T     0
+#define PARAM_DELTA_T    1
+#define PARAM_DCPWR_T    2
+#define PARAM_GRID       3
+#define PARAM_CURRENT    4
+#define PARAM_VOLTAGE    5
+#define PARAM_COMPONENT  6
+#define PARAM_CENTER     7
+#define PARAM_SCALE      8
+
+#define PARAM_NAME(idx) (param[idx].name)
+#define PARAM_VALUE(idx) (param[idx].value)
+#define PARAM_SET_VALUE(idx,val) \
+    do { \
+        if (param[idx].set_only_if_model_state_is_reset && \
+            (model_state != MODEL_STATE_RESET)) \
+        { \
+            ERROR("param %s can only be set when model_state is RESET\n", \
+                  param[idx].name); \
+        } else { \
+            strcpy(param[idx].value, val); \
+            param[idx].update_count++; \
+        } \
+    } while (0)
+#define PARAM_HAS_CHANGED(idx) \
+    ({ static int32_t last_update_count=-1; \
+       bool result = (param[idx].update_count != last_update_count); \
+       last_update_count = param[idx].update_count; \
+       result; })
 
 #define DEFAULT_SCALE   "200"
 #define DEFAULT_CENTER  "c3"
@@ -178,25 +198,26 @@ int32_t     model_state;
 typedef struct {
     char *name;
     char  value[100];
-} params_tbl_entry_t;
+    bool set_only_if_model_state_is_reset;
+    int32_t update_count;
+} param_tbl_entry_t;
 
 #ifdef MAIN
-params_tbl_entry_t params_tbl[] = { 
-        { "stop_t",    "100ms"         },   // model stop time
-        { "delta_t",   "1ns"           },   // model time increment, units=seconds
-        { "dcpwr_t",   "1ms"           },   // dc power supply time to ramp to voltage, seconds
-        { "grid",      "off"           },   // on, off
-        { "current",   "on"            },   // on, off
-        { "voltage",   "on"            },   // on, off
-        { "component", "value"         },   // id, value, off
-        { "center",    DEFAULT_CENTER  },   // gridloc of display center
-        { "scale",     DEFAULT_SCALE   },   // display scale, pixels between components
-        { NULL,        ""              }
+param_tbl_entry_t param[] = { 
+        { "stop_t",    "100ms",        false },   // model stop time
+        { "delta_t",   "1ns",          true  },   // model time increment, units=seconds
+        { "dcpwr_t",   "1ms",          true  },   // dc power supply time to ramp to voltage, seconds
+        { "grid",      "off",          false },   // on, off
+        { "current",   "on",           false },   // on, off
+        { "voltage",   "on",           false },   // on, off
+        { "component", "value",        false },   // id, value, off
+        { "center",    DEFAULT_CENTER, false },   // gridloc of display center
+        { "scale",     DEFAULT_SCALE,  false },   // display scale, pixels between components
+        { NULL                               }
                                                 };
 #else
-params_tbl_entry_t params_tbl[20];
+param_tbl_entry_t param[20];
 #endif
-int32_t param_update_count;
 
 //
 // prototypes

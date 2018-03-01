@@ -1,10 +1,3 @@
-PARAMS
-- flag if the param must be set when model is reset
-     set_only_when_model_state_reset
-- update counter for each param
-- routine to set params, and updates the counter
-- can't change certain params when model is running
-
 
 model read delta_t and dcpwr param at run start
  - and not updating these when running
@@ -74,6 +67,13 @@ optimization, and multi threads, change O0 to O2
 
 try again to use capacitor for battery, and to evaluate ground current
 
+------------------  MAYBE ?? ----------------------
+
+could have an impulse power supply to test resonant frequency of LC;
+it would quickly ramp up and then isolate
+
+debug param to enable prints
+
 -----------------   CODED or DONE  --------------
 
 sdl_create_texture should be called prior to fontsize call
@@ -88,9 +88,10 @@ use #define to select long double
 
 clean up common.h,   fields such as i_prior_prior, etc
 
-------------------  MAYBE ?? ----------------------
+PARAMS
+- flag if the param must be set when model is reset
+     set_only_when_model_state_reset
+- update counter for each param
+- routine to set params, and updates the counter
+- can't change certain params when model is running
 
-could have an impulse power supply to test resonant frequency of LC;
-it would quickly ramp up and then isolate
-
-debug param to enable prints

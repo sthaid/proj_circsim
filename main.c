@@ -255,22 +255,19 @@ static int32_t cmd_set(char *args)
         return -1;
     }
 
-    // try to find name in params_tbl; 
-    // if found then set the param
-    for (i = 0; params_tbl[i].name; i++) {
-        if (strcmp(name, params_tbl[i].name) == 0) {
+    // try to find name in the param table
+    for (i = 0; PARAM_NAME(i); i++) {
+        if (strcmp(name, PARAM_NAME(i))== 0) {
             break;
         }
     }
-    if (params_tbl[i].name == NULL) {
+    if (PARAM_NAME(i) == NULL) {
         ERROR("param '%s' not found\n", name);
         return -1;
     }
 
-//XXX routine
     // store new param value
-    strcpy(params_tbl[i].value, value);
-    param_update_count++;
+    PARAM_SET_VALUE(i,value);
 
     // success
     return 0;
@@ -291,10 +288,8 @@ static int32_t cmd_show(char *args)
     // show params
     if (show_all || strcmp(what,"params") == 0) {
         INFO("PARAMS\n");
-        for (i = 0; params_tbl[i].name; i++) {
-            INFO("  %-12s %s",
-                 params_tbl[i].name,
-                 params_tbl[i].value);
+        for (i = 0; PARAM_NAME(i); i++) {
+            INFO("  %-12s %s", PARAM_NAME(i), PARAM_VALUE(i));
         }
         BLANK_LINE;
         printed = true;
@@ -447,8 +442,8 @@ static int32_t cmd_write(char *args)
         fprintf(fp, "\n");
     }
 
-    for (i = 0; params_tbl[i].name; i++) {
-        fprintf(fp, "set %-12s %s\n", params_tbl[i].name, params_tbl[i].value);
+    for (i = 0; PARAM_NAME(i); i++) {
+        fprintf(fp, "set %-12s %s\n", PARAM_NAME(i), PARAM_VALUE(i));
     }
     fprintf(fp, "\n");
 

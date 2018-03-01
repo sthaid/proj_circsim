@@ -55,7 +55,6 @@ static void add_terms_to_node(node_t *node, gridloc_t *gl);
 static void debug_print_nodes(void);
 static void * model_thread(void * cx);
 static long double get_comp_power_voltage(component_t * c);
-static int32_t check_for_param_updates(void);
 
 // -----------------  PUBLIC ---------------------------------------------------------
 
@@ -81,12 +80,13 @@ int32_t model_cmd(char *cmdline)
 
     // if arg supplied then use it to set the stop time;
     // only for the "run" and "cont" cmds
-// XXX use strncmp  OR not working
     if ((strcmp(cmd, "run") == 0 || strcmp(cmd, "cont") == 0) &&
         ((arg = strtok(NULL, " ")) != NULL)) 
     {
         bool add_flag = false;
         long double arg_val, lcl_stop_t;
+        char lcl_stop_t_str[100];
+
         if (arg[0] == '+') {
             add_flag = true;
             arg++;
@@ -95,17 +95,19 @@ int32_t model_cmd(char *cmdline)
             ERROR("invalid time '%s'\n", arg);
             return -1;
         }
+
         if (add_flag) {
-            if (str_to_val(PARAM_STOP_T, UNITS_SECONDS, &lcl_stop_t) == -1 || lcl_stop_t <= 0) {
-                ERROR("invalid time '%s'\n", PARAM_STOP_T);
+            if (str_to_val(PARAM_VALUE(PARAM_STOP_T), UNITS_SECONDS, &lcl_stop_t) == -1 || lcl_stop_t <= 0) {
+                ERROR("invalid stop_t '%s'\n", PARAM_VALUE(PARAM_STOP_T));
                 return -1;
             }
             lcl_stop_t += arg_val;
         } else {
             lcl_stop_t = arg_val;
         }
-        val_to_str(lcl_stop_t, UNITS_SECONDS, PARAM_STOP_T);  // XXX routine
-        param_update_count++;
+
+        val_to_str(lcl_stop_t, UNITS_SECONDS, lcl_stop_t_str);
+        PARAM_SET_VALUE(PARAM_STOP_T, lcl_stop_t_str);
     }
 
     // parse and process the cmd
@@ -169,19 +171,44 @@ int32_t model_reset(void)
 int32_t model_run(void)
 {
     int32_t rc;
+    char str[100];
 
+    // scan new values of stop_t, delta_t, and dcpwr_t
+    rc = str_to_val(PARAM_VALUE(PARAM_STOP_T), UNITS_SECONDS, &stop_t);
+    if (rc < 0 || stop_t <= 0) {
+        ERROR("invalid stop_t %s\n", PARAM_VALUE(PARAM_STOP_T));
+        return -1;
+    }
+    rc = str_to_val(PARAM_VALUE(PARAM_DELTA_T), UNITS_SECONDS, &delta_t);
+    if (rc < 0 || delta_t <= 0) {
+        ERROR("invalid delta_t %s\n", PARAM_VALUE(PARAM_DELTA_T));
+        return -1;
+    }
+    rc = str_to_val(PARAM_VALUE(PARAM_DCPWR_T), UNITS_SECONDS, &dcpwr_t);
+    if (rc < 0 || dcpwr_t < 0) {
+        ERROR("invalid dcpwr_t %s\n", PARAM_VALUE(PARAM_DCPWR_T));
+        return -1;
+    }
+    INFO("stop_t  = %s\n", val_to_str(stop_t,UNITS_SECONDS,str));
+    INFO("delta_t = %s\n", val_to_str(delta_t,UNITS_SECONDS,str));
+    INFO("dcpwr_t = %s\n", val_to_str(dcpwr_t,UNITS_SECONDS,str));
+
+    // reset the model
     rc = model_reset();
     if (rc < 0) {
         return -1;
     }
 
+    // analyze the grid and components to create list of nodes
     rc = model_init_nodes();
     if (rc < 0) {
         return -1;
     }
 
+    // set the model state to RUNNING
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
+    // success
     return 0;
 }
 
@@ -453,7 +480,7 @@ static void debug_print_nodes(void)
 
 static void * model_thread(void * cx) 
 {
-    int32_t i,j;
+    int32_t i,j,rc;
 
     while (true) {
         // handle request to transition model_state; and
@@ -470,15 +497,15 @@ static void * model_thread(void * cx)
             usleep(1000);
         }
 
-        // get param updates for stop_t, delta_t, and dcpwr_t
-        if (check_for_param_updates() < 0) {
-            model_state_req = MODEL_STATE_STOPPED;
-            model_step_req = false;
-            continue;
+        // if PARAM_STOP_T has changed then get new value;
+        // other params (such as delta_t and dcpwr_t) can not be changed unless model state is RESET
+        if (PARAM_HAS_CHANGED(PARAM_STOP_T) &&
+            ((rc = str_to_val(PARAM_VALUE(PARAM_STOP_T), UNITS_SECONDS, &stop_t) < 0) || (stop_t <= 0))) 
+        {
+            ERROR("ignoring invalid stop_t '%s'\n", PARAM_VALUE(PARAM_STOP_T));
         }
 
         // xxx comments
-
 // XXXXXXXXXXXXXXX
         if (model_time_s == 0) {
             //model_time_s = 1e-10;
@@ -495,10 +522,10 @@ static void * model_thread(void * cx)
         // increment time
         model_time_s += delta_t;
 
-        static int64_t count;
-        if (count++ < 100) {
-            INFO("model_tine = %Le  delta_t = %Le\n", model_time_s, delta_t);
-        }
+        //static int64_t count;
+        //if (count++ < 100) {
+            //INFO("model_time = %Le  delta_t = %Le\n", model_time_s, delta_t);
+        //}
 
         // loop over all nodes, computing the next voltage for that node
         for (i = 0; i < max_node; i++) {
@@ -627,44 +654,4 @@ static long double get_comp_power_voltage(component_t * c)
     }
 
     return v;
-}
-
-static int32_t check_for_param_updates(void)
-{
-    int32_t rc;
-    bool error = false;
-    static int32_t last_param_update_count = -1;
-
-    // if no updates then return
-    if (param_update_count == last_param_update_count) {
-        return 0;
-    }
-
-    // scan new values of stop_t, delta_t, and dcpwr_t
-    rc = str_to_val(PARAM_STOP_T, UNITS_SECONDS, &stop_t);
-    if (rc < 0 || stop_t <= 0) {
-        ERROR("invalid stop_t\n");
-        error = true;
-    }
-#if 0
-    rc = str_to_val(PARAM_DELTA_T, UNITS_SECONDS, &delta_t);
-    if (rc < 0 || delta_t <= 0) {
-        ERROR("invalid delta_t\n");
-        error = true;
-    }
-#endif
-    rc = str_to_val(PARAM_DCPWR_T, UNITS_SECONDS, &dcpwr_t);
-    if (rc < 0 || dcpwr_t < 0) {
-        ERROR("invalid dcpwr_t\n");
-        error = true;
-    }
-    INFO("stop_t = %Le delta_t = %Le dcpwr_t = %Le\n",
-         stop_t, delta_t, dcpwr_t);
-
-    // remember the param_update_count, so that on subsequent calls, if
-    // no param changes have been made this routine will simply return
-    last_param_update_count = param_update_count;
-
-    // return status
-    return error ? -1 : 0;
 }
