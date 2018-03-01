@@ -1,10 +1,14 @@
+PARAMS
+- flag if the param must be set when model is reset
+     set_only_when_model_state_reset
+- update counter for each param
+- routine to set params, and updates the counter
+- can't change certain params when model is running
+
+
 model read delta_t and dcpwr param at run start
  - and not updating these when running
  - still update stop_t when running
-
-can't change these params when model is running
-
-use #define to select long double
 
 new form for delta_t param, examples
     1ms   
@@ -14,14 +18,8 @@ reverse colors, so scren can be printed
 
 redesign display to hold graphs
 
-clean up common.h,   fields such as i_prior_prior, etc
-
 optimize model computations
   - and check with profiling
-
-routine to set params  (LATER)
-
-val_to_str  picoseconds
 
 XXX issues
 
@@ -49,8 +47,6 @@ typedef struct {
 
 --------------------------------------------------
 
-could have an impulse power supply to test resonant frequency of LC;
-it would quickly ramp up and then isolate
 
 ac simple circuit
    power / capacitor
@@ -78,18 +74,23 @@ optimization, and multi threads, change O0 to O2
 
 try again to use capacitor for battery, and to evaluate ground current
 
----- consider ----
-
-debug param to enable prints
-
------------------   CODED  ----------------------
+-----------------   CODED or DONE  --------------
 
 sdl_create_texture should be called prior to fontsize call
 SDL prints
-
------------------   DONE   ----------------------
+val_to_str  picoseconds
 
 checkins
 review this file
 shorten param names so they fit better
 cap / inductor oscillator test
+use #define to select long double
+
+clean up common.h,   fields such as i_prior_prior, etc
+
+------------------  MAYBE ?? ----------------------
+
+could have an impulse power supply to test resonant frequency of LC;
+it would quickly ramp up and then isolate
+
+debug param to enable prints

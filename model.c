@@ -41,9 +41,9 @@ static bool     model_step_req;
 
 static node_t * ground_node;
 
-static double   delta_t;
-static double   dcpwr_t;
-static double   stop_t;
+static long double   delta_t;
+static long double   dcpwr_t;
+static long double   stop_t;
 
 //
 // prototypes
@@ -54,7 +54,7 @@ static node_t * allocate_node(void);
 static void add_terms_to_node(node_t *node, gridloc_t *gl);
 static void debug_print_nodes(void);
 static void * model_thread(void * cx);
-static double get_comp_power_voltage(component_t * c);
+static long double get_comp_power_voltage(component_t * c);
 static int32_t check_for_param_updates(void);
 
 // -----------------  PUBLIC ---------------------------------------------------------
@@ -86,7 +86,7 @@ int32_t model_cmd(char *cmdline)
         ((arg = strtok(NULL, " ")) != NULL)) 
     {
         bool add_flag = false;
-        double arg_val, lcl_stop_t;
+        long double arg_val, lcl_stop_t;
         if (arg[0] == '+') {
             add_flag = true;
             arg++;
@@ -155,7 +155,7 @@ int32_t model_reset(void)
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
         if (c->type == COMP_INDUCTOR) {
-            c->i_next = c->i_current = c->i_prior = 1.0;
+            c->i_next = c->i_current = 1.0;
         }
     }
 #endif
@@ -487,7 +487,7 @@ static void * model_thread(void * cx)
         //if (model_time_s < dcpwr_t) {
             //delta_t = 1e-10;
         //} else {
-            ////delta_t = .001 * sin((model_time_s / dcpwr_t) * M_PI_2);
+            ////delta_t = .001 * sinl((model_time_s / dcpwr_t) * M_PI_2);
             //delta_t = .001;
         //}
         delta_t = .001 * (1 - expl(-model_time_s / 400));
@@ -509,9 +509,9 @@ static void * model_thread(void * cx)
             } else if (n->power) {
                 n->v_next = get_comp_power_voltage(n->power->component);
             } else {
-                double r_sum_num=0, r_sum_denom=0;
-                double c_sum_num=0, c_sum_denom=0;
-                double l_sum_num=0, l_sum_denom=0;
+                long double r_sum_num=0, r_sum_denom=0;
+                long double c_sum_num=0, c_sum_denom=0;
+                long double l_sum_num=0, l_sum_denom=0;
                 for (j = 0; j < n->max_term; j++) {
                     component_t *c = n->term[j]->component;
                     int32_t termid = n->term[j]->termid;
@@ -524,26 +524,9 @@ static void * model_thread(void * cx)
                         r_sum_denom += (1 / c->resistor.ohms);
                         break;
                     case COMP_CAPACITOR:
-#if 1
                         c_sum_num += (n->v_current + other_n->v_current - other_n->v_prior) *
                                      (c->capacitor.farads / delta_t);
                         c_sum_denom += c->capacitor.farads / delta_t;
-#else
-                        c_sum_num += (c->capacitor.farads / delta_t) * 
-                                     (
-                                         (                     2 * n->v_current     - n->v_prior) -
-                                         (other_n->v_current - 2 * other_n->v_prior + other_n->v_prior_prior)
-                                     );
-
-                        if (termid == 0) {
-                            c_sum_num -= c->i_current;
-                        } else {
-                            c_sum_num += c->i_current;
-                        }
-
-
-                        c_sum_denom += c->capacitor.farads / delta_t;
-#endif
                         break;
                     case COMP_INDUCTOR:
                         l_sum_num += 
@@ -573,24 +556,13 @@ static void * model_thread(void * cx)
             case COMP_RESISTOR:
                 c->i_next = (n0->v_next - n1->v_next) / c->resistor.ohms;
                 break;
-            case COMP_CAPACITOR: {
-#if 1
-                //c->i_next = ((n0->v_next - n0->v_current) - (n1->v_next - n1->v_current)) *
-                            //c->capacitor.farads / delta_t;
+            case COMP_CAPACITOR:
                 c->i_next = ((n0->v_next - n1->v_next) - (n0->v_current - n1->v_current)) *
                             (c->capacitor.farads / delta_t);
-#else
-                double vn = n0->v_next - n1->v_next;
-                double vc = n0->v_current - n1->v_current;
-                double vp = n0->v_prior - n1->v_prior;
-                c->i_next = c->i_current + (c->capacitor.farads / delta_t) * (vn - 2*vc + vp);
-
-#endif
-                //INFO("CURRENT %Lf\n", c->i_next);
-                break; }
+                break;
             case COMP_INDUCTOR: {
-                double v0 = (n0->v_next + n0->v_current) / 2.;
-                double v1 = (n1->v_next + n1->v_current) / 2.;
+                long double v0 = (n0->v_next + n0->v_current) / 2.;
+                long double v1 = (n1->v_next + n1->v_current) / 2.;
                 c->i_next = c->i_current + (delta_t / c->inductor.henrys) * (v0 - v1);
                 break; }
             }
@@ -602,7 +574,7 @@ static void * model_thread(void * cx)
             if (n->power == NULL) {
                 continue;
             }
-            double total_current = 0;
+            long double total_current = 0;
             for (j = 0; j < n->max_term; j++) {
                 if (n->term[j] == n->power) {
                     continue;
@@ -619,13 +591,11 @@ static void * model_thread(void * cx)
         // xxx
         for (i = 0; i < max_node; i++) {
             node_t * n = &node[i];
-            n->v_prior_prior = n->v_prior;
             n->v_prior = n->v_current;
             n->v_current = n->v_next;
         }
         for (i = 0; i < max_component; i++) {
             component_t *c = &component[i];
-            c->i_prior = c->i_current;
             c->i_current = c->i_next;
         }
 
@@ -640,20 +610,20 @@ static void * model_thread(void * cx)
 }
 
 // XXX init prior voltage on power up, delta_t==0
-static double get_comp_power_voltage(component_t * c)
+static long double get_comp_power_voltage(component_t * c)
 {
-    double v;
+    long double v;
 
     if (c->power.hz == 0) {
         // dc
         if (model_time_s >= dcpwr_t) {
             v = c->power.volts;
         } else {
-            v = c->power.volts * sin((model_time_s / dcpwr_t) * M_PI_2);
+            v = c->power.volts * sinl((model_time_s / dcpwr_t) * M_PI_2);
         }
     } else {
         // ac XXX optimize
-        v = sin(model_time_s * c->power.hz * (2. * M_PI));
+        v = sinl(model_time_s * c->power.hz * (2. * M_PI));
     }
 
     return v;

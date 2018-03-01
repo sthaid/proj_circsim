@@ -26,7 +26,7 @@ static int32_t win_width, win_height;
 
 static int32_t grid_xoff; 
 static int32_t grid_yoff;
-static double  grid_scale;
+static long double  grid_scale;
 
 //
 // prototypes
@@ -445,7 +445,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         if (strcmp(PARAM_CURRENT, "on") == 0) {
             int32_t i, x, y;
             component_t *c;
-            double current;
+            long double current;
             char current_str[100], *pre_str, *post_str;
 
             for (i = 0; i < max_component; i++) {
@@ -465,7 +465,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 }
 
                 current = c->i_current;
-                val_to_str(fabs(current), UNITS_AMPS, current_str);
+                val_to_str(fabsl(current), UNITS_AMPS, current_str);
                 pre_str = "";
                 post_str = "";
 
@@ -543,7 +543,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
             return PANE_HANDLER_RET_DISPLAY_REDRAW; }
         case SDL_EVENT_MOUSE_WHEEL: {
-            double new_grid_scale = 0;
+            long double new_grid_scale = 0;
 
             // xxx comments
             if (event->mouse_motion.delta_y > 0) {

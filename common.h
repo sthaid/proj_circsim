@@ -22,10 +22,6 @@
 #include "util_sdl_predefined_panes.h"
 #include "util_misc.h"
 
-#define double long double
-#define fabs fabsl
-#define sin sinl
-
 //
 // defines
 //
@@ -56,8 +52,6 @@
 #define COMP_INDUCTOR       5
 #define COMP_DIODE          6
 #define COMP_LAST           6
-
-#define NO_VALUE  NAN  // xxx how is this being used
 
 // for str_to_val and val_to_str
 #define UNITS_VOLTS     1
@@ -101,25 +95,24 @@ typedef struct component_s {
             int32_t remote_color;
         } wire;
         struct {
-            double volts;
-            double hz;  // 0 = DC
+            long double volts;
+            long double hz;  // 0 = DC
         } power;
         struct {
-            double ohms;
+            long double ohms;
         } resistor;
         struct {
-            double farads;
+            long double farads;
         } capacitor;
         struct {
-            double henrys;
+            long double henrys;
         } inductor;
     };
     // component state, used by model.c, follow:
     // when clearing component state, zero from here
     int32_t zero_init_component_state;
-    double i_next;   // xxx are these all used
-    double i_current;
-    double i_prior;
+    long double i_next;
+    long double i_current;
 } component_t;
 
 typedef struct grid_s {
@@ -142,10 +135,9 @@ typedef struct node_s {
     int32_t max_gridloc;
     bool ground;
     terminal_t * power;
-    double v_next;
-    double v_current;
-    double v_prior;
-    double v_prior_prior;
+    long double v_next;
+    long double v_current;
+    long double v_prior;
 } node_t;
 
 //
@@ -163,7 +155,7 @@ grid_t      grid[MAX_GRID_X][MAX_GRID_Y];
 node_t      node[MAX_NODE];
 int32_t     max_node;
 
-double      model_time_s;
+long double model_time_s;
 int32_t     model_state;
 
 //
@@ -211,13 +203,12 @@ int32_t param_update_count;
 //
 
 // main.c
-
 char * gridloc_to_str(gridloc_t * gl, char * s);
 int32_t str_to_gridloc(char *glstr, gridloc_t * gl);
 char * component_to_value_str(component_t * c, char * s);
 char * component_to_full_str(component_t * c, char * s);
-int32_t str_to_val(char * s, int32_t units, double * val_result);
-char * val_to_str(double val, int32_t units, char * s);
+int32_t str_to_val(char * s, int32_t units, long double * val_result);
+char * val_to_str(long double val, int32_t units, char * s);
 
 // display.c
 void display_init(void);

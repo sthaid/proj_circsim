@@ -902,7 +902,7 @@ char * component_to_full_str(component_t * c, char * s)
 
 typedef struct {
     char * units;
-    double factor;  // 0 is table terminator
+    long double factor;  // 0 is table terminator
 } convert_t;
 static convert_t volts_tbl[]  = { {"kV",1e3}, {"V",1}, {"mV",1e-3}, {"uV",1e-6},                  {"V",0} };
 static convert_t amps_tbl[]   = { {"A",1}, {"mA",1e-3}, {"uA",1e-6},                              {"A",0} };
@@ -910,19 +910,19 @@ static convert_t ohms_tbl[]   = { {"M",1e6}, {"K",1e3}, {"",1},                 
 static convert_t farads_tbl[] = { {"F",1}, {"mF",1e-3}, {"uF",1e-6}, {"nF",1e-9}, {"pF",1e-12},   {"F",0} };
 static convert_t henrys_tbl[] = { {"H", 1}, {"mH",1e-3}, {"uH",1e-6},                             {"H",0} };
 static convert_t hz_tbl[]     = { {"MHz",1e6}, {"kHz",1e3}, {"Hz",1},                             {"Hz",0} };
-static convert_t time_tbl[]   = { {"s",1}, {"ms",1e-3}, {"us",1e-6}, {"ns",1e-9},                 {"s",0} };
+static convert_t time_tbl[]   = { {"s",1}, {"ms",1e-3}, {"us",1e-6}, {"ns",1e-9}, {"ps",1e-12},   {"s",0} };
 
 // returns -1 on error, otherwise the number of chars from s that were processed;
 //
 // if no units_str is supplied then the value is returned;
 // otherwise, this routine requires a match of the units_str with tbl units prior to 
 // reaching the table terminator
-int32_t str_to_val(char * s, int32_t units, double * val_result)
+int32_t str_to_val(char * s, int32_t units, long double * val_result)
 {
     convert_t *tbl, *t;
     int32_t cnt, n;
     char units_str[100];
-    double v;
+    long double v;
 
     // verify string is supplied
     if (s == NULL) {
@@ -976,11 +976,11 @@ int32_t str_to_val(char * s, int32_t units, double * val_result)
 
 // if the tbl terminator is reached (because the value is too small) then 
 // the value is printed using "%.2g" format, followed by the tbl terminator units
-char * val_to_str(double val, int32_t units, char *s)
+char * val_to_str(long double val, int32_t units, char *s)
 {
     char *fmt;
     convert_t *tbl, *t;
-    double absval = fabs(val);
+    long double absval = fabsl(val);
 
     // pick the conversion table
     tbl = (units == UNITS_VOLTS    ? volts_tbl  :
@@ -1002,7 +1002,7 @@ char * val_to_str(double val, int32_t units, char *s)
                 sprintf(s, "%.2Lg%s", val, t->units);
             } else {
                 val /= t->factor;
-                absval = fabs(val);
+                absval = fabsl(val);
                 fmt = (absval > 99.99 ? "%.0Lf%s" :
                        absval > 9.999 ? "%.1Lf%s" :
                                         "%.2Lf%s");
