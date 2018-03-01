@@ -1,0 +1,19 @@
+clear_schematic
+
+add power      c3   d3   1.00V,1.00Hz
+add capacitor  c4   d4   1.00F
+add wire       c3   c4   
+add wire       d3   d4   
+
+ground d3
+
+set stop_t       1
+set delta_t      1ns
+set dcpwr_t      1ms
+set grid         off
+set current      on
+set voltage      on
+set component    value
+set center       d4,153,143
+set scale        354
+

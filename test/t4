@@ -2,13 +2,15 @@ clear_schematic
 add power        b1  c1 5v
 add wire   b1  b2 
 add resistor     b2  c2 1000
-add capacitor    c2  d2 1mf
+add capacitor    d2  c2 1mf
 add wire   d2  d1 
 add wire   d1  c1 
 ground c1
 
+set delta_t  1ms  
+set stop_t 1
 set center c4
 set scale 200
 set grid off
 
-#model run 1
+model run

@@ -12,9 +12,9 @@ add wire       d1   c1
 
 ground d1
 
-set stop_t       1s    
-set delta_t      1ns
-set dcpwr_t 1ms
+set stop_t       1s   
+set delta_t      .1ns
+set dcpwr_t      1ms
 set grid         off
 set current      on
 set voltage      on
@@ -22,3 +22,4 @@ set component    value
 set center       c2,-51,-27
 set scale        322
 
+model run

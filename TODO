@@ -1,3 +1,34 @@
+model read delta_t and dcpwr param at run start
+ - and not updating these when running
+ - still update stop_t when running
+
+can't change these params when model is running
+
+use #define to select long double
+
+new form for delta_t param, examples
+    1ms   
+    Xms,ramp_up    ramps up to Xms - how long to ramp up
+   
+reverse colors, so scren can be printed
+
+redesign display to hold graphs
+
+clean up common.h,   fields such as i_prior_prior, etc
+
+optimize model computations
+  - and check with profiling
+
+routine to set params  (LATER)
+
+val_to_str  picoseconds
+
+XXX issues
+
+model cont display button should allow model to continue after stop_t reached
+
+-----------------------------------------
+
 display meter or scope
 
 typedef struct {
@@ -18,8 +49,8 @@ typedef struct {
 
 --------------------------------------------------
 
-
-reverse colors
+could have an impulse power supply to test resonant frequency of LC;
+it would quickly ramp up and then isolate
 
 ac simple circuit
    power / capacitor
@@ -37,7 +68,7 @@ other component stuff to track
 
 fix T5, compare to T13
 
-create a test suite
+create an automated test suite
 
 ---- later ---
 
@@ -50,8 +81,6 @@ try again to use capacitor for battery, and to evaluate ground current
 ---- consider ----
 
 debug param to enable prints
-
-when writing, consider not setting default param values
 
 -----------------   CODED  ----------------------
 

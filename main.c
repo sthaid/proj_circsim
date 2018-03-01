@@ -942,7 +942,7 @@ int32_t str_to_val(char * s, int32_t units, double * val_result)
 
     // scanf the string, return error if failed
     units_str[0] = '\0';
-    cnt = sscanf(s, "%lf%n%s%n", &v, &n, units_str, &n);
+    cnt = sscanf(s, "%Lf%n%s%n", &v, &n, units_str, &n);
     if (cnt != 1 && cnt != 2) {
         return -1;
     }
@@ -999,13 +999,13 @@ char * val_to_str(double val, int32_t units, char *s)
     while (true) {
         if (absval >= (t->factor * 0.999) || t->factor == 0) { 
             if (t->factor == 0) {
-                sprintf(s, "%.2g%s", val, t->units);
+                sprintf(s, "%.2Lg%s", val, t->units);
             } else {
                 val /= t->factor;
                 absval = fabs(val);
-                fmt = (absval > 99.99 ? "%.0f%s" :
-                       absval > 9.999 ? "%.1f%s" :
-                                        "%.2f%s");
+                fmt = (absval > 99.99 ? "%.0Lf%s" :
+                       absval > 9.999 ? "%.1Lf%s" :
+                                        "%.2Lf%s");
                 sprintf(s, fmt, val, t->units);
             }
             break;

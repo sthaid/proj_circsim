@@ -14,5 +14,5 @@ ground c4
 
 set center c6
 set scale 200
-set dcpwr_t 0
+set dcpwr_t 1ms
 set stop_t 1ms

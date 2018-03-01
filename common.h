@@ -22,6 +22,10 @@
 #include "util_sdl_predefined_panes.h"
 #include "util_misc.h"
 
+#define double long double
+#define fabs fabsl
+#define sin sinl
+
 //
 // defines
 //
@@ -141,6 +145,7 @@ typedef struct node_s {
     double v_next;
     double v_current;
     double v_prior;
+    double v_prior_prior;
 } node_t;
 
 //

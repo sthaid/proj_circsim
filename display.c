@@ -172,7 +172,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             gridloc_t gl;
             int32_t cnt, xadj, yadj;
             char *p;
-            if ((cnt = sscanf(PARAM_SCALE, "%lf", &grid_scale)) != 1 ||
+            if ((cnt = sscanf(PARAM_SCALE, "%Lf", &grid_scale)) != 1 ||
                 grid_scale > MAX_GRID_SCALE || grid_scale < MIN_GRID_SCALE) 
             {
                 ERROR("invalid grid scale '%s'\n", PARAM_SCALE);
@@ -554,7 +554,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             if (new_grid_scale >= MIN_GRID_SCALE && new_grid_scale <= MAX_GRID_SCALE) {
                 grid_scale = new_grid_scale;
                 // XXX routine
-                sprintf(PARAM_SCALE, "%.0lf", grid_scale);
+                sprintf(PARAM_SCALE, "%.0Lf", grid_scale);
             }
             return PANE_HANDLER_RET_DISPLAY_REDRAW; }
         }
@@ -629,6 +629,7 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
                           "%-8s %s", 
                           MODEL_STATE_STR(model_state),
                           val_to_str(model_time_s, UNITS_SECONDS, s));
+        //INFO("xxxx %s\n", val_to_str(model_time_s, UNITS_SECONDS, s));
 
         // params
         for (i = 0; params_tbl[i].name; i++) {

@@ -1,0 +1,25 @@
+#                               1
+# resonant frequency =  -------------------
+#                        2 * PI * sqrt(L*C)
+#
+# f = 1  L = .159 C = .159
+
+clear_schematic
+
+add capacitor  c4   d4   .1591549F
+add inductor   c5   d5   .1591549H
+add wire       c4   c5   
+add wire       d4   d5   
+
+ground d4
+
+set stop_t       1s   
+set delta_t      1ns
+set dcpwr_t      1ms
+set grid         off
+set current      on
+set voltage      on
+set component    value
+set center       d5,94,143
+set scale        354
+

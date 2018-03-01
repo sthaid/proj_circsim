@@ -81,6 +81,7 @@ int32_t model_cmd(char *cmdline)
 
     // if arg supplied then use it to set the stop time;
     // only for the "run" and "cont" cmds
+// XXX use strncmp  OR not working
     if ((strcmp(cmd, "run") == 0 || strcmp(cmd, "cont") == 0) &&
         ((arg = strtok(NULL, " ")) != NULL)) 
     {
@@ -478,8 +479,26 @@ static void * model_thread(void * cx)
 
         // xxx comments
 
+// XXXXXXXXXXXXXXX
+        if (model_time_s == 0) {
+            //model_time_s = 1e-10;
+            model_time_s = 1e-10;
+        }
+        //if (model_time_s < dcpwr_t) {
+            //delta_t = 1e-10;
+        //} else {
+            ////delta_t = .001 * sin((model_time_s / dcpwr_t) * M_PI_2);
+            //delta_t = .001;
+        //}
+        delta_t = .001 * (1 - expl(-model_time_s / 400));
+
         // increment time
         model_time_s += delta_t;
+
+        static int64_t count;
+        if (count++ < 100) {
+            INFO("model_tine = %Le  delta_t = %Le\n", model_time_s, delta_t);
+        }
 
         // loop over all nodes, computing the next voltage for that node
         for (i = 0; i < max_node; i++) {
@@ -505,9 +524,26 @@ static void * model_thread(void * cx)
                         r_sum_denom += (1 / c->resistor.ohms);
                         break;
                     case COMP_CAPACITOR:
+#if 1
                         c_sum_num += (n->v_current + other_n->v_current - other_n->v_prior) *
                                      (c->capacitor.farads / delta_t);
                         c_sum_denom += c->capacitor.farads / delta_t;
+#else
+                        c_sum_num += (c->capacitor.farads / delta_t) * 
+                                     (
+                                         (                     2 * n->v_current     - n->v_prior) -
+                                         (other_n->v_current - 2 * other_n->v_prior + other_n->v_prior_prior)
+                                     );
+
+                        if (termid == 0) {
+                            c_sum_num -= c->i_current;
+                        } else {
+                            c_sum_num += c->i_current;
+                        }
+
+
+                        c_sum_denom += c->capacitor.farads / delta_t;
+#endif
                         break;
                     case COMP_INDUCTOR:
                         l_sum_num += 
@@ -524,7 +560,7 @@ static void * model_thread(void * cx)
                     }
                 }
                 n->v_next = (r_sum_num + c_sum_num + l_sum_num) / 
-                            (r_sum_denom + c_sum_denom + l_sum_denom);
+                             (r_sum_denom + c_sum_denom + l_sum_denom);
             }
         }
 
@@ -537,10 +573,21 @@ static void * model_thread(void * cx)
             case COMP_RESISTOR:
                 c->i_next = (n0->v_next - n1->v_next) / c->resistor.ohms;
                 break;
-            case COMP_CAPACITOR:
-                c->i_next = ((n0->v_next - n0->v_current) - (n1->v_next - n1->v_current)) *
-                            c->capacitor.farads / delta_t;
-                break;
+            case COMP_CAPACITOR: {
+#if 1
+                //c->i_next = ((n0->v_next - n0->v_current) - (n1->v_next - n1->v_current)) *
+                            //c->capacitor.farads / delta_t;
+                c->i_next = ((n0->v_next - n1->v_next) - (n0->v_current - n1->v_current)) *
+                            (c->capacitor.farads / delta_t);
+#else
+                double vn = n0->v_next - n1->v_next;
+                double vc = n0->v_current - n1->v_current;
+                double vp = n0->v_prior - n1->v_prior;
+                c->i_next = c->i_current + (c->capacitor.farads / delta_t) * (vn - 2*vc + vp);
+
+#endif
+                //INFO("CURRENT %Lf\n", c->i_next);
+                break; }
             case COMP_INDUCTOR: {
                 double v0 = (n0->v_next + n0->v_current) / 2.;
                 double v1 = (n1->v_next + n1->v_current) / 2.;
@@ -572,6 +619,7 @@ static void * model_thread(void * cx)
         // xxx
         for (i = 0; i < max_node; i++) {
             node_t * n = &node[i];
+            n->v_prior_prior = n->v_prior;
             n->v_prior = n->v_current;
             n->v_current = n->v_next;
         }
@@ -591,6 +639,7 @@ static void * model_thread(void * cx)
     return NULL;
 }
 
+// XXX init prior voltage on power up, delta_t==0
 static double get_comp_power_voltage(component_t * c)
 {
     double v;
@@ -627,17 +676,19 @@ static int32_t check_for_param_updates(void)
         ERROR("invalid stop_t\n");
         error = true;
     }
+#if 0
     rc = str_to_val(PARAM_DELTA_T, UNITS_SECONDS, &delta_t);
     if (rc < 0 || delta_t <= 0) {
         ERROR("invalid delta_t\n");
         error = true;
     }
+#endif
     rc = str_to_val(PARAM_DCPWR_T, UNITS_SECONDS, &dcpwr_t);
     if (rc < 0 || dcpwr_t < 0) {
         ERROR("invalid dcpwr_t\n");
         error = true;
     }
-    INFO("stop_t = %e delta_t = %e dcpwr_t = %e\n",
+    INFO("stop_t = %Le delta_t = %Le dcpwr_t = %Le\n",
          stop_t, delta_t, dcpwr_t);
 
     // remember the param_update_count, so that on subsequent calls, if
