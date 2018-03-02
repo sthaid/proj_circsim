@@ -1,11 +1,13 @@
-
-model read delta_t and dcpwr param at run start
- - and not updating these when running
- - still update stop_t when running
+// XXX use of assert vs FATAL
+//     could make my ASSERT
 
 new form for delta_t param, examples
     1ms   
     Xms,ramp_up    ramps up to Xms - how long to ramp up
+
+model read delta_t and dcpwr param at run start
+ - and not updating these when running
+ - still update stop_t when running
    
 reverse colors, so scren can be printed
 
@@ -14,9 +16,25 @@ redesign display to hold graphs
 optimize model computations
   - and check with profiling
 
+add diode
+
 XXX issues
 
 model cont display button should allow model to continue after stop_t reached
+
+
+if there are performance issues use profiling;
+
+- try an LC circuit,   new cmd to powr the capacitor
+- stabilize model with RL and RC circuits
+- add scope and/or meters display options
+- instability in the model
+- add display scopes and meters
+
+update DOCUMENTATION
+
+should model worry about summing the current on the ground node and/or 
+current return to the power supply
 
 -----------------------------------------
 
@@ -73,6 +91,10 @@ could have an impulse power supply to test resonant frequency of LC;
 it would quickly ramp up and then isolate
 
 debug param to enable prints
+
+init prior voltage on power up, delta_t==0
+  this could be done first call to get_comp_power following model_reset
+
 
 -----------------   CODED or DONE  --------------
 

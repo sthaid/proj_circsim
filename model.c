@@ -1,18 +1,3 @@
-#if 0
-XXX NEXT STEPS
-- try an LC circuit,   new cmd to powr the capacitor
-- stabilize model with RL and RC circuits
-- add scope and/or meters display options
-
-XXX instability in the model
-
-XXX add display scopes and meters
-
---- DONE  ---
-- support inductor and run test
-
-#endif
-
 #include "common.h"
 
 //
@@ -27,6 +12,20 @@ XXX add display scopes and meters
             usleep(1000); \
         } \
     } while (0)
+
+#define USAGE "\
+usage: model <cmd> [<args>]\n\
+\n\
+cmd: reset           - resets to time 0 initial condition\n\
+     run [<stop_t>]  - reset and run the model\n\
+     stop            - stop the model\n\
+     cont [<stop_t>] - continue from stop\n\
+     step            - executes model for one time increment\n\
+\n\
+arg: stop_t - used by the run and cont commands to set the time\n\
+              that the model will automatically stop; this can be\n\
+              an absolute time (example '5', or a delta time (example '+1')\n\
+"
 
 //
 // typedefs
@@ -74,7 +73,8 @@ int32_t model_cmd(char *cmdline)
     // extract cmd from cmdline
     cmd = strtok(cmdline, " ");
     if (cmd == NULL) {
-        ERROR("usage: XXX\n");
+        printf("%s\n", USAGE);
+
         return 0;
     }
 
@@ -152,8 +152,8 @@ int32_t model_reset(void)
     }
 
 #if 0
-    // XXX temp test, FLAG to turn this on
-    INFO("XXXXXXXXXXXXXX LC TEST\n");
+    // XXX temp test, FLAG to turn this on, or figure out a better way to test LC
+    INFO("LC TEST\n");
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
         if (c->type == COMP_INDUCTOR) {
@@ -378,7 +378,6 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
     }
 
     // add this gridloc to the node
-    // XXX assert(n->max_gridloc < n->max_alloced_gridloc);
     if (n->max_gridloc >= n->max_alloced_gridloc) {
         n->max_alloced_gridloc = (n->max_gridloc == 0 ? 8 : n->max_gridloc * 2);
         DEBUG("%ld: MAX_ALLOCED_GRIDLOC IS NOW %d\n", n-node, n->max_alloced_gridloc);
@@ -393,6 +392,7 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
     for (i = 0; i < g->max_term; i++) {
         terminal_t * term = g->term[i];
         component_t * c = term->component;
+
         if (c->type == COMP_WIRE) {
             int32_t other_term_id = (term->termid ^ 1);
             terminal_t * other_term = &c->term[other_term_id];
@@ -400,19 +400,16 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
         } else {
             assert(term->node == NULL);
 
-            // XXX assert(n->max_term < n->max_alloced_term);
             if (n->max_term >= n->max_alloced_term) {
                 n->max_alloced_term = (n->max_term == 0 ? 8 : n->max_term * 2);
                 DEBUG("%ld: MAX_ALLOCED_TERM IS NOW %d\n", n-node, n->max_alloced_term);
                 n->term = realloc(n->term, n->max_alloced_term * sizeof(terminal_t));
             }
             n->term[n->max_term] = term;
-            //xxx term->current = NO_VALUE;  this is now in component
             n->max_term++;
 
             term->node = n;
 
-            // xxx comment
             if (term->component->type == COMP_POWER && term->termid == 0) {
                 n->power = term;
             }
@@ -427,10 +424,10 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
 
 static void debug_print_nodes(void)
 {
-    char s[200], s1[100], *p;
+    #define MAX_DEBUG_STR 1000
+    char s[MAX_DEBUG_STR], *p;
     int32_t i, j;
 
-    // XXX needs larger string, or do something about gridloc
     return;
  
     INFO("max_node = %d\n", max_node);
@@ -443,40 +440,30 @@ static void debug_print_nodes(void)
         
         p = s;
         for (j = 0; j < n->max_gridloc; j++) {
+            char s1[100];
             p += sprintf(p, "%s ", gridloc_to_str(&n->gridloc[j],s1));
+            if (p - s > MAX_DEBUG_STR - 100) {
+                strcpy(p, " ...");
+                break;
+            }
         }
         INFO("   gridlocs %s\n", s);
 
         p = s;
         for (j = 0; j < n->max_term; j++) {
             p += sprintf(p, "copmid,term=%ld,%d ", 
-                    n->term[j]->component - component,
-                    n->term[j]->termid);
+                         n->term[j]->component - component,
+                         n->term[j]->termid);
+            if (p - s > MAX_DEBUG_STR - 100) {
+                strcpy(p, " ...");
+                break;
+            }
         }
         INFO("   terms %s\n", s);
     }
 }
 
 // -----------------  MODEL THREAD  --------------------------------------------------
-
-// xxx description
-//
-// https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-071j-introduction-to-electronics-signals-and-measurement-spring-2006/lecture-notes/capactr_inductr.pdf
-//
-// the sum of the curren flowing into a node through resistors is
-//   SUM ((Vn - V) / Rn) = SUM (Vn/Rn) - V * SUM (1/Rn)
-//   where Vn is the voltage on the other side of the resistor
-//         Rn is the resistance
-//         V is the voltage of the node
-// setting this to 0 and solving for V
-//   SUM (Vn/Rn) - V * SUM (1/Rn) = 0
-//   V * SUM (1/Rn) = SUM (Vn/Rn)
-//
-//       SUM (Vn/Rn)
-//   V = -----------
-//       SUM (1/Rn)
-//
-// XXX what about ground node current
 
 static void * model_thread(void * cx) 
 {
@@ -505,23 +492,16 @@ static void * model_thread(void * cx)
             ERROR("ignoring invalid stop_t '%s'\n", PARAM_VALUE(PARAM_STOP_T));
         }
 
-        // xxx comments
-// XXXXXXXXXXXXXXX
+        // XXX THIS NEEDS WORK
         if (model_time_s == 0) {
-            //model_time_s = 1e-10;
             model_time_s = 1e-10;
         }
-        //if (model_time_s < dcpwr_t) {
-            //delta_t = 1e-10;
-        //} else {
-            ////delta_t = .001 * sinl((model_time_s / dcpwr_t) * M_PI_2);
-            //delta_t = .001;
-        //}
         delta_t = .001 * (1 - expl(-model_time_s / 400));
 
         // increment time
         model_time_s += delta_t;
 
+        // XXX how many steps to achieve 1ms model_time ?
         //static int64_t count;
         //if (count++ < 100) {
             //INFO("model_time = %Le  delta_t = %Le\n", model_time_s, delta_t);
@@ -615,7 +595,7 @@ static void * model_thread(void * cx)
             n->power->component->i_next = -total_current;
         }
 
-        // xxx
+        // rotate next -> current -> prior
         for (i = 0; i < max_node; i++) {
             node_t * n = &node[i];
             n->v_prior = n->v_current;
@@ -636,7 +616,6 @@ static void * model_thread(void * cx)
     return NULL;
 }
 
-// XXX init prior voltage on power up, delta_t==0
 static long double get_comp_power_voltage(component_t * c)
 {
     long double v;
@@ -649,8 +628,8 @@ static long double get_comp_power_voltage(component_t * c)
             v = c->power.volts * sinl((model_time_s / dcpwr_t) * M_PI_2);
         }
     } else {
-        // ac XXX optimize
-        v = sinl(model_time_s * c->power.hz * (2. * M_PI));
+        // ac, c->power.volts is RMS
+        v = c->power.volts * M_SQRT2 * sinl(model_time_s * c->power.hz * (2. * M_PI));
     }
 
     return v;

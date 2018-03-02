@@ -76,15 +76,17 @@ void display_handler(void)
         pane_hndlr_status,    NULL, PH_SCHEMATIC_W, 0,  400,            400,            PANE_BORDER_STYLE_MINIMAL);
 }
 
-// -----------------  xxx -------------------------------------------------
+// -----------------  DISPLAY HANDLER SUPPORT -----------------------------
 
 static void display_start(void * cx)
 {
+    // acquire display lock at the start of redrawing the display
     display_lock();
 }
 
 static void display_end(void * cx)
 {
+    // release the display lock when done redrawing the display
     display_unlock();
 }
 
@@ -329,11 +331,10 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         } }
 
         // draw a point at all grid locations that have at least one terminal as follows:
-        // xxx comment
-        // - just one terminal connected : YELLOW  (this is a warning)
-        // - power                       : RED
-        // - ground                      : GREEN
-        // - otherwise                   : WHITE
+        // - ground      : GREEN
+        // - remote_wire : the color assigned to the remote wire
+        // - otherwise   : WHITE
+        // if a grid location is both ground and remote-wire then alternate the color
         { int32_t glx, gly, color;
           static int32_t count;
           count++;
@@ -387,6 +388,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     continue;
                 }
 
+                // xxx use test/t9 and 'set component id'; long wires are not working
                 if (c->term[1].gridloc.x == c->term[0].gridloc.x + 1) {         // right
                     x += grid_scale / 2 - strlen(s) * sdl_font_char_width(fpsz) / 2;
                     y -= 2 * sdl_font_char_height(fpsz);
@@ -400,7 +402,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     x += 2 * sdl_font_char_width(fpsz);
                     y -= grid_scale / 2 + sdl_font_char_height(fpsz) / 2;
                 } else {
-                    // XXX always use this for remote conn
+                    // this is for remote wire component id
                     x += 2;
                     y += 2;
                 }
@@ -442,7 +444,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         }
 
         // display current at all node terminals, if enabled
-        // XXX if the terms dont match, display in red, and print a message
+        // xxx if the term current dont match, display in red, and print a message
         if (strcmp(PARAM_VALUE(PARAM_CURRENT), "on") == 0) {
             int32_t i, x, y;
             component_t *c;
@@ -520,10 +522,11 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             int32_t xoff, yoff, xadj, yadj, new_grid_xoff, new_grid_yoff;
             char param_center_str[100], str[100];
 
-            // xxx comments
+            // determine new grid_xoff/yoff by incorporating the mouse motion
             new_grid_xoff = grid_xoff + event->mouse_motion.delta_x;
             new_grid_yoff = grid_yoff + event->mouse_motion.delta_y;
 
+            // determine the nearest gl to the new_grid_xoff/yoff
             gl.x = (new_grid_xoff - (PH_SCHEMATIC_W/2) - grid_scale/2) / (-grid_scale);
             gl.y = (new_grid_yoff - (PH_SCHEMATIC_H/2) - grid_scale/2) / (-grid_scale);
             if (gl.x < 0) gl.x = 0;
@@ -531,12 +534,14 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             if (gl.y < 0) gl.y = 0;
             if (gl.y >= MAX_GRID_X) gl.y = MAX_GRID_Y-1;
 
+            // determine xadj/yadj which is the difference between the new_grid_xoff/yoff and
+            // the nearest gl 
             xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2;
             yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2;
             xadj = (new_grid_xoff - xoff);
             yadj = (new_grid_yoff - yoff);
 
-            // update PARAM_CENTER
+            // update PARAM_CENTER, using gl,xadj,yadj;  which exactly specifies the center
             sprintf(param_center_str, "%s,%d,%d",
                     gridloc_to_str(&gl,str), xadj, yadj);
             PARAM_SET_VALUE(PARAM_CENTER, param_center_str);
@@ -545,7 +550,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             long double new_grid_scale = 0;
             char param_scale_str[100];
 
-            // xxx comments
+            // determine new_grid_scale by multiplying or dividing the current
+            // grid_scale by 1.1
             if (event->mouse_motion.delta_y > 0) {
                 new_grid_scale = grid_scale * 1.1;
             } if (event->mouse_motion.delta_y < 0) {
@@ -620,7 +626,6 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
                           "%-8s %s", 
                           MODEL_STATE_STR(model_state),
                           val_to_str(model_time_s, UNITS_SECONDS, s));
-        //INFO("xxxx %s\n", val_to_str(model_time_s, UNITS_SECONDS, s));
 
         // params
         for (i = 0; PARAM_NAME(i); i++) {

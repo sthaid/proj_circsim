@@ -5306,8 +5306,8 @@ add wire W52  X52
 add wire X52  Y52 
 add wire Y52  Z52 
 
-add power A26 a1   0.5v
-add power A27 a1   -0.5v
+#add power A26 a1   0.5v
+#add power A27 a1   -0.5v
 ground a1 
 
 #add power A26 A27 1v
@@ -5315,8 +5315,5 @@ ground a1
 
 set center A26
 set scale 200
-center
-
-model run .1
 
 

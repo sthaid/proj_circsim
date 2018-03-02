@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <pthread.h>
 #include <math.h>
+#include <sys/stat.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 

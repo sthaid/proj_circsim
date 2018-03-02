@@ -1,5 +1,3 @@
-// XXX use of assert vs FATAL
-//     could make my ASSERT
 #define MAIN
 #include "common.h"
 
@@ -96,11 +94,11 @@ static void main_init(void)
 
 static void help(void)
 {
-    INFO("usage: model [-h] [<filename>]\n");
-    INFO("  -h: help\n");
-    BLANK_LINE;
+    printf("usage: model [-h] [<filename>]\n");
+    printf("  -h: help\n");
+    printf("\n");
 
-    INFO("commands:\n");
+    printf("commands:\n");
     cmd_help(NULL);
 }
 
@@ -197,13 +195,9 @@ static int32_t process_cmd(char * cmdline)
         args++;
     }
     len = strlen(args); 
-    while (len > 0) { // xxx combine
-        if (args[len-1] == ' ') {
-            args[len-1] = '\0';
-            len--;
-        } else {
-            break;
-        }
+    while (len > 0 && args[len-1] == ' ') {
+        args[len-1] = '\0';
+        len--;
     }
 
     // find cmd in cmd_tbl
@@ -237,7 +231,7 @@ static int32_t cmd_help(char *args)
 
     // print the usage strings
     for (i = 0; i < MAX_CMD_TBL; i++) {
-        INFO("%-16s %s\n", cmd_tbl[i].name, cmd_tbl[i].usage);
+        printf("%-16s %s\n", cmd_tbl[i].name, cmd_tbl[i].usage);
     }
     return 0;
 }
@@ -281,7 +275,6 @@ static int32_t cmd_show(char *args)
     char s[100];
 
     // determine what is to be shown
-// xxx may not need strtok
     what = strtok(args, " ");
     show_all = (what == NULL);
 
@@ -354,7 +347,6 @@ static int32_t cmd_read(char *args)
     int32_t rc, fileline=0;
 
     // tokenize and verify args
-    // xxx strtok ?
     filename = strtok(args, " ");
     if (filename == NULL) {
         ERROR("insufficient args\n");
@@ -388,21 +380,35 @@ static int32_t cmd_read(char *args)
     return 0;
 }
 
-// xxx confirm overwrite
 static int32_t cmd_write(char *args)
 {
     FILE * fp;
-    int32_t i;
+    int32_t i, rc;
     char *filename;
     char s[100];
+    struct stat buf;
 
     // get the filename to be written
     filename = strtok(args, " ");
-    // xxx strtok
     if (filename == NULL) {
         filename = last_filename_used;
         if (filename[0] == '\0') {
             ERROR("no filename\n");
+            return -1;
+        }
+    }
+
+    // confirm overwrite
+    rc = stat(filename, &buf);
+    if (rc == 0) {
+        char ans[100];
+        if ((buf.st_mode & S_IFMT) != S_IFREG) {
+            ERROR("'%s' is not a regular file\n", filename);
+            return -1;
+        }
+        printf("overwrite '%s' (y/n)? ", filename);
+        fgets(ans,sizeof(ans),stdin);
+        if (ans[0] != 'y' && ans[0] != 'Y') {
             return -1;
         }
     }
@@ -413,9 +419,6 @@ static int32_t cmd_write(char *args)
         ERROR("unable to open '%s', %s\n", filename, strerror(errno));
         return -1;
     }
-
-    // print 
-    INFO("saving to file '%s'\n", filename);
 
     // keep track of the last_filename_used, so that a subsequent write
     // will use the same filename by default
@@ -437,7 +440,7 @@ static int32_t cmd_write(char *args)
     }
     fprintf(fp, "\n");
 
-    if (ground_is_set) {  // xxx is there a default
+    if (ground_is_set) {
         fprintf(fp, "ground %s\n", gridloc_to_str(&ground,s));
         fprintf(fp, "\n");
     }
@@ -479,7 +482,6 @@ static int32_t cmd_del(char *args)
     char * comp_str;
 
     // get the comp_str which identifies the component, such as 'R1'
-    // xxx strtok
     comp_str = strtok(args, " ");
     if (comp_str == NULL) {
         ERROR("insufficient args\n");
@@ -498,7 +500,6 @@ static int32_t cmd_ground(char *args)
 
     // tokenize and verify arg is supplied
     gl = strtok(args, " ");
-    // xxx strtok
     if (gl == NULL) {
         ERROR("insufficient args\n");
         return -1;
@@ -529,7 +530,7 @@ static int32_t cmd_model(char *args)
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------
 
-// XXX review
+// xxx review
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str)
 {
     component_t new_comp, *c;
@@ -672,18 +673,17 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     }
 
     // verify terminals are adjacent, except for:
-    // - COMP_WIRE where they just need to be in the same row or column
-    // xxx comment
-    // xxx also check x0,y0 not x0,y1
+    // - COMP_WIRE - where they just need to be in the same row or column
+    // - COMP_WIRE 'remote' - where there is no restriction
     x0 = new_comp.term[0].gridloc.x;
     y0 = new_comp.term[0].gridloc.y;
     x1 = new_comp.term[1].gridloc.x;
     y1 = new_comp.term[1].gridloc.y;
     ok = false;
     if (new_comp.type == COMP_WIRE) {
-        ok = ((new_comp.wire.remote == true) ||
-              ((x0 == x1 && y0 != y1) ||
-               (y0 == y1 && x0 != x1)));
+        ok = ((new_comp.wire.remote == true && (x0 != x1 || y0 != y1)) ||
+              (x0 == x1 && y0 != y1) ||
+              (y0 == y1 && x0 != x1));
     } else {
         ok = (x0 == x1 && (y0 == y1-1 || y0 == y1+1)) ||
              (y0 == y1 && (x0 == x1-1 || x0 == x1+1));
@@ -720,7 +720,6 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     }
 
     // - add the new component to grid
-    // xxx how do we know max_term is okay
     for (i = 0; i < 2; i++) {
         int32_t x = c->term[i].gridloc.x;
         int32_t y = c->term[i].gridloc.y;
