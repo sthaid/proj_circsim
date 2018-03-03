@@ -23,3 +23,9 @@ set component    value
 set center       d5,94,143
 set scale        354
 
+set scope_a voltage,-1,1,c4
+#set scope_b voltage,-.5,.5,c4
+#set scope_c voltage,-1,0,c4
+#set scope_d voltage,0,1,c4
+
+model run .25

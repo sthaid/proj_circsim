@@ -40,7 +40,7 @@ static bool     model_step_req;
 
 static node_t * ground_node;
 
-static long double   delta_t;
+static long double   delta_t;  // xxx try to eliminate these 3 vars
 static long double   dcpwr_t;
 static long double   stop_t;
 
@@ -48,10 +48,11 @@ static long double   stop_t;
 // prototypes
 //
   
-static int32_t model_init_nodes(void);
+static int32_t init_nodes(void);
 static node_t * allocate_node(void);
 static void add_terms_to_node(node_t *node, gridloc_t *gl);
 static void debug_print_nodes(void);
+static void reset(void);
 static void * model_thread(void * cx);
 static long double get_comp_power_voltage(component_t * c);
 
@@ -131,40 +132,18 @@ int32_t model_cmd(char *cmdline)
 
 int32_t model_reset(void)
 {
-    int32_t i;
+    // if already reset then just return
+    if (model_state == MODEL_STATE_RESET) { 
+        return 0;
+    }
 
+    // request the model_thread to idle
     SET_MODEL_REQ(MODEL_STATE_RESET);
 
-    for (i = 0; i < max_node; i++) {
-        node_t *n = &node[i];
-        memset(&n->zero_init_node_state, 
-               0,
-               sizeof(node_t) - offsetof(node_t,zero_init_node_state));
-    }
+    // reset model variables
+    reset();
 
-    for (i = 0; i < max_component; i++) {
-        component_t *c = &component[i];
-        c->term[0].node = NULL;
-        c->term[1].node = NULL;
-        memset(&c->zero_init_component_state, 
-               0,
-               sizeof(component_t) - offsetof(component_t,zero_init_component_state));
-    }
-
-#if 0
-    // XXX temp test, FLAG to turn this on, or figure out a better way to test LC
-    INFO("LC TEST\n");
-    for (i = 0; i < max_component; i++) {
-        component_t *c = &component[i];
-        if (c->type == COMP_INDUCTOR) {
-            c->i_next = c->i_current = 1.0;
-        }
-    }
-#endif
-
-    model_time_s = 0;
-    max_node = 0;
-
+    // success
     return 0;
 }
 
@@ -174,6 +153,7 @@ int32_t model_run(void)
     char str[100];
 
     // scan new values of stop_t, delta_t, and dcpwr_t
+    // xxx clean this up, once the params are preverified
     rc = str_to_val(PARAM_VALUE(PARAM_STOP_T), UNITS_SECONDS, &stop_t);
     if (rc < 0 || stop_t <= 0) {
         ERROR("invalid stop_t %s\n", PARAM_VALUE(PARAM_STOP_T));
@@ -194,14 +174,13 @@ int32_t model_run(void)
     INFO("dcpwr_t = %s\n", val_to_str(dcpwr_t,UNITS_SECONDS,str));
 
     // reset the model
-    rc = model_reset();
-    if (rc < 0) {
-        return -1;
-    }
+    reset();
 
-    // analyze the grid and components to create list of nodes
-    rc = model_init_nodes();
+    // analyze the grid and components to create list of nodes;
+    // if this fails then reset the model variables
+    rc = init_nodes();
     if (rc < 0) {
+        reset();
         return -1;
     }
 
@@ -256,7 +235,7 @@ int32_t model_step(void)
 
 // -----------------  MODEL SUPPORT  -------------------------------------------------
 
-static int32_t model_init_nodes(void)
+static int32_t init_nodes(void)
 {
     int32_t i, j, ground_node_count, power_count;
 
@@ -349,8 +328,6 @@ static int32_t model_init_nodes(void)
     return 0;
 }
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - 
-
 static node_t * allocate_node(void)
 {
     node_t * n;
@@ -385,9 +362,8 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
     }
     n->gridloc[n->max_gridloc++] = *gl;
 
-    // add all terminals that are either direcctly connected
-    // to this gridloc or are on other gridlocs that are connected
-    // to this gridloc
+    // add all terminals that are either direcctly connected to this gridloc or 
+    // are on other gridlocs that are connected to this gridloc
     g = &grid[gl->x][gl->y];
     for (i = 0; i < g->max_term; i++) {
         terminal_t * term = g->term[i];
@@ -420,6 +396,9 @@ static void add_terms_to_node(node_t *n, gridloc_t *gl)
     if (g->ground) {
         n->ground = true;
     }
+
+    // link the grid location to this node
+    g->node = n;
 }
 
 static void debug_print_nodes(void)
@@ -463,11 +442,59 @@ static void debug_print_nodes(void)
     }
 }
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+static void reset(void)
+{
+    int32_t i, glx, gly;
+
+    SET_MODEL_REQ(MODEL_STATE_RESET);
+
+    for (i = 0; i < max_node; i++) {
+        node_t *n = &node[i];
+        memset(&n->zero_init_node_state, 
+               0,
+               sizeof(node_t) - offsetof(node_t,zero_init_node_state));
+    }
+
+    for (i = 0; i < max_component; i++) {
+        component_t *c = &component[i];
+        c->term[0].node = NULL;
+        c->term[1].node = NULL;
+        memset(&c->zero_init_component_state, 
+               0,
+               sizeof(component_t) - offsetof(component_t,zero_init_component_state));
+    }
+
+    for (glx = 0; glx < MAX_GRID_X; glx++) {
+        for (gly = 0; gly < MAX_GRID_Y; gly++) {
+            grid[glx][gly].node = NULL;
+        }
+    }
+
+    model_t = 0;
+    history_t = 0;
+    max_history = 0;
+    max_node = 0;
+    model_step_req = false;
+
+#if 1
+    // XXX temp test, FLAG to turn this on, or figure out a better way to test LC
+    INFO("LC TEST\n");
+    for (i = 0; i < max_component; i++) {
+        component_t *c = &component[i];
+        if (c->type == COMP_INDUCTOR) {
+            c->i_next = c->i_current = 1.0;
+        }
+    }
+#endif
+}
+
 // -----------------  MODEL THREAD  --------------------------------------------------
 
 static void * model_thread(void * cx) 
 {
-    int32_t i,j,rc;
+    int32_t i,j,rc,idx;
 
     while (true) {
         // handle request to transition model_state; and
@@ -493,18 +520,20 @@ static void * model_thread(void * cx)
         }
 
         // XXX THIS NEEDS WORK
-        if (model_time_s == 0) {
-            model_time_s = 1e-10;
+        // xxx dont ramp up if using AC
+        // xxx can we start at time 0?
+        if (model_t == 0) {
+            model_t = 1e-10;
         }
-        delta_t = .001 * (1 - expl(-model_time_s / 400));
+        delta_t = .001 * (1 - expl(-model_t / 400));
 
         // increment time
-        model_time_s += delta_t;
+        model_t += delta_t;
 
-        // XXX how many steps to achieve 1ms model_time ?
+        // XXX how many steps to achieve 1ms model_t ?
         //static int64_t count;
         //if (count++ < 100) {
-            //INFO("model_time = %Le  delta_t = %Le\n", model_time_s, delta_t);
+            //INFO("model_t = %Le  delta_t = %Le\n", model_t, delta_t);
         //}
 
         // loop over all nodes, computing the next voltage for that node
@@ -527,6 +556,7 @@ static void * model_thread(void * cx)
 
                     switch (c->type) {
                     case COMP_RESISTOR:
+                        // xxx use better estimate for other node
                         r_sum_num += (other_n->v_current / c->resistor.ohms);
                         r_sum_denom += (1 / c->resistor.ohms);
                         break;
@@ -606,9 +636,34 @@ static void * model_thread(void * cx)
             c->i_current = c->i_next;
         }
 
+        // keep track of voltage and current history, these are used
+        // for the scope display
+        if (PARAM_HAS_CHANGED(PARAM_SCOPE_T)) {
+            history_t = model_t;
+            max_history = 0;
+            __sync_synchronize();
+        }
+        idx = (model_t - history_t) / PARAM_NUMERIC_VALUE(PARAM_SCOPE_T) * MAX_HISTORY;
+        if (idx < MAX_HISTORY) {
+            for (i = 0; i < max_component; i++) {
+                component_t *c = &component[i];
+                if (c->type != COMP_NONE && c->type != COMP_WIRE) {
+                    c->i_history[idx] = c->i_next;
+                }
+            }
+            for (i = 0; i < max_node; i++) {
+                node_t *n = &node[i];
+                n->v_history[idx] = n->v_next;
+            }
+            __sync_synchronize();
+
+            max_history = idx + 1;
+            __sync_synchronize();
+        }
+
         // if model has reached the stop time, or is being single stepped
         // then stop the model
-        if (model_time_s >= stop_t || model_step_req) {                
+        if (model_t >= stop_t || model_step_req) {                
             model_state_req = MODEL_STATE_STOPPED;   
             model_step_req = false;
         }
@@ -622,14 +677,14 @@ static long double get_comp_power_voltage(component_t * c)
 
     if (c->power.hz == 0) {
         // dc
-        if (model_time_s >= dcpwr_t) {
+        if (model_t >= dcpwr_t) {
             v = c->power.volts;
         } else {
-            v = c->power.volts * sinl((model_time_s / dcpwr_t) * M_PI_2);
+            v = c->power.volts * sinl((model_t / dcpwr_t) * M_PI_2);
         }
     } else {
         // ac, c->power.volts is RMS
-        v = c->power.volts * M_SQRT2 * sinl(model_time_s * c->power.hz * (2. * M_PI));
+        v = c->power.volts * M_SQRT2 * sinl(model_t * c->power.hz * (2. * M_PI));
     }
 
     return v;

@@ -1,3 +1,16 @@
+graph current
+the title line
+improve param handling, check them when they are being set, so they don't have to be verified later
+more options on the set scope_a cmd
+  - scope_a,b,c,d   current|voltage,ymin,ymax,gl,gl    (or gl,gnd    or gnd,gl   or just gl)
+
+questions
+- how to retrigger the scope
+
+=============================================================================
+=============================================================================
+=============================================================================
+
 // XXX use of assert vs FATAL
 //     could make my ASSERT
 
@@ -95,6 +108,7 @@ debug param to enable prints
 init prior voltage on power up, delta_t==0
   this could be done first call to get_comp_power following model_reset
 
+consider reversing the gridloc A3  ->  3A
 
 -----------------   CODED or DONE  --------------
 

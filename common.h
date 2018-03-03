@@ -31,9 +31,10 @@
 
 #define MAX_GRID_X          52
 #define MAX_GRID_Y          52
-#define MAX_COMPONENT       10000
-#define MAX_NODE            10000
+#define MAX_COMPONENT       3000
+#define MAX_NODE            3000
 #define MAX_GRID_TERM       5
+#define MAX_HISTORY         500
 
 #define MODEL_STATE_RESET    0
 #define MODEL_STATE_RUNNING  1
@@ -64,6 +65,7 @@
 #define UNITS_SECONDS   7
 
 #define strcmp strcasecmp
+// XXX also for strncmp
 
 //
 // typedefs
@@ -114,15 +116,17 @@ typedef struct component_s {
     int32_t zero_init_component_state;
     long double i_next;
     long double i_current;
+    float i_history[MAX_HISTORY];
 } component_t;
 
 typedef struct grid_s {
     terminal_t * term[MAX_GRID_TERM];
-    char glstr[4];
     int32_t max_term;
+    char glstr[4];
     bool ground;
     bool has_remote_wire;
     int32_t remote_wire_color;
+    struct node_s * node;
 } grid_t;
 
 typedef struct node_s {
@@ -139,6 +143,7 @@ typedef struct node_s {
     long double v_next;
     long double v_current;
     long double v_prior;
+    float v_history[MAX_HISTORY];
 } node_t;
 
 //
@@ -156,8 +161,11 @@ grid_t      grid[MAX_GRID_X][MAX_GRID_Y];
 node_t      node[MAX_NODE];
 int32_t     max_node;
 
-long double model_time_s;
+long double model_t;
 int32_t     model_state;
+
+long double history_t;
+int32_t     max_history;
 
 //
 // parameters
@@ -172,6 +180,11 @@ int32_t     model_state;
 #define PARAM_COMPONENT  6
 #define PARAM_CENTER     7
 #define PARAM_SCALE      8
+#define PARAM_SCOPE_A    9
+#define PARAM_SCOPE_B    10
+#define PARAM_SCOPE_C    11
+#define PARAM_SCOPE_D    12
+#define PARAM_SCOPE_T    13  
 
 #define PARAM_NAME(idx) (param[idx].name)
 #define PARAM_VALUE(idx) (param[idx].value)
@@ -192,6 +205,8 @@ int32_t     model_state;
        bool result = (param[idx].update_count != last_update_count); \
        last_update_count = param[idx].update_count; \
        result; })
+
+#define PARAM_NUMERIC_VALUE(xxx) 1.0 // XXX
 
 #define DEFAULT_SCALE   "200"
 #define DEFAULT_CENTER  "c3"
@@ -214,6 +229,11 @@ param_tbl_entry_t param[] = {
         { "component", "value",        false },   // id, value, off
         { "center",    DEFAULT_CENTER, false },   // gridloc of display center
         { "scale",     DEFAULT_SCALE,  false },   // display scale, pixels between components
+        { "scope_a",   "off",          false },   // xxx comment
+        { "scope_b",   "off",          false },   // 
+        { "scope_c",   "off",          false },   // 
+        { "scope_d",   "off",          false },   // 
+        { "scope_t",   "1s",           false },   // 
         { NULL                               }
                                                 };
 #else

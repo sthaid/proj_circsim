@@ -7,8 +7,20 @@
 #define DEFAULT_WIN_WIDTH  1900
 #define DEFAULT_WIN_HEIGHT 1000
 
-#define PH_SCHEMATIC_W     1500
+#define PH_SCHEMATIC_X     0
+#define PH_SCHEMATIC_Y     0
+#define PH_SCHEMATIC_W     1375
 #define PH_SCHEMATIC_H     1000
+
+#define PH_STATUS_X        1375
+#define PH_STATUS_Y        0
+#define PH_STATUS_W        525  
+#define PH_STATUS_H        100
+
+#define PH_SCOPE_X         1375
+#define PH_SCOPE_Y         100
+#define PH_SCOPE_W         525  
+#define PH_SCOPE_H         900
 
 #define MIN_GRID_SCALE     100
 #define MAX_GRID_SCALE     400
@@ -36,6 +48,7 @@ static void display_start(void * cx);
 static void display_end(void * cx);
 static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event);
 static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event);
+static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event);
 
 // -----------------  PUBLIC  ---------------------------------------------
 
@@ -71,9 +84,11 @@ void display_handler(void)
         display_start,  // called prior to pane handlers
         display_end,    // called after pane handlers
         100000,         // 0=continuous, -1=never, else us 
-        2,              // number of pane handler varargs that follow
-        pane_hndlr_schematic, NULL, 0,              0,  PH_SCHEMATIC_W, PH_SCHEMATIC_H, PANE_BORDER_STYLE_MINIMAL,
-        pane_hndlr_status,    NULL, PH_SCHEMATIC_W, 0,  400,            400,            PANE_BORDER_STYLE_MINIMAL);
+        3,              // number of pane handler varargs that follow
+        pane_hndlr_schematic, NULL, PH_SCHEMATIC_X, PH_SCHEMATIC_Y, PH_SCHEMATIC_W, PH_SCHEMATIC_H, PANE_BORDER_STYLE_MINIMAL,
+        pane_hndlr_status,    NULL, PH_STATUS_X,    PH_STATUS_Y,    PH_STATUS_W,    PH_STATUS_H,    PANE_BORDER_STYLE_MINIMAL,
+        pane_hndlr_scope,     NULL, PH_SCOPE_X,     PH_SCOPE_Y,     PH_SCOPE_W,     PH_SCOPE_H,     PANE_BORDER_STYLE_MINIMAL
+                        );
 }
 
 // -----------------  DISPLAY HANDLER SUPPORT -----------------------------
@@ -618,20 +633,22 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
     // ------------------------
 
     if (request == PANE_HANDLER_REQ_RENDER) {
-        int32_t i;
+        // xxx int32_t i;
         char s[100];
 
         // state
         sdl_render_printf(pane, 0, ROW2Y(0,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
                           "%-8s %s", 
                           MODEL_STATE_STR(model_state),
-                          val_to_str(model_time_s, UNITS_SECONDS, s));
+                          val_to_str(model_t, UNITS_SECONDS, s));
 
+#if 0  //xxx
         // params
         for (i = 0; PARAM_NAME(i); i++) {
             sdl_render_printf(pane, 0, ROW2Y(3+i,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
                               "%-9s %s", PARAM_NAME(i), PARAM_VALUE(i));
         }
+#endif
 
         sdl_render_text_and_register_event(
             pane, COL2X(0,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "RESET", LIGHT_BLUE, BLACK,
@@ -698,3 +715,153 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
     assert(0);
     return PANE_HANDLER_RET_NO_ACTION;
 }
+
+// -----------------  PANE HNDLR SCOPE  -----------------------------------
+
+static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event) 
+{
+    struct {
+        int32_t none;
+    } * vars = pane_cx->vars;
+    rect_t * pane = &pane_cx->pane;
+
+    // ----------------------------
+    // -------- INITIALIZE --------
+    // ----------------------------
+
+    if (request == PANE_HANDLER_REQ_INITIALIZE) {
+        vars = pane_cx->vars = calloc(1,sizeof(*vars));
+        return PANE_HANDLER_RET_NO_ACTION;
+    }
+
+    // ------------------------
+    // -------- RENDER --------
+    // ------------------------
+
+    if (request == PANE_HANDLER_REQ_RENDER) {
+        int32_t       i, j, count, x_left, y_top;
+        char          p[100], s[100], *select_str, *ymin_str, *ymax_str, *gl_str;
+        long double   ymin, ymax;
+        float       * history;
+        gridloc_t     gl;
+        point_t       points[MAX_HISTORY];
+
+        #define GRAPH_YSPAN   180
+        #define GRAPH_YSPACE  30
+        #define GRAPH_XSPAN   500
+
+        #define FPSZ_SMALL  24
+
+        // the graph xspan must equal MAX_HISTORY, because there
+        // is currently no x-scaling done for the graphs
+        if (GRAPH_XSPAN != MAX_HISTORY) {
+            FATAL("GRAPH_XSPAN %d must equal MAX_HISTORY %d\n",
+                  GRAPH_XSPAN, MAX_HISTORY);
+        }
+
+        // display header line
+        sdl_render_printf(pane, 0, 0, FPSZ_SMALL, WHITE, BLACK, 
+                          "T=%s  T_SPAN=%s",
+                          val_to_str(history_t, UNITS_SECONDS, s),
+                          PARAM_VALUE(PARAM_SCOPE_T));
+
+        // loop over the 4 scopes, displaying each
+        for (i = 0; i < 4; i++) {
+            // if the model is reset then continue
+            if (model_state == MODEL_STATE_RESET) {
+                continue;
+            }
+
+            // parse and verify this scope's params; if invalid then continue
+            // examples:
+            //   off
+            //   voltage,0,5v,c3
+            strcpy(p, PARAM_VALUE(PARAM_SCOPE_A+i));
+            select_str = strtok(p, ",");
+            if (strcmp(select_str, "off") == 0) {
+                continue;
+            }
+            ymin_str = strtok(NULL, ",");
+            ymax_str = strtok(NULL, ",");
+            gl_str = strtok(NULL, ",");
+            if (gl_str == NULL) {
+                continue;
+            }
+            if (strcmp(select_str,"voltage") == 0) {
+                if (str_to_val(ymin_str, UNITS_VOLTS, &ymin) < 0 ||
+                    str_to_val(ymax_str, UNITS_VOLTS, &ymax) < 0 ||
+                    str_to_gridloc(gl_str, &gl) < 0 ||
+                    grid[gl.x][gl.y].node == NULL) 
+                {
+                    continue;
+                }
+                history = grid[gl.x][gl.y].node->v_history;
+            } else if (strcmp(select_str,"current") == 0) {
+                // XXX tbd
+            } else {
+                continue;
+            }
+
+            // determine the coordinates of the top left corner of the scope graph
+            x_left = 12;
+            y_top  = 50 + i * (GRAPH_YSPAN + GRAPH_YSPACE);
+
+            // display y axis
+            sdl_render_line(pane, x_left, y_top, x_left, y_top + GRAPH_YSPAN - 1, WHITE);
+
+            // display x axis, at the 0 volt y intercept; 
+            // if there is no 0 volt y intercept then don't display 
+            // the x axis
+            if (ymin <= 0 && ymax >= 0) {
+                int32_t y = y_top + ymax / (ymax - ymin) * GRAPH_YSPAN;
+                sdl_render_line(pane, x_left, y, x_left + GRAPH_XSPAN - 1, y, WHITE);
+            }
+
+            // create array of points 
+            count = 0;
+            for (j = 0; j < max_history; j++) {
+                float v = history[j];
+                if (v > ymax) {
+                    v = ymax;
+                } else if (v < ymin) {
+                    v = ymin;
+                }
+                points[count].x = x_left + j;
+                points[count].y = y_top + (ymax - v) / (ymax - ymin) * GRAPH_YSPAN;
+                count++;
+            }
+
+            // display the graph
+            sdl_render_lines(pane, points, count, WHITE);
+
+            // display the graph title  xxx improve
+            sdl_render_printf(pane, x_left + 10, y_top, FPSZ_SMALL, WHITE, BLACK, 
+                              "%s",
+                              PARAM_VALUE(PARAM_SCOPE_A+i));
+        }
+
+        return PANE_HANDLER_RET_NO_ACTION;
+    }
+
+    // -----------------------
+    // -------- EVENT --------
+    // -----------------------
+
+    if (request == PANE_HANDLER_REQ_EVENT) {
+        return PANE_HANDLER_RET_NO_ACTION;
+    }
+
+    // ---------------------------
+    // -------- TERMINATE --------
+    // ---------------------------
+
+    if (request == PANE_HANDLER_REQ_TERMINATE) {
+        free(vars);
+        return PANE_HANDLER_RET_NO_ACTION;
+    }
+
+    // not reached
+    assert(0);
+    return PANE_HANDLER_RET_NO_ACTION;
+}
+
