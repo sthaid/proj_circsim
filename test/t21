@@ -7,14 +7,14 @@
 clear_schematic
 
 add capacitor  c4   d4   .1591549F
-add inductor   c5   d5   .1591549H
+add inductor   c5   d5   .1591549H,1A
 add wire       c4   c5   
 add wire       d4   d5   
 
 ground d4
 
 set stop_t       1s   
-set delta_t      1ns
+set delta_t      .1ns
 set dcpwr_t      1ms
 set grid         off
 set current      on
@@ -28,4 +28,5 @@ set scope_a voltage,-1,1,c4
 #set scope_c voltage,-1,0,c4
 #set scope_d voltage,0,1,c4
 
-model run .25
+set scope_t 977
+model run 1000

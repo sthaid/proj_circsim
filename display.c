@@ -607,35 +607,41 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
     if (request == PANE_HANDLER_REQ_RENDER) {
         char s[100];
 
-        // state
+        // state and time
         sdl_render_printf(pane, 0, ROW2Y(0,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
                           "%-8s %s", 
                           MODEL_STATE_STR(model_state),
                           val_to_str(model_t, UNITS_SECONDS, s));
 
+        // stop time
+        sdl_render_printf(pane, 0, ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
+                          "%-8s %s", 
+                          "STOP_T",
+                          val_to_str(param_num_val(PARAM_STOP_T), UNITS_SECONDS, s));
+
         // register for mouse click events to control the model from the display
         sdl_render_text_and_register_event(
-            pane, COL2X(0,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "RESET", LIGHT_BLUE, BLACK,
+            pane, COL2X(0,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "RESET", LIGHT_BLUE, BLACK,
             SDL_EVENT_MODEL_RESET, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
         switch (model_state) {
         case MODEL_STATE_RESET:
             sdl_render_text_and_register_event(
-                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "RUN", LIGHT_BLUE, BLACK,
+                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "RUN", LIGHT_BLUE, BLACK,
                 SDL_EVENT_MODEL_RUN, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
             break;
         case MODEL_STATE_RUNNING:
             sdl_render_text_and_register_event(
-                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "STOP", LIGHT_BLUE, BLACK,
+                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "STOP", LIGHT_BLUE, BLACK,
                 SDL_EVENT_MODEL_STOP, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
             break;
         case MODEL_STATE_STOPPED:
             sdl_render_text_and_register_event(
-                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "CONT", LIGHT_BLUE, BLACK,
+                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "CONT", LIGHT_BLUE, BLACK,
                 SDL_EVENT_MODEL_CONT, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
             break;
         }
         sdl_render_text_and_register_event(
-            pane, COL2X(15,FPSZ_MEDIUM), ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, "STEP", LIGHT_BLUE, BLACK,
+            pane, COL2X(15,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "STEP", LIGHT_BLUE, BLACK,
             SDL_EVENT_MODEL_STEP, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
 
         return PANE_HANDLER_RET_NO_ACTION;

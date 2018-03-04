@@ -1,4 +1,6 @@
-way to init inductor with current
+draw double wide x/y axis
+
+aliasing problem, draw min and max
 
 delta_t ramp up
 - finish coding this
@@ -13,7 +15,6 @@ scope ...
 - check time params for > 0
 - more options on the set scope_a cmd
    - scope_a,b,c,d   current|voltage,ymin,ymax,gl,gl    (or gl,gnd    or gnd,gl   or just gl)
-
 
 add diode
 
@@ -48,6 +49,9 @@ current return to the power supply
 
 verify model is stable
 
+LC circuit decay
+- try smaller delta_t;  this helps with LC problem
+
 ====================  FOR CONSIDERATION  ====================================
 
 other component stuff to track
@@ -64,3 +68,14 @@ consider reversing the gridloc A3  ->  3A
                         8      etc
 
 ====================  DONE  =================================================
+display the time in xxx.xxxxxxs
+also display the stop_t
+   RUNNING    123.456789s
+   STOP_T     xxx.xxxxxxs
+   RESET      CONT      STEP
+model run xxxx.xxxx
+model cont x.xxx  OR 1ms
+    don't use plus, it is always a delta
+val_to_str for secs does xxx.xxxxxxs
+
+way to init inductor with current

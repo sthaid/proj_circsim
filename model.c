@@ -16,15 +16,12 @@
 #define USAGE "\
 usage: model <cmd> [<args>]\n\
 \n\
-cmd: reset           - resets to time 0 initial condition\n\
-     run [<stop_t>]  - reset and run the model\n\
-     stop            - stop the model\n\
-     cont [<stop_t>] - continue from stop\n\
-     step            - executes model for one time increment\n\
+cmd: reset             - resets to time 0 initial condition\n\
+     run [<stop_t>]    - reset and run the model\n\
+     stop              - stop the model\n\
+     cont [<delta_t>] - continue from stop\n\
+     step             - executes model for one time increment\n\
 \n\
-arg: stop_t - used by the run and cont commands to set the time\n\
-              that the model will automatically stop; this can be\n\
-              an absolute time (example '5', or a delta time (example '+1')\n\
 "
 
 #define STOP_T   (param_num_val(PARAM_STOP_T))
@@ -70,52 +67,37 @@ void model_init(void)
 int32_t model_cmd(char *cmdline)
 {
     int32_t rc;
-    char *cmd, *arg;
+    char *cmd, *arg, s[100];
+    long double val;
 
     // extract cmd from cmdline
     cmd = strtok(cmdline, " ");
     if (cmd == NULL) {
         printf("%s\n", USAGE);
-
         return 0;
-    }
-
-    // if arg supplied then use it to set the stop time;
-    // only for the "run" and "cont" cmds
-    if ((strcmp(cmd, "run") == 0 || strcmp(cmd, "cont") == 0) &&
-        ((arg = strtok(NULL, " ")) != NULL)) 
-    {
-        bool add_flag = false;
-        long double arg_val, stop_t;
-        char stop_t_str[100];
-
-        if (arg[0] == '+') {
-            add_flag = true;
-            arg++;
-        }
-        if (str_to_val(arg, UNITS_SECONDS, &arg_val) == -1 || arg_val <= 0) {
-            ERROR("invalid time '%s'\n", arg);
-            return -1;
-        }
-
-        if (add_flag) {
-            stop_t = STOP_T + arg_val;
-        } else {
-            stop_t = arg_val;
-        }
-
-        val_to_str(stop_t, UNITS_SECONDS, stop_t_str);
-        param_set(PARAM_STOP_T, stop_t_str);
     }
 
     // parse and process the cmd
     if (strcmp(cmd, "reset") == 0) {
         rc = model_reset();
     } else if (strcmp(cmd, "run") == 0) {
+        if ((arg = strtok(NULL, " ")) != NULL) {
+            if (param_set(PARAM_STOP_T, arg) < 0) {
+                ERROR("invalid time '%s'\n", arg);
+                return -1;
+            }
+        }
         rc = model_run();
     } else if (strcmp(cmd, "stop") == 0) {
         rc = model_stop();
     } else if (strcmp(cmd, "cont") == 0) {
+        if ((arg = strtok(NULL, " ")) != NULL) {
+            if (str_to_val(arg, UNITS_SECONDS, &val) == -1) {
+                ERROR("invalid delta time '%s'\n", arg);
+                return -1;
+            }
+            param_set(PARAM_STOP_T, val_to_str(STOP_T+val,UNITS_SECONDS,s));
+        }
         rc = model_cont();
     } else if (strcmp(cmd, "step") == 0) {
         rc = model_step();
@@ -453,16 +435,13 @@ static void reset(void)
     max_node = 0;
     model_step_req = false;
 
-#if 1
-    // XXX temp test, FLAG to turn this on, or figure out a better way to test LC
-    INFO("LC TEST\n");
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
-        if (c->type == COMP_INDUCTOR) {
-            c->i_next = c->i_current = 1.0;
+        if (c->type == COMP_INDUCTOR && c->inductor.i_init != 0) {
+            c->i_next    = c->inductor.i_init;
+            c->i_current = c->inductor.i_init;
         }
     }
-#endif
 }
 
 // -----------------  MODEL THREAD  --------------------------------------------------
@@ -499,6 +478,7 @@ static void * model_thread(void * cx)
             model_t = 1e-10;
         }
         delta_t = .001 * (1 - expl(-model_t / 400));
+        //delta_t = .0001 * (1 - expl(-model_t / 400));
 
         // increment time
         model_t += delta_t;

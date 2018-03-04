@@ -140,6 +140,7 @@ typedef struct component_s {
         } capacitor;
         struct {
             long double henrys;
+            long double i_init;
         } inductor;
     };
     // component state, used by model.c, follow:

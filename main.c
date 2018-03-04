@@ -669,10 +669,19 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         }
         break;
     case COMP_INDUCTOR:
+        value_str = strtok(value_str, ",");
         rc = str_to_val(value_str, UNITS_HENRYS, &new_comp.inductor.henrys); 
         if (rc == -1) {
             ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
             return -1;
+        }
+        value_str = strtok(NULL, "");
+        if (value_str != NULL) {
+            rc = str_to_val(value_str, UNITS_AMPS, &new_comp.inductor.i_init);
+            if (rc == -1) {
+                ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
+                return -1;
+            }
         }
         break;
     }
@@ -874,6 +883,11 @@ char * component_to_value_str(component_t * c, char *s)
         break;
     case COMP_INDUCTOR:
         val_to_str(c->inductor.henrys, UNITS_HENRYS, s);
+        if (c->inductor.i_init != 0) {
+            len = strlen(s);
+            strcpy(s+len, ",");
+            val_to_str(c->inductor.i_init, UNITS_AMPS, s+len+1);
+        }
         break;
     case COMP_WIRE:
     case COMP_DIODE:
@@ -991,6 +1005,12 @@ char * val_to_str(long double val, int32_t units, char *s)
            units == UNITS_SECONDS  ? time_tbl   :
                                      NULL);
     assert(tbl);
+
+    // for UNITS_SECONDS always use nnn.nnnnnns format
+    if (units == UNITS_SECONDS) {
+        sprintf(s, "%.6Lfs", val);
+        return s;
+    }
     
     // scan the conversion table for the appropriate units string to use, 
     // and sprint the value and units
@@ -1012,7 +1032,7 @@ char * val_to_str(long double val, int32_t units, char *s)
         t++;
     }
 
-    // return the static string
+    // return the string
     return s;
 }
 
