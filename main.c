@@ -5,15 +5,25 @@
 // defines
 //
 
+#define MAX_PARAM 50
+
 //
 // typedefs
 //
+
+typedef struct {
+    const char *name;
+    char        str_val[100];
+    long double num_val;
+    int32_t     update_count;
+} param_t;
 
 //
 // variables
 //
 
-static char last_filename_used[200];
+static char    last_filename_used[200];
+static param_t param[MAX_PARAM];
 
 //
 // prototypes
@@ -38,8 +48,10 @@ static int32_t cmd_model(char *args);
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
 static int32_t del_component(char * comp_str);
 
+static void param_init(void);
+
 static void identify_grid_ground(gridloc_t *gl);
-static void init_grid(void);
+static void grid_init(void);
 
 // -----------------  MAIN  -----------------------------------------------
 
@@ -89,7 +101,8 @@ int32_t main(int32_t argc, char ** argv)
 
 static void main_init(void)
 {
-    init_grid();
+    grid_init();
+    param_init();
 }
 
 static void help(void)
@@ -239,7 +252,7 @@ static int32_t cmd_help(char *args)
 static int32_t cmd_set(char *args)
 {
     char *name, *value;
-    int32_t i;
+    int32_t rc;
 
     // tokenize args, and verify all supplied
     name = strtok(args, " ");
@@ -249,22 +262,10 @@ static int32_t cmd_set(char *args)
         return -1;
     }
 
-    // try to find name in the param table
-    for (i = 0; PARAM_NAME(i); i++) {
-        if (strcmp(name, PARAM_NAME(i))== 0) {
-            break;
-        }
-    }
-    if (PARAM_NAME(i) == NULL) {
-        ERROR("param '%s' not found\n", name);
-        return -1;
-    }
-
-    // store new param value
-    PARAM_SET_VALUE(i,value);
-
-    // success
-    return 0;
+    // store new param value, and
+    // return status
+    rc = param_set_by_name(name, value);
+    return rc;
 }
 
 static int32_t cmd_show(char *args)
@@ -281,8 +282,10 @@ static int32_t cmd_show(char *args)
     // show params
     if (show_all || strcmp(what,"params") == 0) {
         INFO("PARAMS\n");
-        for (i = 0; PARAM_NAME(i); i++) {
-            INFO("  %-12s %s", PARAM_NAME(i), PARAM_VALUE(i));
+        for (i = 0; i < MAX_PARAM; i++) {
+            if (param_name(i) != NULL) {
+                INFO("  %-12s %s", param_name(i), param_str_val(i));
+            }
         }
         BLANK_LINE;
         printed = true;
@@ -334,7 +337,7 @@ static int32_t cmd_clear_schematic(char *args)
     identify_grid_ground(NULL);
 
     // re-initialize the grid
-    init_grid();
+    grid_init();
 
     // success
     return 0;
@@ -445,8 +448,10 @@ static int32_t cmd_write(char *args)
         fprintf(fp, "\n");
     }
 
-    for (i = 0; PARAM_NAME(i); i++) {
-        fprintf(fp, "set %-12s %s\n", PARAM_NAME(i), PARAM_VALUE(i));
+    for (i = 0; i < MAX_PARAM; i++) {
+        if (param_name(i) != NULL) {
+            fprintf(fp, "set %-12s %s\n", param_name(i), param_str_val(i));
+        }
     }
     fprintf(fp, "\n");
 
@@ -1011,6 +1016,143 @@ char * val_to_str(long double val, int32_t units, char *s)
     return s;
 }
 
+// -----------------  PUBLIC PARAMS SUPPORT  ----------------------------------------------------
+
+static void param_init(void)
+{
+    #define PARAM_CREATE(_id, _name, _value) \
+        do { \
+            int32_t rc; \
+            param[_id].name = (_name); \
+            rc = param_set(_id, _value); \
+            assert(rc == 0); \
+        } while (0)
+
+    PARAM_CREATE(PARAM_STOP_T,     "stop_t",     "1s");
+    PARAM_CREATE(PARAM_DELTA_T,    "delta_t",    "1ns");
+    PARAM_CREATE(PARAM_DCPWR_T,    "dcpwr_t",    "1ms");
+    PARAM_CREATE(PARAM_GRID,       "grid",       "off");
+    PARAM_CREATE(PARAM_CURRENT,    "current",    "on");
+    PARAM_CREATE(PARAM_VOLTAGE,    "voltage",    "on");
+    PARAM_CREATE(PARAM_COMPONENT,  "component",  "value");
+    PARAM_CREATE(PARAM_CENTER,     "center",     "c3");
+    PARAM_CREATE(PARAM_SCALE,      "scale",      "200");
+    PARAM_CREATE(PARAM_SCOPE_A,    "scope_a",    "off");   // xxx need to validate these next 4
+    PARAM_CREATE(PARAM_SCOPE_B,    "scope_b",    "off");
+    PARAM_CREATE(PARAM_SCOPE_C,    "scope_c",    "off");
+    PARAM_CREATE(PARAM_SCOPE_D,    "scope_d",    "off");
+    PARAM_CREATE(PARAM_SCOPE_T,    "scope_t",    "1s");
+}
+
+int32_t param_set(int32_t id, char *str_val)
+{
+    int32_t xadj,yadj;
+    long double num_val = NAN;
+    char *p;
+    gridloc_t gl;
+
+    assert(param[id].name[0] != '\0');
+
+    // check for params that can not be set unles in MODEL_STATE_RESET
+    if ((id == PARAM_DELTA_T || 
+         id == PARAM_DCPWR_T) &&
+        (model_state != MODEL_STATE_RESET))
+    {
+        return -1;
+    }
+
+    // check for params that have numeric values in UNITS_SECONDS
+    if ((id == PARAM_STOP_T ||
+         id == PARAM_DELTA_T ||
+         id == PARAM_DCPWR_T ||
+         id == PARAM_SCOPE_T) &&
+        (str_to_val(str_val, UNITS_SECONDS, &num_val) == -1))
+    {
+        return -1;
+    }
+
+    // check for params that have simple numeric values
+    if ((id == PARAM_SCALE) &&
+        (sscanf(str_val, "%Lf", &num_val) != 1 || 
+         num_val < MIN_GRID_SCALE ||
+         num_val > MAX_GRID_SCALE))
+    {
+        return -1;
+    }
+
+    // check for params whose value must be 'on' or 'off'
+    if ((id == PARAM_GRID ||
+         id == PARAM_CURRENT ||
+         id == PARAM_VOLTAGE) &&
+        (strcmp(str_val, "on") != 0 && strcmp(str_val, "off") != 0))
+    {
+        return -1;
+    }
+
+    // check PARAM_COMPONENT
+    if ((id == PARAM_COMPONENT) &&
+        (strcmp(str_val, "value") != 0 && strcmp(str_val, "id") != 0))
+    {
+        return -1;
+    }
+
+    // check PARAM_CENTER
+    if (id == PARAM_CENTER) {
+        if (str_to_gridloc(str_val, &gl) < 0) {
+            return -1;
+        }
+        if (((p = strchr(str_val, ',')) != NULL) &&
+            (sscanf(p+1, "%d,%d", &xadj, &yadj) != 2))
+        {
+            return -1;
+        }
+    }
+
+    // checks have passed, commit the new param value
+    strcpy(param[id].str_val, str_val);
+    param[id].num_val = num_val;
+    param[id].update_count++;
+
+    // return success
+    return 0;
+}
+
+int32_t param_set_by_name(char *name, char *str)
+{
+    int32_t id;
+
+    for (id = 0; id < MAX_PARAM; id++) {
+        if (param[id].name != NULL && strcmp(name, param[id].name) == 0) {
+            return param_set(id, str);
+        }
+    }
+    return -1;
+}
+
+const char * param_name(int32_t id)
+{
+    return param[id].name;
+} 
+
+char * param_str_val(int32_t id)
+{
+    assert(param[id].name[0] != '\0');
+    return param[id].str_val;
+}
+
+long double param_num_val(int32_t id)
+{
+    assert(param[id].name[0] != '\0');
+    assert(param[id].num_val != NAN);
+    return param[id].num_val;
+}
+
+int32_t param_update_count(int32_t id)
+{
+    assert(param[id].name[0] != '\0');
+    return param[id].update_count;
+}
+
 // -----------------  PRIVATE UTILS  ------------------------------------------------------------
 
 static void identify_grid_ground(gridloc_t *gl)
@@ -1067,7 +1209,7 @@ static void identify_grid_ground(gridloc_t *gl)
     }
 }
 
-static void init_grid()
+static void grid_init()
 {
     int32_t glx, gly;
     char s[100];

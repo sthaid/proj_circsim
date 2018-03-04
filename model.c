@@ -27,6 +27,11 @@ arg: stop_t - used by the run and cont commands to set the time\n\
               an absolute time (example '5', or a delta time (example '+1')\n\
 "
 
+#define STOP_T   (param_num_val(PARAM_STOP_T))
+#define DELTA_T  (param_num_val(PARAM_DELTA_T))
+#define DCPWR_T  (param_num_val(PARAM_DCPWR_T))
+#define SCOPE_T  (param_num_val(PARAM_SCOPE_T))
+
 //
 // typedefs
 //
@@ -39,10 +44,6 @@ static int32_t  model_state_req;
 static bool     model_step_req;
 
 static node_t * ground_node;
-
-static long double   delta_t;  // xxx try to eliminate these 3 vars
-static long double   dcpwr_t;
-static long double   stop_t;
 
 //
 // prototypes
@@ -85,8 +86,8 @@ int32_t model_cmd(char *cmdline)
         ((arg = strtok(NULL, " ")) != NULL)) 
     {
         bool add_flag = false;
-        long double arg_val, lcl_stop_t;
-        char lcl_stop_t_str[100];
+        long double arg_val, stop_t;
+        char stop_t_str[100];
 
         if (arg[0] == '+') {
             add_flag = true;
@@ -98,17 +99,13 @@ int32_t model_cmd(char *cmdline)
         }
 
         if (add_flag) {
-            if (str_to_val(PARAM_VALUE(PARAM_STOP_T), UNITS_SECONDS, &lcl_stop_t) == -1 || lcl_stop_t <= 0) {
-                ERROR("invalid stop_t '%s'\n", PARAM_VALUE(PARAM_STOP_T));
-                return -1;
-            }
-            lcl_stop_t += arg_val;
+            stop_t = STOP_T + arg_val;
         } else {
-            lcl_stop_t = arg_val;
+            stop_t = arg_val;
         }
 
-        val_to_str(lcl_stop_t, UNITS_SECONDS, lcl_stop_t_str);
-        PARAM_SET_VALUE(PARAM_STOP_T, lcl_stop_t_str);
+        val_to_str(stop_t, UNITS_SECONDS, stop_t_str);
+        param_set(PARAM_STOP_T, stop_t_str);
     }
 
     // parse and process the cmd
@@ -150,28 +147,6 @@ int32_t model_reset(void)
 int32_t model_run(void)
 {
     int32_t rc;
-    char str[100];
-
-    // scan new values of stop_t, delta_t, and dcpwr_t
-    // xxx clean this up, once the params are preverified
-    rc = str_to_val(PARAM_VALUE(PARAM_STOP_T), UNITS_SECONDS, &stop_t);
-    if (rc < 0 || stop_t <= 0) {
-        ERROR("invalid stop_t %s\n", PARAM_VALUE(PARAM_STOP_T));
-        return -1;
-    }
-    rc = str_to_val(PARAM_VALUE(PARAM_DELTA_T), UNITS_SECONDS, &delta_t);
-    if (rc < 0 || delta_t <= 0) {
-        ERROR("invalid delta_t %s\n", PARAM_VALUE(PARAM_DELTA_T));
-        return -1;
-    }
-    rc = str_to_val(PARAM_VALUE(PARAM_DCPWR_T), UNITS_SECONDS, &dcpwr_t);
-    if (rc < 0 || dcpwr_t < 0) {
-        ERROR("invalid dcpwr_t %s\n", PARAM_VALUE(PARAM_DCPWR_T));
-        return -1;
-    }
-    INFO("stop_t  = %s\n", val_to_str(stop_t,UNITS_SECONDS,str));
-    INFO("delta_t = %s\n", val_to_str(delta_t,UNITS_SECONDS,str));
-    INFO("dcpwr_t = %s\n", val_to_str(dcpwr_t,UNITS_SECONDS,str));
 
     // reset the model
     reset();
@@ -494,33 +469,31 @@ static void reset(void)
 
 static void * model_thread(void * cx) 
 {
-    int32_t i,j,rc,idx;
+    int32_t i,j,idx;
+    long double delta_t;   // xxx  todo
 
     while (true) {
-        // handle request to transition model_state; and
-        // remain in this loop until model_state equals MODEL_STATE_RUNNING
-        while (true) {
-            if (model_state_req != model_state) {
-                INFO("model_state is %s\n", MODEL_STATE_STR(model_state_req));
-            }
-            model_state = model_state_req;
+        // handle request to transition model_state
+        if (model_state_req != model_state) {
+            INFO("model_state is %s\n", MODEL_STATE_STR(model_state_req));
+        }
+        model_state = model_state_req;
+        __sync_synchronize();
+
+        // if scope time param has changed then reset scope history
+        if (param_has_changed(PARAM_SCOPE_T)) {
+            history_t = model_t;
+            max_history = 0;
             __sync_synchronize();
-            if (model_state == MODEL_STATE_RUNNING) {
-                break;
-            }
-            usleep(1000);
         }
 
-        // if PARAM_STOP_T has changed then get new value;
-        // other params (such as delta_t and dcpwr_t) can not be changed unless model state is RESET
-        if (PARAM_HAS_CHANGED(PARAM_STOP_T) &&
-            ((rc = str_to_val(PARAM_VALUE(PARAM_STOP_T), UNITS_SECONDS, &stop_t) < 0) || (stop_t <= 0))) 
-        {
-            ERROR("ignoring invalid stop_t '%s'\n", PARAM_VALUE(PARAM_STOP_T));
+        // if model is not running then continue
+        if (model_state != MODEL_STATE_RUNNING) {
+            usleep(1000);
+            continue;
         }
 
         // XXX THIS NEEDS WORK
-        // xxx dont ramp up if using AC
         // xxx can we start at time 0?
         if (model_t == 0) {
             model_t = 1e-10;
@@ -636,14 +609,9 @@ static void * model_thread(void * cx)
             c->i_current = c->i_next;
         }
 
-        // keep track of voltage and current history, these are used
-        // for the scope display
-        if (PARAM_HAS_CHANGED(PARAM_SCOPE_T)) {
-            history_t = model_t;
-            max_history = 0;
-            __sync_synchronize();
-        }
-        idx = (model_t - history_t) / PARAM_NUMERIC_VALUE(PARAM_SCOPE_T) * MAX_HISTORY;
+        // keep track of voltage and current history, 
+        // these are used for the scope display
+        idx = (model_t - history_t) / SCOPE_T * MAX_HISTORY;
         if (idx < MAX_HISTORY) {
             for (i = 0; i < max_component; i++) {
                 component_t *c = &component[i];
@@ -663,7 +631,7 @@ static void * model_thread(void * cx)
 
         // if model has reached the stop time, or is being single stepped
         // then stop the model
-        if (model_t >= stop_t || model_step_req) {                
+        if (model_t >= STOP_T || model_step_req) {                
             model_state_req = MODEL_STATE_STOPPED;   
             model_step_req = false;
         }
@@ -677,10 +645,10 @@ static long double get_comp_power_voltage(component_t * c)
 
     if (c->power.hz == 0) {
         // dc
-        if (model_t >= dcpwr_t) {
+        if (model_t >= DCPWR_T) {
             v = c->power.volts;
         } else {
-            v = c->power.volts * sinl((model_t / dcpwr_t) * M_PI_2);
+            v = c->power.volts * sinl((model_t / DCPWR_T) * M_PI_2);
         }
     } else {
         // ac, c->power.volts is RMS

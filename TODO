@@ -1,107 +1,58 @@
-graph current
-the title line
-improve param handling, check them when they are being set, so they don't have to be verified later
-more options on the set scope_a cmd
-  - scope_a,b,c,d   current|voltage,ymin,ymax,gl,gl    (or gl,gnd    or gnd,gl   or just gl)
+way to init inductor with current
 
-questions
-- how to retrigger the scope
+delta_t ramp up
+- finish coding this
+- how many steps is it currently doing
 
-=============================================================================
-=============================================================================
-=============================================================================
-
-// XXX use of assert vs FATAL
-//     could make my ASSERT
-
-new form for delta_t param, examples
-    1ms   
-    Xms,ramp_up    ramps up to Xms - how long to ramp up
-
-model read delta_t and dcpwr param at run start
- - and not updating these when running
- - still update stop_t when running
-   
 reverse colors, so scren can be printed
 
-redesign display to hold graphs
+scope ...
+- need a better way to trigger the scope
+- graph current
+- validate scope params in main.c
+- check time params for > 0
+- more options on the set scope_a cmd
+   - scope_a,b,c,d   current|voltage,ymin,ymax,gl,gl    (or gl,gnd    or gnd,gl   or just gl)
 
-optimize model computations
-  - and check with profiling
 
 add diode
 
 XXX issues
 
-model cont display button should allow model to continue after stop_t reached
-
-
-if there are performance issues use profiling;
-
-- try an LC circuit,   new cmd to powr the capacitor
-- stabilize model with RL and RC circuits
-- add scope and/or meters display options
-- instability in the model
-- add display scopes and meters
-
-update DOCUMENTATION
-
-should model worry about summing the current on the ground node and/or 
-current return to the power supply
-
------------------------------------------
-
-display meter or scope
-
-typedef struct {
-    char title_str[32];
-    char x_units_str[32];
-    char y_units_str[32];
-    float x_min;
-    float x_max;
-    float y_min;
-    float y_max;
-    int32_t max_points_alloced;
-    int32_t max_points;
-    struct pane_hndlr_display_graph_point_s {
-        float x;
-        float y;
-    } points[0];
-} pane_hndlr_display_graph_params_t;
-
---------------------------------------------------
-
+try a single test with 2 or 3 circurits,  LC, RC, RL
+and with 3 graphs
 
 ac simple circuit
    power / capacitor
    verify 90 dgrees
 
-XXX issues
+====================  NEXT  =================================================
 
-verify cmd
+use of assert vs FATAL, could make my ASSERT
+
+optimize model computations
+  - and check with profiling
+  - if there are performance issues use profiling;
+  - optimization, and multi threads, change O0 to O2
+
+====================  LOWER  ================================================
+
+clean up tests and make a good suite of tests
+
+update DOCUMENTATION
+
+model cont display button should allow model to continue after stop_t reached
+
+should model worry about summing the current on the ground node and/or 
+current return to the power supply
+
+verify model is stable
+
+====================  FOR CONSIDERATION  ====================================
 
 other component stuff to track
   - power
   - energy
-
-----  model ----
-
-fix T5, compare to T13
-
-create an automated test suite
-
----- later ---
-
-don't allow mulitple remote connection to same gridloc
-
-optimization, and multi threads, change O0 to O2
-
-try again to use capacitor for battery, and to evaluate ground current
-
-------------------  MAYBE ?? ----------------------
-
-could have an impulse power supply to test resonant frequency of LC;
-it would quickly ramp up and then isolate
 
 debug param to enable prints
 
@@ -109,25 +60,7 @@ init prior voltage on power up, delta_t==0
   this could be done first call to get_comp_power following model_reset
 
 consider reversing the gridloc A3  ->  3A
+  - algebraic chess is    a b c d e f g h
+                        8      etc
 
------------------   CODED or DONE  --------------
-
-sdl_create_texture should be called prior to fontsize call
-SDL prints
-val_to_str  picoseconds
-
-checkins
-review this file
-shorten param names so they fit better
-cap / inductor oscillator test
-use #define to select long double
-
-clean up common.h,   fields such as i_prior_prior, etc
-
-PARAMS
-- flag if the param must be set when model is reset
-     set_only_when_model_state_reset
-- update counter for each param
-- routine to set params, and updates the counter
-- can't change certain params when model is running
-
+====================  DONE  =================================================

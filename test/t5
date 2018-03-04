@@ -22,4 +22,10 @@ set component    value
 set center       c2,-51,-27
 set scale        322
 
+set scope_a  voltage,0,3,d2
+set scope_b  voltage,0,3,d2
+set scope_c  voltage,0,3,d2
+set scope_d  voltage,0,3,d2
+set scope_t 1s
+
 model run

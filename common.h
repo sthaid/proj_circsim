@@ -27,8 +27,10 @@
 // defines
 //
 
+// general
 #define MB 0x100000
 
+// max constants
 #define MAX_GRID_X          52
 #define MAX_GRID_Y          52
 #define MAX_COMPONENT       3000
@@ -36,16 +38,17 @@
 #define MAX_GRID_TERM       5
 #define MAX_HISTORY         500
 
+// model state
 #define MODEL_STATE_RESET    0
 #define MODEL_STATE_RUNNING  1
 #define MODEL_STATE_STOPPED  2
-
 #define MODEL_STATE_STR(x) \
     ((x) == MODEL_STATE_RESET    ? "RESET"   : \
      (x) == MODEL_STATE_RUNNING  ? "RUNNING" : \
      (x) == MODEL_STATE_STOPPED  ? "STOPPED" : \
                                    "????")
 
+// component types
 #define COMP_NONE           0
 #define COMP_WIRE           1
 #define COMP_POWER          2
@@ -64,8 +67,36 @@
 #define UNITS_HZ        6
 #define UNITS_SECONDS   7
 
+// parameters
+#define PARAM_STOP_T     0
+#define PARAM_DELTA_T    1
+#define PARAM_DCPWR_T    2
+#define PARAM_GRID       3
+#define PARAM_CURRENT    4
+#define PARAM_VOLTAGE    5
+#define PARAM_COMPONENT  6
+#define PARAM_CENTER     7
+#define PARAM_SCALE      8
+#define PARAM_SCOPE_A    9
+#define PARAM_SCOPE_B    10
+#define PARAM_SCOPE_C    11
+#define PARAM_SCOPE_D    12
+#define PARAM_SCOPE_T    13  
+
+#define param_has_changed(id) \
+    ({ static int32_t last_update_count=-1; \
+       int32_t updcnt = param_update_count(id); \
+       bool result = (updcnt != last_update_count); \
+       last_update_count = updcnt; \
+       result; })
+
+// range allowed for scaling (zoom) the display
+#define MIN_GRID_SCALE     100
+#define MAX_GRID_SCALE     400
+
+// use case insensitve compare
 #define strcmp strcasecmp
-// XXX also for strncmp
+#define strncmp strncasecmp
 
 //
 // typedefs
@@ -168,79 +199,6 @@ long double history_t;
 int32_t     max_history;
 
 //
-// parameters
-// 
-
-#define PARAM_STOP_T     0
-#define PARAM_DELTA_T    1
-#define PARAM_DCPWR_T    2
-#define PARAM_GRID       3
-#define PARAM_CURRENT    4
-#define PARAM_VOLTAGE    5
-#define PARAM_COMPONENT  6
-#define PARAM_CENTER     7
-#define PARAM_SCALE      8
-#define PARAM_SCOPE_A    9
-#define PARAM_SCOPE_B    10
-#define PARAM_SCOPE_C    11
-#define PARAM_SCOPE_D    12
-#define PARAM_SCOPE_T    13  
-
-#define PARAM_NAME(idx) (param[idx].name)
-#define PARAM_VALUE(idx) (param[idx].value)
-#define PARAM_SET_VALUE(idx,val) \
-    do { \
-        if (param[idx].set_only_if_model_state_is_reset && \
-            (model_state != MODEL_STATE_RESET)) \
-        { \
-            ERROR("param %s can only be set when model_state is RESET\n", \
-                  param[idx].name); \
-        } else { \
-            strcpy(param[idx].value, val); \
-            param[idx].update_count++; \
-        } \
-    } while (0)
-#define PARAM_HAS_CHANGED(idx) \
-    ({ static int32_t last_update_count=-1; \
-       bool result = (param[idx].update_count != last_update_count); \
-       last_update_count = param[idx].update_count; \
-       result; })
-
-#define PARAM_NUMERIC_VALUE(xxx) 1.0 // XXX
-
-#define DEFAULT_SCALE   "200"
-#define DEFAULT_CENTER  "c3"
-
-typedef struct {
-    char *name;
-    char  value[100];
-    bool set_only_if_model_state_is_reset;
-    int32_t update_count;
-} param_tbl_entry_t;
-
-#ifdef MAIN
-param_tbl_entry_t param[] = { 
-        { "stop_t",    "100ms",        false },   // model stop time
-        { "delta_t",   "1ns",          true  },   // model time increment, units=seconds
-        { "dcpwr_t",   "1ms",          true  },   // dc power supply time to ramp to voltage, seconds
-        { "grid",      "off",          false },   // on, off
-        { "current",   "on",           false },   // on, off
-        { "voltage",   "on",           false },   // on, off
-        { "component", "value",        false },   // id, value, off
-        { "center",    DEFAULT_CENTER, false },   // gridloc of display center
-        { "scale",     DEFAULT_SCALE,  false },   // display scale, pixels between components
-        { "scope_a",   "off",          false },   // xxx comment
-        { "scope_b",   "off",          false },   // 
-        { "scope_c",   "off",          false },   // 
-        { "scope_d",   "off",          false },   // 
-        { "scope_t",   "1s",           false },   // 
-        { NULL                               }
-                                                };
-#else
-param_tbl_entry_t param[20];
-#endif
-
-//
 // prototypes
 //
 
@@ -251,6 +209,12 @@ char * component_to_value_str(component_t * c, char * s);
 char * component_to_full_str(component_t * c, char * s);
 int32_t str_to_val(char * s, int32_t units, long double * val_result);
 char * val_to_str(long double val, int32_t units, char * s);
+int32_t param_set(int32_t id, char *str);
+int32_t param_set_by_name(char *name, char *str);
+const char * param_name(int32_t id);
+char * param_str_val(int32_t id);
+long double param_num_val(int32_t id);
+int32_t param_update_count(int32_t id);
 
 // display.c
 void display_init(void);
