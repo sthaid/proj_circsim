@@ -17,3 +17,4 @@ set component    value
 set center       d4,153,143
 set scale        354
 
+set scope_a voltage,-1.5,1.5,c3

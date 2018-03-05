@@ -1,3 +1,5 @@
+reverse colors, so scren can be printed
+
 draw double wide x/y axis
 
 aliasing problem, draw min and max
@@ -6,7 +8,9 @@ delta_t ramp up
 - finish coding this
 - how many steps is it currently doing
 
-reverse colors, so scren can be printed
+ac simple circuit
+   power / capacitor
+   verify current is 90 dgrees
 
 scope ...
 - need a better way to trigger the scope
@@ -23,9 +27,6 @@ XXX issues
 try a single test with 2 or 3 circurits,  LC, RC, RL
 and with 3 graphs
 
-ac simple circuit
-   power / capacitor
-   verify 90 dgrees
 
 ====================  NEXT  =================================================
 

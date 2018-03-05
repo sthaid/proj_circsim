@@ -806,7 +806,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             sdl_render_lines(pane, points, count, WHITE);
 
             // display the graph title
-            sdl_render_printf(pane, x_left + 150, y_top-FPSZ_SMALL/2, FPSZ_SMALL, WHITE, BLACK, 
+            sdl_render_printf(pane, x_left + 100, y_top-FPSZ_SMALL/2, FPSZ_SMALL, WHITE, BLACK, 
                               "%s",
                               param_str_val(PARAM_SCOPE_A+i));
         }
