@@ -370,7 +370,7 @@ void sdl_pane_manager(void *display_cx,                        // optional, cont
 
             pane_cx->pane = sdl_init_pane(pane_cx->x_disp, pane_cx->y_disp, pane_cx->w_total, pane_cx->h_total,
                                           pane_cx->border_style, 
-                                          pane_cx == FG_PANE_CX ? WHITE : GREEN,
+                                          pane_cx == FG_PANE_CX ? GREEN : BLUE,  
                                           true,   // clear
                                           &loc_full_pane, &loc_bar_move, &loc_bar_terminate);
 
@@ -577,7 +577,7 @@ rect_t sdl_init_pane(int32_t x_disp, int32_t y_disp, int32_t w_total, int32_t h_
                         PANE_BAR_TERMINATE_WIDTH, PANE_BAR_HEIGHT-2*PANE_BORDER_WIDTH};
 
         if (clear) {
-            sdl_render_fill_rect(&pane, &locf, BLACK);
+            sdl_render_fill_rect(&pane, &locf, WHITE);
         }
         sdl_render_rect(&pane, &locf, PANE_BORDER_WIDTH, border_color);
         sdl_render_fill_rect(&pane, &locb, border_color);
@@ -596,7 +596,7 @@ rect_t sdl_init_pane(int32_t x_disp, int32_t y_disp, int32_t w_total, int32_t h_
         rect_t locf  = {-PANE_BORDER_WIDTH, -PANE_BORDER_WIDTH, w_total, h_total};   // full
 
         if (clear) {
-            sdl_render_fill_rect(&pane, &locf, BLACK);
+            sdl_render_fill_rect(&pane, &locf, WHITE);
         }
         sdl_render_rect(&pane, &locf, PANE_BORDER_WIDTH, border_color);
 
@@ -612,7 +612,7 @@ rect_t sdl_init_pane(int32_t x_disp, int32_t y_disp, int32_t w_total, int32_t h_
         rect_t locf  = {0, 0, w_total, h_total};   // full
 
         if (clear) {
-            sdl_render_fill_rect(&pane, &locf, BLACK);
+            sdl_render_fill_rect(&pane, &locf, WHITE);
         }
 
         *loc_full_pane = locf;
@@ -652,7 +652,7 @@ void sdl_display_init(int32_t * win_width, int32_t * win_height, bool * win_mini
 {
     sdl_event_max = 0;
 
-    sdl_set_color(BLACK);
+    sdl_set_color(WHITE);
     SDL_RenderClear(sdl_renderer);
 
     if (win_width) {
@@ -1837,7 +1837,7 @@ void sdl_print_screen(char *file_name, bool flash_display, rect_t * rect_arg)
     // it worked, flash display if enabled;
     // the caller must redraw the screen if flash_display is enabled
     if (flash_display) {
-        sdl_set_color(WHITE);
+        sdl_set_color(BLACK);
         SDL_RenderClear(sdl_renderer);
         SDL_RenderPresent(sdl_renderer);
         usleep(250000);

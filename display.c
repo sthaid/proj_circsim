@@ -234,7 +234,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     if (OUT_OF_PANE(x,y)) {
                         continue;
                     }
-                    sdl_render_printf(pane, x, y, fpsz, BLUE, BLACK, "%s", grid[glx][gly].glstr);
+                    sdl_render_printf(pane, x, y, fpsz, BLUE, WHITE, "%s", grid[glx][gly].glstr);
                 }
             }
         }
@@ -253,7 +253,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     if (OUT_OF_PANE(x1,y1) || OUT_OF_PANE(x2,y2)) {
                         continue;
                     }
-                    sdl_render_line(pane, x1, y1, x2, y2, WHITE);
+                    sdl_render_line(pane, x1, y1, x2, y2, BLACK);
                 }
                 break; }
             case COMP_POWER:
@@ -306,7 +306,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                                   gridloc_to_str(&c->term[1].gridloc,s1));
                         }
                     }
-                    sdl_render_lines(pane, points, k, WHITE);
+                    sdl_render_lines(pane, points, k, BLACK);
                 }
                 break; }
             case COMP_NONE:
@@ -320,7 +320,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         // draw a point at all grid locations that have at least one terminal as follows:
         // - ground      : GREEN
         // - remote_wire : the color assigned to the remote wire
-        // - otherwise   : WHITE
+        // - otherwise   : BLACK
         // if a grid location is both ground and remote-wire then alternate the color
         { int32_t glx, gly, color;
           static int32_t count;
@@ -344,7 +344,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 color = (g->has_remote_wire && g->ground && (count % 20 < 10) ? GREEN :
                          g->has_remote_wire                                   ? g->remote_wire_color :
                          g->ground                                            ? GREEN 
-                                                                              : WHITE);
+                                                                              : BLACK);
                 sdl_render_point(pane, x, y, color, 4);
             }
         } }
@@ -393,7 +393,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     x += 2;
                     y += 2;
                 }
-                sdl_render_printf(pane, x, y, fpsz, WHITE, BLACK, "%s", s);
+                sdl_render_printf(pane, x, y, fpsz, BLACK, WHITE, "%s", s);
             }
         } 
 
@@ -425,7 +425,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     }
 
                     val_to_str(n->v_current, UNITS_VOLTS, s);
-                    sdl_render_printf(pane, x, y, fpsz, WHITE, BLACK, "%s", s);
+                    sdl_render_printf(pane, x, y, fpsz, BLACK, WHITE, "%s", s);
                 }
             }
         }
@@ -484,7 +484,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     continue;
                 }
 
-                sdl_render_printf(pane, x, y, fpsz, WHITE, BLACK, "%s%s%s", pre_str, current_str, post_str);
+                sdl_render_printf(pane, x, y, fpsz, BLACK, WHITE, "%s%s%s", pre_str, current_str, post_str);
             }
         }
 
@@ -608,40 +608,40 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
         char s[100];
 
         // state and time
-        sdl_render_printf(pane, 0, ROW2Y(0,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
+        sdl_render_printf(pane, 0, ROW2Y(0,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 
                           "%-8s %s", 
                           MODEL_STATE_STR(model_state),
                           val_to_str(model_t, UNITS_SECONDS, s));
 
         // stop time
-        sdl_render_printf(pane, 0, ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, WHITE, BLACK, 
+        sdl_render_printf(pane, 0, ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 
                           "%-8s %s", 
                           "STOP_T",
                           val_to_str(param_num_val(PARAM_STOP_T), UNITS_SECONDS, s));
 
         // register for mouse click events to control the model from the display
         sdl_render_text_and_register_event(
-            pane, COL2X(0,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "RESET", LIGHT_BLUE, BLACK,
+            pane, COL2X(0,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "RESET", LIGHT_BLUE, WHITE,
             SDL_EVENT_MODEL_RESET, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
         switch (model_state) {
         case MODEL_STATE_RESET:
             sdl_render_text_and_register_event(
-                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "RUN", LIGHT_BLUE, BLACK,
+                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "RUN", LIGHT_BLUE, WHITE,
                 SDL_EVENT_MODEL_RUN, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
             break;
         case MODEL_STATE_RUNNING:
             sdl_render_text_and_register_event(
-                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "STOP", LIGHT_BLUE, BLACK,
+                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "STOP", LIGHT_BLUE, WHITE,
                 SDL_EVENT_MODEL_STOP, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
             break;
         case MODEL_STATE_STOPPED:
             sdl_render_text_and_register_event(
-                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "CONT", LIGHT_BLUE, BLACK,
+                pane, COL2X(9,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "CONT", LIGHT_BLUE, WHITE,
                 SDL_EVENT_MODEL_CONT, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
             break;
         }
         sdl_render_text_and_register_event(
-            pane, COL2X(15,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "STEP", LIGHT_BLUE, BLACK,
+            pane, COL2X(15,FPSZ_MEDIUM), ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, "STEP", LIGHT_BLUE, WHITE,
             SDL_EVENT_MODEL_STEP, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
 
         return PANE_HANDLER_RET_NO_ACTION;
@@ -730,7 +730,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
         }
 
         // display header line
-        sdl_render_printf(pane, 0, 0, FPSZ_SMALL, WHITE, BLACK, 
+        sdl_render_printf(pane, 0, 0, FPSZ_SMALL, BLACK, WHITE, 
                           "T=%s  T_SPAN=%s",
                           val_to_str(history_t, UNITS_SECONDS, s1),
                           val_to_str(param_num_val(PARAM_SCOPE_T), UNITS_SECONDS, s2));
@@ -778,14 +778,16 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             y_top  = 50 + i * (GRAPH_YSPAN + GRAPH_YSPACE);
 
             // display y axis
-            sdl_render_line(pane, x_left, y_top, x_left, y_top + GRAPH_YSPAN - 1, WHITE);
+            sdl_render_line(pane, x_left, y_top, x_left, y_top + GRAPH_YSPAN - 1, BLACK);
+            sdl_render_line(pane, x_left-1, y_top, x_left-1, y_top + GRAPH_YSPAN - 1, BLACK);
 
             // display x axis, at the 0 volt y intercept; 
             // if there is no 0 volt y intercept then don't display 
             // the x axis
             if (ymin <= 0 && ymax >= 0) {
                 int32_t y = y_top + ymax / (ymax - ymin) * GRAPH_YSPAN;
-                sdl_render_line(pane, x_left, y, x_left + GRAPH_XSPAN - 1, y, WHITE);
+                sdl_render_line(pane, x_left, y, x_left + GRAPH_XSPAN - 1, y, BLACK);
+                sdl_render_line(pane, x_left, y+1, x_left + GRAPH_XSPAN - 1, y+1, BLACK);
             }
 
             // create array of points 
@@ -803,10 +805,10 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             }
 
             // display the graph
-            sdl_render_lines(pane, points, count, WHITE);
+            sdl_render_lines(pane, points, count, BLACK);
 
             // display the graph title
-            sdl_render_printf(pane, x_left + 100, y_top-FPSZ_SMALL/2, FPSZ_SMALL, WHITE, BLACK, 
+            sdl_render_printf(pane, x_left + 100, y_top-FPSZ_SMALL/2, FPSZ_SMALL, BLACK, WHITE, 
                               "%s",
                               param_str_val(PARAM_SCOPE_A+i));
         }
