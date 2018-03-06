@@ -1,6 +1,3 @@
-reverse colors, so scren can be printed
-
-draw double wide x/y axis
 
 aliasing problem, draw min and max
 
@@ -69,6 +66,7 @@ consider reversing the gridloc A3  ->  3A
                         8      etc
 
 ====================  DONE  =================================================
+
 display the time in xxx.xxxxxxs
 also display the stop_t
    RUNNING    123.456789s
@@ -80,3 +78,7 @@ model cont x.xxx  OR 1ms
 val_to_str for secs does xxx.xxxxxxs
 
 way to init inductor with current
+
+reverse colors, so scren can be printed
+
+draw double wide x/y axis

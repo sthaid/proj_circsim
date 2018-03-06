@@ -96,7 +96,7 @@ int32_t model_cmd(char *cmdline)
                 ERROR("invalid delta time '%s'\n", arg);
                 return -1;
             }
-            param_set(PARAM_STOP_T, val_to_str(STOP_T+val,UNITS_SECONDS,s));
+            param_set(PARAM_STOP_T, val_to_str(model_t+val,UNITS_SECONDS,s));
         }
         rc = model_cont();
     } else if (strcmp(cmd, "step") == 0) {
@@ -364,7 +364,7 @@ static void debug_print_nodes(void)
     char s[MAX_DEBUG_STR], *p;
     int32_t i, j;
 
-    return;
+    //return;
  
     INFO("max_node = %d\n", max_node);
     for (i = 0; i < max_node; i++) {
@@ -448,6 +448,16 @@ static void reset(void)
 
 static void * model_thread(void * cx) 
 {
+    #define SET_HISTORY(h,v) \
+        do { \
+            if (idx == max_history) { \
+                h[idx].min = h[idx].max = v; \
+            } else { \
+                if (v > h[idx].max) h[idx].max = v; \
+                if (v < h[idx].min) h[idx].min = v; \
+            } \
+        } while (0)
+
     int32_t i,j,idx;
     long double delta_t;   // xxx  todo
 
@@ -471,6 +481,8 @@ static void * model_thread(void * cx)
             usleep(1000);
             continue;
         }
+
+        // XXX try init of power prior too
 
         // XXX THIS NEEDS WORK
         // xxx can we start at time 0?
@@ -596,15 +608,14 @@ static void * model_thread(void * cx)
             for (i = 0; i < max_component; i++) {
                 component_t *c = &component[i];
                 if (c->type != COMP_NONE && c->type != COMP_WIRE) {
-                    c->i_history[idx] = c->i_next;
+                    SET_HISTORY(c->i_history, c->i_next);
                 }
             }
             for (i = 0; i < max_node; i++) {
                 node_t *n = &node[i];
-                n->v_history[idx] = n->v_next;
+                SET_HISTORY(n->v_history, n->v_next);
             }
             __sync_synchronize();
-
             max_history = idx + 1;
             __sync_synchronize();
         }

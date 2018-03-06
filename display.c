@@ -710,17 +710,17 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
 
     if (request == PANE_HANDLER_REQ_RENDER) {
         int32_t       i, j, count, x_left, y_top;
-        char          p[100], s1[100], s2[100], *select_str, *ymin_str, *ymax_str, *gl_str;
+        char          p[100], s1[100], s2[100], *select_str, *ymin_str, *ymax_str, *gl0_str, *gl1_str;
         long double   ymin, ymax;
-        float       * history;
-        gridloc_t     gl;
-        point_t       points[MAX_HISTORY];
+        hist_t       *history0, *history1;
+        gridloc_t     gl0, gl1;
+        point_t       points[2*MAX_HISTORY];
+        float         sign;
 
         #define GRAPH_YSPAN   180
         #define GRAPH_YSPACE  30
         #define GRAPH_XSPAN   500
-
-        #define FPSZ_SMALL  24
+        #define FPSZ_SMALL    24
 
         // the graph xspan must equal MAX_HISTORY, because there
         // is currently no x-scaling done for the graphs
@@ -742,37 +742,80 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
                 continue;
             }
 
+            // init
+            history0 = NULL;
+            history1 = NULL;
+            sign = 1;
+
             // parse and verify this scope's params; if invalid then continue
             // examples:
             //   off
             //   voltage,0,5v,c3
+            //   voltage,0,5v,c3,c4
+            //   current,0,5a,c3,c4
             // xxx these need to be verified in main.c
+            //     probably should be a routine to parse this
             strcpy(p, param_str_val(PARAM_SCOPE_A+i));
             select_str = strtok(p, ",");
-            if (strcmp(select_str, "off") == 0) {
-                continue;
-            }
             ymin_str = strtok(NULL, ",");
             ymax_str = strtok(NULL, ",");
-            gl_str = strtok(NULL, ",");
-            if (gl_str == NULL) {
+            gl0_str = strtok(NULL, ",");
+            gl1_str = strtok(NULL, ",");
+            if (gl0_str == NULL) {
+                continue;
+            }
+            if ((str_to_val(ymin_str, UNITS_VOLTS, &ymin) < 0) ||
+                (str_to_val(ymax_str, UNITS_VOLTS, &ymax) < 0) ||
+                (str_to_gridloc(gl0_str, &gl0) < 0) ||
+                (grid[gl0.x][gl0.y].node == NULL) ||
+                (gl1_str && str_to_gridloc(gl1_str, &gl1) < 0) ||
+                (gl1_str && grid[gl1.x][gl1.y].node == NULL))
+            {
                 continue;
             }
             if (strcmp(select_str,"voltage") == 0) {
-                if (str_to_val(ymin_str, UNITS_VOLTS, &ymin) < 0 ||
-                    str_to_val(ymax_str, UNITS_VOLTS, &ymax) < 0 ||
-                    str_to_gridloc(gl_str, &gl) < 0 ||
-                    grid[gl.x][gl.y].node == NULL) 
-                {
+                history0 = grid[gl0.x][gl0.y].node->v_history;
+                history1 = (gl1_str ? grid[gl1.x][gl1.y].node->v_history : NULL);
+                sign = 1;
+            } else if (strcmp(select_str,"current") == 0) {
+                // gl0 and gl1 must both be specified to identify the component 
+                // for which we'll be displaying the current flow
+                if (gl1_str == NULL) {
                     continue;
                 }
-                history = grid[gl.x][gl.y].node->v_history;
-            } else if (strcmp(select_str,"current") == 0) {
-                // XXX tbd
+
+                // search for the component between gl0 and gl1
+                grid_t *g;
+                component_t *c;
+                g = &grid[gl0.x][gl0.y];
+                for (j = 0; j < g->max_term; j++) {
+                    c = g->term[j]->component;
+                    if (c->type == COMP_NONE || c->type == COMP_WIRE) {
+                        continue;
+                    }
+                    if (memcmp(&c->term[0].gridloc, &gl0, sizeof(gridloc_t)) == 0 && 
+                        memcmp(&c->term[1].gridloc, &gl1, sizeof(gridloc_t)) == 0) 
+                    {
+                        history0 = c->i_history;
+                        sign = 1;
+                        break;
+                    } else if (memcmp(&c->term[0].gridloc, &gl1, sizeof(gridloc_t)) == 0 && 
+                               memcmp(&c->term[1].gridloc, &gl0, sizeof(gridloc_t)) == 0) 
+                    {
+                        history0 = c->i_history;
+                        sign = -1;
+                        break;
+                    }
+                }
+                if (j == g->max_term) {
+                    // component not found between gl0 and gl1
+                    continue;
+                }
             } else {
+                // invalid select_str
                 continue;
             }
-
+                
             // determine the coordinates of the top left corner of the scope graph
             x_left = 12;
             y_top  = 50 + i * (GRAPH_YSPAN + GRAPH_YSPACE);
@@ -793,15 +836,25 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             // create array of points 
             count = 0;
             for (j = 0; j < max_history; j++) {
-                float v = history[j];
-                if (v > ymax) {
-                    v = ymax;
-                } else if (v < ymin) {
-                    v = ymin;
-                }
+                float v;
+                int32_t ya,yb;
+
+                v = sign * (history0[j].max - (history1 ? history1[j].max : 0));
+                if (v > ymax) v = ymax; else if (v < ymin) v = ymin;
+                ya = y_top + (ymax - v) / (ymax - ymin) * GRAPH_YSPAN;
+
+                v = sign * (history0[j].min - (history1 ? history1[j].min : 0));
+                if (v > ymax) v = ymax; else if (v < ymin) v = ymin;
+                yb = y_top + (ymax - v) / (ymax - ymin) * GRAPH_YSPAN;
+
                 points[count].x = x_left + j;
-                points[count].y = y_top + (ymax - v) / (ymax - ymin) * GRAPH_YSPAN;
+                points[count].y = ya;
                 count++;
+                if (ya != yb) {
+                    points[count].x = x_left + j;
+                    points[count].y = yb;
+                    count++;
+                }
             }
 
             // display the graph

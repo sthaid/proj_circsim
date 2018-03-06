@@ -18,3 +18,6 @@ set center       d4,153,143
 set scale        354
 
 set scope_a voltage,-1.5,1.5,c3
+set scope_b current,-10,10,c4,d4
+model run 1
+

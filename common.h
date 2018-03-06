@@ -105,6 +105,11 @@
 struct component_s;
 struct node_s;
 
+typedef struct {
+    float min;
+    float max;
+} hist_t;
+
 typedef struct gridloc_s {
     int32_t x;
     int32_t y;
@@ -148,7 +153,7 @@ typedef struct component_s {
     int32_t zero_init_component_state;
     long double i_next;
     long double i_current;
-    float i_history[MAX_HISTORY];
+    hist_t i_history[MAX_HISTORY];
 } component_t;
 
 typedef struct grid_s {
@@ -175,7 +180,7 @@ typedef struct node_s {
     long double v_next;
     long double v_current;
     long double v_prior;
-    float v_history[MAX_HISTORY];
+    hist_t v_history[MAX_HISTORY];
 } node_t;
 
 //
