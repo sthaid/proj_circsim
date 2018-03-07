@@ -1,0 +1,26 @@
+clear_schematic
+
+add power      b1  c1 5v
+add resistor   b2  b1 100
+add resistor   b2  c2 100
+add resistor   d2  c2 100
+add resistor   d2  d1 100
+add resistor   d1  c1 100
+ground c1
+
+add power      b4  c4 5V
+add wire b4    b5   
+add resistor   b5  c5 100
+add resistor   c5  d5 200
+add wire d5    d4   
+add wire d4    c4   
+add wire c5    c6   
+add wire d5    d6   
+add resistor   c6  d6 200
+add wire       c4  c1 remote,green
+
+set center c4
+set scale 200
+
+model run 1s
+

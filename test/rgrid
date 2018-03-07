@@ -5254,17 +5254,17 @@ add resistor   V52  W52 1.00
 add resistor   W52  X52 1.00
 add resistor   X52  Y52 1.00
 add resistor   Y52  Z52 1.00
-
 add power A26 A27 1v
+
 ground A27
 
 set center A26
 set scale 200
 
 set dcpwr_t .001ns
-set scope_t .01ns
 set stop_t  .01ns
 
+set scope_t .01ns
 set scope_a voltage,0,2,A26
 set scope_b current,0,4,A27,A26
 

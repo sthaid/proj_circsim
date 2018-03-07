@@ -207,6 +207,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         fpsz = grid_scale * 40 / MAX_GRID_SCALE;
 
         // draw grid, if enabled
+        // xxx alternate with voltage
         if (strcmp(param_str_val(PARAM_GRID), "on") == 0) {
             int32_t glx, gly, x, y, count=0;
             point_t points[MAX_GRID_X*MAX_GRID_Y];
@@ -769,6 +770,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             if (gl0_str == NULL) {
                 continue;
             }
+            // xxx or UNITS_AMPS
             if ((str_to_val(ymin_str, UNITS_VOLTS, &ymin) < 0) ||
                 (str_to_val(ymax_str, UNITS_VOLTS, &ymax) < 0) ||
                 (str_to_gridloc(gl0_str, &gl0) < 0) ||

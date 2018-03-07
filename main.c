@@ -539,7 +539,7 @@ static int32_t cmd_model(char *args)
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str)
 {
     component_t new_comp, *c;
-    int32_t idx, x0, y0, x1, y1, i, rc, type=-1;
+    int32_t idx, x0, y0, x1, y1, i, rc, color, type=-1;
     char *gl_str;
     bool ok;
 
@@ -632,10 +632,14 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
                 ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
                 return -1;
             }
-            value_str = strtok(value_str, "");
-            // xxx parse color  NOT GREEN or WHITE
+            value_str = strtok(NULL, "");
+            color = sdl_color(value_str);
+            if (color == -1) {
+                ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
+                return -1;
+            }
             new_comp.wire.remote = true;
-            new_comp.wire.remote_color = RED;
+            new_comp.wire.remote_color = color;
         }
         break;
     case COMP_POWER:

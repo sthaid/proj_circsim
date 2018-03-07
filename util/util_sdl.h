@@ -234,4 +234,7 @@ void sdl_destroy_texture(texture_t texture);
 // print screen, file_name must end in .jpg or .png
 void sdl_print_screen(char * file_name, bool flash_display, rect_t * rect);
 
+// misc
+int32_t sdl_color(char * color_str);
+
 #endif

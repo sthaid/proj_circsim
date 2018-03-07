@@ -7,16 +7,12 @@ add wire       d3   d4
 
 ground d3
 
-set stop_t       1
-set delta_t      1ns
-set grid         off
-set current      on
-set voltage      on
-set component    value
-set center       d4,153,143
-set scale        354
+set center d4,153,143
+set scale  354
 
+set scope_t 5
 set scope_a voltage,-1.5,1.5,c3
 set scope_b current,-10,10,c4,d4
-model run 1
+
+model run 5
 

@@ -1861,3 +1861,38 @@ static char * sdl_print_screen_filename(void)
 
     return filename;
 }
+
+// -----------------  MISC  --------------------------------------------- 
+
+int32_t sdl_color(char * color_str)
+{
+    #define MAX_COLORS (sizeof(colors)/sizeof(colors[0]))
+
+    static struct {
+        char * name;
+        int32_t id;
+    } colors[] = {
+        { "PURPLE",     PURPLE     },
+        { "BLUE",       BLUE       },
+        { "LIGHT_BLUE", LIGHT_BLUE },
+        { "GREEN",      GREEN      },
+        { "YELLOW",     YELLOW     },
+        { "ORANGE",     ORANGE     },
+        { "PINK",       PINK       },
+        { "RED",        RED        },
+        { "GRAY",       GRAY       },
+        { "WHITE",      WHITE      },
+        { "BLACK",      BLACK      },
+                    };
+
+    int32_t i;
+
+    for (i = 0; i < MAX_COLORS; i++) {
+        if (strcasecmp(color_str, colors[i].name) == 0) {
+            return colors[i].id;
+        }
+    }
+
+    return -1;
+}
+

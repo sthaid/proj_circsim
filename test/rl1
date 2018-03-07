@@ -11,12 +11,12 @@ add wire       d1   c1
 
 ground c1
 
-set stop_t       1s
-set delta_t      1ns
-set grid         off
-set current      on
-set voltage      on
-set component    value
-set center       c2,-29,-25
-set scale        293
+set center c2,-29,-25
+set scale  293
+
+set scope_t 1
+set scope_a voltage,0,5,c2,d2
+set scope_b current,0,.5,c2,d2
+
+model run 1
 

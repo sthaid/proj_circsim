@@ -1,0 +1,26 @@
+clear_schematic
+
+add power        b1  c1 5v
+add wire         b1  b2 
+add resistor     b2  c2 9
+add capacitor    c2  d2 100mf
+add resistor     d2  d1 1
+add wire         d1  c1 
+ground c1
+
+add power        b4  c4 5v
+add wire         b4  b5
+add resistor     b5  c5 1
+add capacitor    c5  d5 100mf
+add resistor     d5  d4 9
+add wire         d4  c4
+add wire         c4  c1 remote,green
+
+set center c3,-31,-35
+set scale 225
+
+set scope_t 1
+set scope_a voltage,0,3.16,c2,d2
+set scope_b voltage,0,3.16,c5,d5
+
+model run 1

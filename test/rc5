@@ -11,7 +11,10 @@ add wire       d6   d1
 
 ground d1
 
-set center       d4,113,115
-set scale        266
-set stop_t       1s
+set center c4,121,-99
+set scale  240
 
+set scope_t 1s
+set scope_a voltage,0,1.58,c2,c3
+
+model run 1s
