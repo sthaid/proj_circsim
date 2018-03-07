@@ -13,6 +13,5 @@ ground d1
 
 set center       d4,113,115
 set scale        266
-set dcpwr_t 1ms
 set stop_t       1s
 

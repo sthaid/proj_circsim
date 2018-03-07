@@ -7,7 +7,6 @@ add wire       c3   c2
 
 set stop_t       100ms
 set delta_t      1ns
-set dcpwr_t      1ms
 set grid         off
 set current      on
 set voltage      on

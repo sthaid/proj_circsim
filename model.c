@@ -364,7 +364,7 @@ static void debug_print_nodes(void)
     char s[MAX_DEBUG_STR], *p;
     int32_t i, j;
 
-    //return;
+    return;
  
     INFO("max_node = %d\n", max_node);
     for (i = 0; i < max_node; i++) {
@@ -433,7 +433,6 @@ static void reset(void)
     history_t = 0;
     max_history = 0;
     max_node = 0;
-    model_step_req = false;
 
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
@@ -459,7 +458,7 @@ static void * model_thread(void * cx)
         } while (0)
 
     int32_t i,j,idx;
-    long double delta_t;   // xxx  todo
+    long double delta_t;
 
     while (true) {
         // handle request to transition model_state
@@ -482,24 +481,14 @@ static void * model_thread(void * cx)
             continue;
         }
 
-        // XXX try init of power prior too
-
-        // XXX THIS NEEDS WORK
-        // xxx can we start at time 0?
-        if (model_t == 0) {
-            model_t = 1e-10;
-        }
-        delta_t = .001 * (1 - expl(-model_t / 400));
-        //delta_t = .0001 * (1 - expl(-model_t / 400));
+        // when the model starts delta_t will initially be tiny, and 
+        // gradually increase to the DELTA_T param; this seems to help
+        // the model be stable: the value passed to expl was determined
+        // empirically
+        delta_t = DELTA_T * (1 - expl(-model_t * 1e-6 / DELTA_T)) + 1e-16;
 
         // increment time
         model_t += delta_t;
-
-        // XXX how many steps to achieve 1ms model_t ?
-        //static int64_t count;
-        //if (count++ < 100) {
-            //INFO("model_t = %Le  delta_t = %Le\n", model_t, delta_t);
-        //}
 
         // loop over all nodes, computing the next voltage for that node
         for (i = 0; i < max_node; i++) {
@@ -521,7 +510,6 @@ static void * model_thread(void * cx)
 
                     switch (c->type) {
                     case COMP_RESISTOR:
-                        // xxx use better estimate for other node
                         r_sum_num += (other_n->v_current / c->resistor.ohms);
                         r_sum_denom += (1 / c->resistor.ohms);
                         break;

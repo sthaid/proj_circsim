@@ -5260,5 +5260,12 @@ ground A27
 
 set center A26
 set scale 200
-set dcpwr_t 0
-set stop_t 1ms
+
+set dcpwr_t .001ns
+set scope_t .01ns
+set stop_t  .01ns
+
+set scope_a voltage,0,2,A26
+set scope_b current,0,4,A27,A26
+
+model run

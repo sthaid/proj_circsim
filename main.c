@@ -883,11 +883,13 @@ char * component_to_value_str(component_t * c, char *s)
         break;
     case COMP_INDUCTOR:
         val_to_str(c->inductor.henrys, UNITS_HENRYS, s);
+#if 0
         if (c->inductor.i_init != 0) {
             len = strlen(s);
             strcpy(s+len, ",");
             val_to_str(c->inductor.i_init, UNITS_AMPS, s+len+1);
         }
+#endif
         break;
     case COMP_WIRE:
     case COMP_DIODE:
@@ -1008,7 +1010,11 @@ char * val_to_str(long double val, int32_t units, char *s)
 
     // for UNITS_SECONDS always use nnn.nnnnnns format
     if (units == UNITS_SECONDS) {
-        sprintf(s, "%.6Lfs", val);
+        if (val < 1e-6) {
+            sprintf(s, "%.3Les", val);
+        } else {
+            sprintf(s, "%.6Lfs", val);
+        }
         return s;
     }
     
@@ -1049,7 +1055,7 @@ static void param_init(void)
         } while (0)
 
     PARAM_CREATE(PARAM_STOP_T,     "stop_t",     "1s");
-    PARAM_CREATE(PARAM_DELTA_T,    "delta_t",    "1ns");
+    PARAM_CREATE(PARAM_DELTA_T,    "delta_t",    "1ms");
     PARAM_CREATE(PARAM_DCPWR_T,    "dcpwr_t",    "1ms");
     PARAM_CREATE(PARAM_GRID,       "grid",       "off");
     PARAM_CREATE(PARAM_CURRENT,    "current",    "on");
@@ -1078,6 +1084,7 @@ int32_t param_set(int32_t id, char *str_val)
          id == PARAM_DCPWR_T) &&
         (model_state != MODEL_STATE_RESET))
     {
+        ERROR("failed to set '%s', model must be reset\n", param_name(id));
         return -1;
     }
 
@@ -1088,6 +1095,7 @@ int32_t param_set(int32_t id, char *str_val)
          id == PARAM_SCOPE_T) &&
         (str_to_val(str_val, UNITS_SECONDS, &num_val) == -1))
     {
+        ERROR("failed to set '%s', invalid time value\n", param_name(id));
         return -1;
     }
 
@@ -1097,6 +1105,7 @@ int32_t param_set(int32_t id, char *str_val)
          num_val < MIN_GRID_SCALE ||
          num_val > MAX_GRID_SCALE))
     {
+        ERROR("failed to set '%s', invalid numeric value\n", param_name(id));
         return -1;
     }
 
@@ -1106,6 +1115,7 @@ int32_t param_set(int32_t id, char *str_val)
          id == PARAM_VOLTAGE) &&
         (strcmp(str_val, "on") != 0 && strcmp(str_val, "off") != 0))
     {
+        ERROR("failed to set '%s', expected 'on' or 'off'\n", param_name(id));
         return -1;
     }
 
@@ -1113,19 +1123,18 @@ int32_t param_set(int32_t id, char *str_val)
     if ((id == PARAM_COMPONENT) &&
         (strcmp(str_val, "value") != 0 && strcmp(str_val, "id") != 0))
     {
+        ERROR("failed to set '%s', expected 'value' or 'id'\n", param_name(id));
         return -1;
     }
 
     // check PARAM_CENTER
-    if (id == PARAM_CENTER) {
-        if (str_to_gridloc(str_val, &gl) < 0) {
-            return -1;
-        }
-        if (((p = strchr(str_val, ',')) != NULL) &&
-            (sscanf(p+1, "%d,%d", &xadj, &yadj) != 2))
-        {
-            return -1;
-        }
+    if ((id == PARAM_CENTER) &&
+        ((str_to_gridloc(str_val, &gl) < 0) ||
+         (((p = strchr(str_val, ',')) != NULL) &&
+          (sscanf(p+1, "%d,%d", &xadj, &yadj) != 2))))
+    {
+        ERROR("failed to set '%s', expected <gl>[nnn,nnn]\n", param_name(id));
+        return -1;
     }
 
     // checks have passed, commit the new param value

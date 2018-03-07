@@ -33,8 +33,8 @@
 // max constants
 #define MAX_GRID_X          52
 #define MAX_GRID_Y          52
-#define MAX_COMPONENT       3000
-#define MAX_NODE            3000
+#define MAX_COMPONENT       10000
+#define MAX_NODE            10000
 #define MAX_GRID_TERM       5
 #define MAX_HISTORY         500
 
