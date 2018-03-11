@@ -40,8 +40,6 @@ cmd: reset             - resets to time 0 initial condition\n\
 static int32_t  model_state_req;
 static bool     model_step_req;
 
-static node_t * ground_node;
-
 //
 // prototypes
 //
@@ -53,6 +51,7 @@ static void debug_print_nodes(void);
 static void reset(void);
 static void * model_thread(void * cx);
 static long double get_comp_power_voltage(component_t * c);
+static void adjust_delta_t(long double *delta_t, bool init);
 
 // -----------------  PUBLIC ---------------------------------------------------------
 
@@ -195,6 +194,7 @@ int32_t model_step(void)
 static int32_t init_nodes(void)
 {
     int32_t i, j, ground_node_count, power_count;
+    node_t * ground_node = NULL;
 
     // create a list of nodes, eliminating the wire component;
     // so that each node provides a list of connected real components
@@ -458,12 +458,12 @@ static void * model_thread(void * cx)
         } while (0)
 
     int32_t i,j,idx;
-    long double delta_t;
 
     while (true) {
         // handle request to transition model_state
         if (model_state_req != model_state) {
             INFO("model_state is %s\n", MODEL_STATE_STR(model_state_req));
+            INFO("xxx delta_t %Lf us\n", delta_t * 1000000);
         }
         model_state = model_state_req;
         __sync_synchronize();
@@ -481,11 +481,8 @@ static void * model_thread(void * cx)
             continue;
         }
 
-        // when the model starts delta_t will initially be tiny, and 
-        // gradually increase to the DELTA_T param; this seems to help
-        // the model be stable: the value passed to expl was determined
-        // empirically
-        delta_t = DELTA_T * (1 - expl(-model_t * 1e-6 / DELTA_T)) + 1e-16;
+        // xxx coment
+        adjust_delta_t(&delta_t, model_t==0);
 
         // increment time
         model_t += delta_t;
@@ -528,12 +525,41 @@ static void * model_thread(void * cx)
                         }
                         l_sum_denom += delta_t / c->inductor.henrys;
                         break;
+                    case COMP_DIODE: {
+                        // XXX this section needs work
+                        long double dv, ohms;
+                        static long double smooth_ohms[100];
+
+                        if (termid == 0) {
+                            dv = (n->v_current - other_n->v_current);
+                        } else {
+                            dv = (-n->v_current + other_n->v_current);
+                        }
+
+                        ohms = expl(50.L * (.7L - dv));
+
+                        if (ohms > 1e9) {
+                            ohms = 1e9;
+                        }
+                        if (ohms < .1) {
+                            ohms = .1;
+                        }
+
+                        if (model_t == delta_t) {
+                            smooth_ohms[i] = 0;
+                        }
+
+                        basic_exponential_smoothing(ohms, &smooth_ohms[i], 0.01);
+
+                        r_sum_num += (other_n->v_current / smooth_ohms[i]);
+                        r_sum_denom += (1 / smooth_ohms[i]);
+                        break; }
                     default:
                         FATAL("comp type %s not supported\n", c->type_str);
                     }
                 }
-                n->v_next = (r_sum_num + c_sum_num + l_sum_num) / 
-                             (r_sum_denom + c_sum_denom + l_sum_denom);
+                n->v_next = (r_sum_num + c_sum_num + l_sum_num) /
+                            (r_sum_denom + c_sum_denom + l_sum_denom);
             }
         }
 
@@ -555,6 +581,19 @@ static void * model_thread(void * cx)
                 long double v1 = (n1->v_next + n1->v_current) / 2.;
                 c->i_next = c->i_current + (delta_t / c->inductor.henrys) * (v0 - v1);
                 break; }
+            case COMP_DIODE:
+#if 0  // AAA work this
+                c->i_next = (n0->v_next - n1->v_next) / c->diode_ohms;
+                static bool flag;
+                if ((n0->v_next - n1->v_next) > 0.50) {
+                    flag = true;
+                }
+                if (flag) {
+                    INFO("diode ohms is now %Lf\n", c->diode_ohms);
+                    usleep(1000);
+                }
+#endif
+                break;
             }
         }
 
@@ -623,16 +662,59 @@ static long double get_comp_power_voltage(component_t * c)
     long double v;
 
     if (c->power.hz == 0) {
-        // dc
+        // dc XXX try linear ramp up
         if (model_t >= DCPWR_T) {
             v = c->power.volts;
         } else {
             v = c->power.volts * sinl((model_t / DCPWR_T) * M_PI_2);
         }
     } else {
-        // ac, c->power.volts is RMS
-        v = c->power.volts * M_SQRT2 * sinl(model_t * c->power.hz * (2. * M_PI));
+        // ac
+        v = c->power.volts * sinl(model_t * c->power.hz * (2. * M_PI));
     }
 
     return v;
+}
+
+static void adjust_delta_t(long double *delta_t, bool init)
+{
+    long double target_dt;
+
+    static long double last_target_dt;
+    static long double adjust_dt;
+
+    if (init) {
+        last_target_dt = 0;
+        adjust_dt      = 0;
+        *delta_t       = 1e-16;
+    }
+
+    if (model_t < .001) {
+        target_dt = 1e-9;
+    } else {
+        target_dt = DELTA_T;
+    }
+    assert(target_dt > 0);
+
+    if (target_dt != last_target_dt) {
+        int64_t steps;
+        steps = 2 * .001 / fabsl(target_dt - *delta_t);
+        if (steps < 1000) steps = 1000;
+        adjust_dt = (target_dt - *delta_t) / steps;
+        // xxx INFO("%Le - TARGET_DT=%Le  CURR_DT=%Le  STEPS=%ld  ADJUST=%Le\n", model_t, target_dt, *delta_t, steps, adjust_dt);
+        last_target_dt = target_dt;
+    }
+
+    if (adjust_dt != 0) {
+        // xxx optimize low,high
+        long double low  = target_dt - .51 * fabsl(adjust_dt);
+        long double high = target_dt + .51 * fabsl(adjust_dt);
+        if (*delta_t > low && *delta_t < high) {
+            // xxx INFO("%Le - REACHED TARGET =%Le\n", model_t, *delta_t);
+            adjust_dt = 0;
+            *delta_t = target_dt;
+        } else {
+            *delta_t += adjust_dt;
+        }
+    }
 }

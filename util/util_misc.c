@@ -383,3 +383,22 @@ float hypotenuse(float x, float y, float z)
     return sqrtf(x*x + y*y + z*z);
 }
 
+void basic_exponential_smoothing(long double x, long double *s, long double alpha)
+{
+    long double s_last = *s;
+    *s = alpha * x + (1 - alpha) * s_last;
+}
+
+void double_exponential_smoothing(long double x, long double *s, long double *b, long double alpha, long double beta, bool init)
+{
+    if (init) {
+        *s = x;
+        *b = 0;
+    } else {
+        long double s_last = *s;
+        long double b_last = *b;
+        *s = alpha * x + (1 - alpha) * (s_last + b_last);
+        *b = beta * (*s - s_last) + (1 - beta) * b_last;
+    }
+}
+

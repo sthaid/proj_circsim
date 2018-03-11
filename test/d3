@@ -1,0 +1,21 @@
+clear_schematic
+
+add power      b1  c1 20kv,5000hz
+add wire       b1  b2 
+add resistor   b2  c2 100
+add diode      c2  d2 
+add wire       d2  d1
+add wire       d1  c1
+
+ground c1
+
+set center c1,-151,-29
+set scale  322
+
+set scope_t 1ms
+set scope_a voltage,-20kv,20kv,b2,c2
+set scope_b voltage,-20kv,20kv,c2,d2
+set scope_c voltage,-20kv,20kv,b1
+
+model run 1ms
+

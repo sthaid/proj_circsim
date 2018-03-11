@@ -1,0 +1,28 @@
+clear_schematic
+
+add power      c2  d2 5v
+add wire       c2 c3
+add diode      c3 c4
+add diode      d3 c3
+add diode      d3 d4
+add diode      d4 c4
+add wire       c4 c6
+add            wire d6 d5
+add            wire d5 e5
+add            wire e5 e3
+add            wire e3 d3
+add            wire d2 d4 remote,green
+
+add            resistor c6 d6  200
+
+ground d2
+
+set center d4,-4,-19
+set scale  266
+
+set scope_t 1s
+set scope_a voltage,-200,200,c2
+set scope_b voltage,-200,200,c6,d6
+
+model run 250ms
+

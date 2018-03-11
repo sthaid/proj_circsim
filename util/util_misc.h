@@ -115,5 +115,7 @@ void random_vector(float magnitude, float * x, float * y, float * z);
 
 bool solve_quadratic_equation(float a, float b, float c, float *x1, float *x2);
 float hypotenuse(float x, float y, float z);
+void basic_exponential_smoothing(long double x, long double *s, long double alpha);
+void double_exponential_smoothing(long double x, long double *s, long double *b, long double alpha, long double beta, bool init);
 
 #endif
