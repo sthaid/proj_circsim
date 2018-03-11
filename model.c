@@ -1,3 +1,8 @@
+#if 0
+// XXX
+// - rename v_current to v_now
+#endif
+
 #include "common.h"
 
 //
@@ -528,7 +533,6 @@ static void * model_thread(void * cx)
                     case COMP_DIODE: {
                         // XXX this section needs work
                         long double dv, ohms;
-                        static long double smooth_ohms[100];
 
                         if (termid == 0) {
                             dv = (n->v_current - other_n->v_current);
@@ -537,7 +541,6 @@ static void * model_thread(void * cx)
                         }
 
                         ohms = expl(50.L * (.7L - dv));
-
                         if (ohms > 1e9) {
                             ohms = 1e9;
                         }
@@ -545,14 +548,10 @@ static void * model_thread(void * cx)
                             ohms = .1;
                         }
 
-                        if (model_t == delta_t) {
-                            smooth_ohms[i] = 0;
-                        }
+                        basic_exponential_smoothing(ohms, &c->diode_smooth_ohms[termid], 0.01);
 
-                        basic_exponential_smoothing(ohms, &smooth_ohms[i], 0.01);
-
-                        r_sum_num += (other_n->v_current / smooth_ohms[i]);
-                        r_sum_denom += (1 / smooth_ohms[i]);
+                        r_sum_num += (other_n->v_current / c->diode_smooth_ohms[termid]);
+                        r_sum_denom += (1 / c->diode_smooth_ohms[termid]);
                         break; }
                     default:
                         FATAL("comp type %s not supported\n", c->type_str);
@@ -581,19 +580,16 @@ static void * model_thread(void * cx)
                 long double v1 = (n1->v_next + n1->v_current) / 2.;
                 c->i_next = c->i_current + (delta_t / c->inductor.henrys) * (v0 - v1);
                 break; }
-            case COMP_DIODE:
-#if 0  // AAA work this
-                c->i_next = (n0->v_next - n1->v_next) / c->diode_ohms;
-                static bool flag;
-                if ((n0->v_next - n1->v_next) > 0.50) {
-                    flag = true;
+            case COMP_DIODE: {
+                long double v0 = (n0->v_next + n0->v_current) / 2.;
+                long double v1 = (n1->v_next + n1->v_current) / 2.;
+                long double v = (v0 - v1);
+                long double ohms = (c->diode_smooth_ohms[0] + c->diode_smooth_ohms[1]);
+                if (c->diode_smooth_ohms[0] != 0 && c->diode_smooth_ohms[1] != 0) {
+                    ohms /= 2;
                 }
-                if (flag) {
-                    INFO("diode ohms is now %Lf\n", c->diode_ohms);
-                    usleep(1000);
-                }
-#endif
-                break;
+                c->i_next = v / ohms;
+                break; }
             }
         }
 
@@ -678,6 +674,23 @@ static long double get_comp_power_voltage(component_t * c)
 
 static void adjust_delta_t(long double *delta_t, bool init)
 {
+// XXX - instead of setting delta_t, set frequency (or use a defualt), this
+//  should be 0 for dc, or the highest power supply frequency, if defulat, othersie
+//  we'll use the specified setting.
+//  if dc then delta_t is based on the dc ramp frequncy of xxx hz;  and will auto change to 
+//  delta_t=1us following that
+//
+//  for ac delta_t=10ns works for a frequency of 100hz
+//
+//  the 1 ms dcramp time is 250hz, 
+//
+//    factor is 2.5e-7    IS 4000000 samples per
+//       100hz = .01   ====  .01  * 2.5e-7   = 2.5e-9  = 2.5ns
+//       250hz = .004  ====  .004 * 2.5e-7   = 1e-9
+//
+//   try 1 million
+//
+//      formula :  delta_t = 1 / frequency / 4000000
     long double target_dt;
 
     static long double last_target_dt;
@@ -701,16 +714,16 @@ static void adjust_delta_t(long double *delta_t, bool init)
         steps = 2 * .001 / fabsl(target_dt - *delta_t);
         if (steps < 1000) steps = 1000;
         adjust_dt = (target_dt - *delta_t) / steps;
-        // xxx INFO("%Le - TARGET_DT=%Le  CURR_DT=%Le  STEPS=%ld  ADJUST=%Le\n", model_t, target_dt, *delta_t, steps, adjust_dt);
+        //INFO("%Le - TARGET_DT=%Le  CURR_DT=%Le  STEPS=%ld  ADJUST=%Le\n", 
+        //     model_t, target_dt, *delta_t, steps, adjust_dt);
         last_target_dt = target_dt;
     }
 
     if (adjust_dt != 0) {
-        // xxx optimize low,high
         long double low  = target_dt - .51 * fabsl(adjust_dt);
         long double high = target_dt + .51 * fabsl(adjust_dt);
         if (*delta_t > low && *delta_t < high) {
-            // xxx INFO("%Le - REACHED TARGET =%Le\n", model_t, *delta_t);
+            //INFO("%Le - REACHED TARGET =%Le\n", model_t, *delta_t);
             adjust_dt = 0;
             *delta_t = target_dt;
         } else {

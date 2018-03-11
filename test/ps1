@@ -1,28 +1,35 @@
 clear_schematic
 
-add power      c2  d2 5v
+add power      c2  d2 200,100hz
 add wire       c2 c3
 add diode      c3 c4
 add diode      d3 c3
 add diode      d3 d4
 add diode      d4 c4
-add wire       c4 c6
-add            wire d6 d5
-add            wire d5 e5
-add            wire e5 e3
-add            wire e3 d3
-add            wire d2 d4 remote,green
+#add wire       c4 c5   # XXX used to be c4 to c6 and got no warning
+add resistor   c4 c5 1000
+add wire       c5 c6
+add wire       d6 d5
+add wire       d5 e5
+add wire       e5 e3
+add wire       e3 d3
+add wire       d2 d4 remote,green
 
-add            resistor c6 d6  200
+add            capacitor c5 d5 1mf
+
+add            resistor c6 d6  10000
 
 ground d2
 
 set center d4,-4,-19
 set scale  266
 
-set scope_t 1s
-set scope_a voltage,-200,200,c2
-set scope_b voltage,-200,200,c6,d6
+set scope_t .0001
+set scope_a voltage,-2,2,c4,c5
+set scope_b voltage,-2,2,c5,d5
+set scope_c current,-.1,.1,c5,d5
 
-model run 250ms
+#set delta_t 1ps
+
+model run .0001
 

@@ -901,8 +901,16 @@ char * component_to_value_str(component_t * c, char *s)
         }
 #endif
         break;
+    case COMP_DIODE: {
+        // XXX temp
+        long double ohms = (c->diode_smooth_ohms[0] + c->diode_smooth_ohms[1]);
+        if (c->diode_smooth_ohms[0] != 0 && c->diode_smooth_ohms[1] != 0) {
+            ohms /= 2;
+        }
+        val_to_str(ohms, UNITS_OHMS, s);
+        break; }
     case COMP_WIRE:
-    case COMP_DIODE:
+        break;
     default:
         break;
     }
@@ -1026,6 +1034,14 @@ char * val_to_str(long double val, int32_t units, char *s)
             sprintf(s, "%.6Lfs", val);
         }
         return s;
+    }
+
+    // if volts or amps are close to zero then set to zero
+    if (units == UNITS_VOLTS && absval < 1e-6) {
+        val = absval = 0;
+    }
+    if (units == UNITS_AMPS && absval < 1e-6) {
+        val = absval = 0;
     }
     
     // scan the conversion table for the appropriate units string to use, 
