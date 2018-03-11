@@ -399,8 +399,9 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         } 
 
         // display the voltage at all node gridlocs;
-        // note that this will intentionally overwrite the gridloc_str if PARAM_GRID is enabled
-        if (strcmp(param_str_val(PARAM_VOLTAGE), "on") == 0) {
+        if (strcmp(param_str_val(PARAM_GRID), "off") == 0 &&
+            strcmp(param_str_val(PARAM_VOLTAGE), "on") == 0) 
+        {
             int32_t i, j, x, y;
             component_t *c;
             terminal_t *term;
@@ -623,7 +624,8 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
         sdl_render_printf(pane, 0, ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 
                           "%-8s %s", 
                           "DELTA_T", 
-                          val_to_str(param_num_val(PARAM_DELTA_T), UNITS_SECONDS, s));
+                          val_to_str(delta_t, UNITS_SECONDS, s));
+                           
 
         // register for mouse click events to control the model from the display
         sdl_render_text_and_register_event(
