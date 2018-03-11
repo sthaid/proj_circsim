@@ -552,7 +552,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
                     "inductor",
                     "diode",
                         };
-    static int32_t wire_id, power_id, resistor_id, capacitor_id, inductor_id;
+    static int32_t wire_id, power_id, resistor_id, capacitor_id, inductor_id, diode_id;
 
     // if max_component is zero then reset resistor,capacitor,... id variables
     if (max_component == 0) {
@@ -561,6 +561,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         resistor_id = 1;
         capacitor_id = 1;
         inductor_id = 1;
+        diode_id = 1;
     }
 
     // convert type_str to type; 
@@ -610,6 +611,9 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         break;
     case COMP_INDUCTOR:
         sprintf(new_comp.comp_str, "C%d", inductor_id++);
+        break;
+    case COMP_DIODE:
+        sprintf(new_comp.comp_str, "C%d", diode_id++);
         break;
     }
     // - set term
@@ -687,6 +691,8 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
                 return -1;
             }
         }
+        break;
+    case COMP_DIODE:
         break;
     }
 
@@ -887,7 +893,7 @@ char * component_to_value_str(component_t * c, char *s)
         break;
     case COMP_INDUCTOR:
         val_to_str(c->inductor.henrys, UNITS_HENRYS, s);
-#if 0
+#if 0   // don't display this, it is confusing
         if (c->inductor.i_init != 0) {
             len = strlen(s);
             strcpy(s+len, ",");
@@ -1059,7 +1065,7 @@ static void param_init(void)
         } while (0)
 
     PARAM_CREATE(PARAM_STOP_T,     "stop_t",     "1s");
-    PARAM_CREATE(PARAM_DELTA_T,    "delta_t",    "1ms");
+    PARAM_CREATE(PARAM_DELTA_T,    "delta_t",    "1us");
     PARAM_CREATE(PARAM_DCPWR_T,    "dcpwr_t",    "1ms");
     PARAM_CREATE(PARAM_GRID,       "grid",       "off");
     PARAM_CREATE(PARAM_CURRENT,    "current",    "on");
@@ -1083,21 +1089,13 @@ int32_t param_set(int32_t id, char *str_val)
 
     assert(param[id].name[0] != '\0');
 
-    // check for params that can not be set unles in MODEL_STATE_RESET
-    if ((id == PARAM_DELTA_T || 
-         id == PARAM_DCPWR_T) &&
-        (model_state != MODEL_STATE_RESET))
-    {
-        ERROR("failed to set '%s', model must be reset\n", param_name(id));
-        return -1;
-    }
-
     // check for params that have numeric values in UNITS_SECONDS
     if ((id == PARAM_STOP_T ||
          id == PARAM_DELTA_T ||
          id == PARAM_DCPWR_T ||
          id == PARAM_SCOPE_T) &&
-        (str_to_val(str_val, UNITS_SECONDS, &num_val) == -1))
+        ((str_to_val(str_val, UNITS_SECONDS, &num_val) == -1) ||
+         (num_val <= 0)))
     {
         ERROR("failed to set '%s', invalid time value\n", param_name(id));
         return -1;

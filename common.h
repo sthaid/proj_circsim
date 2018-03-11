@@ -147,6 +147,9 @@ typedef struct component_s {
             long double henrys;
             long double i_init;
         } inductor;
+        struct {
+            int32_t nothing_yet;
+        } diode;
     };
     // component state, used by model.c, follow:
     // when clearing component state, zero from here
@@ -199,6 +202,7 @@ node_t      node[MAX_NODE];
 int32_t     max_node;
 
 long double model_t;
+long double delta_t;
 int32_t     model_state;
 
 long double history_t;

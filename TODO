@@ -1,18 +1,27 @@
-identify scope points on display
+test/rl4 not working
 
-clean up the test scripts
+clean up
 
-try a single test with 2 or 3 circurits,  LC, RC, RL
-and with 3 graphs
+auto retrigger scope
+trigger button for scope
 
-scope ...
-- need a better way to trigger the scope
-- validate scope params in main.c
-- check time params for > 0
+cont button on screen<  perhaps cont forever if stopt is reached
+
+scope headings should be english
+
+try a full wave rectifier and filter power supply
+
+should allow setting delta_t whne model is stopped ?
 
 add diode
 
 XXX issues
+
+scope ...
+- identify scope points on display
+- need a better way to trigger the scope
+- validate scope params in main.c
+- check time params for > 0
 
 ====================  NEXT  =================================================
 
@@ -24,8 +33,6 @@ optimize model computations
   - optimization, and multi threads, change O0 to O2
 
 ====================  LOWER  ================================================
-
-clean up tests and make a good suite of tests
 
 update DOCUMENTATION
 
@@ -86,4 +93,9 @@ ac simple circuit
 delta_t ramp up
 - finish coding this
 - how many steps is it currently doing
+
+clean up the test scripts
+
+try a single test with 2 or 3 circurits,  LC, RC, RL
+and with 3 graphs
 
