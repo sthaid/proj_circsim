@@ -207,7 +207,6 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         fpsz = grid_scale * 40 / MAX_GRID_SCALE;
 
         // draw grid, if enabled
-        // xxx alternate with voltage
         if (strcmp(param_str_val(PARAM_GRID), "on") == 0) {
             int32_t glx, gly, x, y, count=0;
             point_t points[MAX_GRID_X*MAX_GRID_Y];
@@ -698,6 +697,9 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
 
 static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event) 
 {
+    #define SDL_EVENT_SCOPE_MODE  (SDL_EVENT_USER_DEFINED + 0)
+    #define SDL_EVENT_SCOPE_TRIG  (SDL_EVENT_USER_DEFINED + 1)
+
     struct {
         int32_t none;
     } * vars = pane_cx->vars;
@@ -739,9 +741,24 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
 
         // display header line
         sdl_render_printf(pane, 0, 0, FPSZ_SMALL, BLACK, WHITE, 
-                          "T=%s  T_SPAN=%s",
+                          "T=%s  SPAN=%s",
                           val_to_str(history_t, UNITS_SECONDS, s1),
                           val_to_str(param_num_val(PARAM_SCOPE_T), UNITS_SECONDS, s2));
+
+        // scope trigger control
+        // - display MODE button
+        sdl_render_text_and_register_event(
+            pane, pane->w-COL2X(4,FPSZ_SMALL), 0, FPSZ_SMALL, "MODE", LIGHT_BLUE, WHITE,
+            SDL_EVENT_SCOPE_MODE, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
+        if (strcmp(param_str_val(PARAM_SCOPE_MODE), "continuous") == 0) {
+            sdl_render_printf(
+               pane, pane->w-COL2X(4,FPSZ_SMALL), ROW2Y(1,FPSZ_SMALL), 
+               FPSZ_SMALL, BLACK, WHITE, "CONT");
+        } else {
+            sdl_render_text_and_register_event(
+                pane, pane->w-COL2X(4,FPSZ_SMALL), ROW2Y(1,FPSZ_SMALL), FPSZ_SMALL, "TRIG", LIGHT_BLUE, WHITE,
+                SDL_EVENT_SCOPE_TRIG, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
+        }
 
         // loop over the 4 scopes, displaying each
         for (i = 0; i < 4; i++) {
@@ -883,6 +900,15 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
     // -----------------------
 
     if (request == PANE_HANDLER_REQ_EVENT) {
+        switch(event->event_id) {
+        case SDL_EVENT_SCOPE_MODE: {
+            bool continuous = (strcmp(param_str_val(PARAM_SCOPE_MODE),"continuous") == 0);
+            param_set(PARAM_SCOPE_MODE, continuous ? "trigger" : "continuous");
+            break; }
+        case SDL_EVENT_SCOPE_TRIG:
+            param_set(PARAM_SCOPE_TRIGGER, "1");
+            break;
+        }
         return PANE_HANDLER_RET_NO_ACTION;
     }
 

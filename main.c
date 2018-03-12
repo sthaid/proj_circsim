@@ -1080,20 +1080,22 @@ static void param_init(void)
             assert(rc == 0); \
         } while (0)
 
-    PARAM_CREATE(PARAM_RUN_T,      "run_t",      "1s");
-    PARAM_CREATE(PARAM_DELTA_T,    "delta_t",    "1us");
-    PARAM_CREATE(PARAM_DCPWR_T,    "dcpwr_t",    "1ms");
-    PARAM_CREATE(PARAM_GRID,       "grid",       "off");
-    PARAM_CREATE(PARAM_CURRENT,    "current",    "on");
-    PARAM_CREATE(PARAM_VOLTAGE,    "voltage",    "on");
-    PARAM_CREATE(PARAM_COMPONENT,  "component",  "value");
-    PARAM_CREATE(PARAM_CENTER,     "center",     "c3");
-    PARAM_CREATE(PARAM_SCALE,      "scale",      "200");
-    PARAM_CREATE(PARAM_SCOPE_A,    "scope_a",    "off");   // xxx need to validate these next 4
-    PARAM_CREATE(PARAM_SCOPE_B,    "scope_b",    "off");
-    PARAM_CREATE(PARAM_SCOPE_C,    "scope_c",    "off");
-    PARAM_CREATE(PARAM_SCOPE_D,    "scope_d",    "off");
-    PARAM_CREATE(PARAM_SCOPE_T,    "scope_t",    "1s");
+    PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
+    PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "1us"      );
+    PARAM_CREATE(PARAM_DCPWR_T,       "dcpwr_t",       "1ms"      );
+    PARAM_CREATE(PARAM_GRID,          "grid",          "off"      );
+    PARAM_CREATE(PARAM_CURRENT,       "current",       "on"       );
+    PARAM_CREATE(PARAM_VOLTAGE,       "voltage",       "on"       );
+    PARAM_CREATE(PARAM_COMPONENT,     "component",     "value"    );
+    PARAM_CREATE(PARAM_CENTER,        "center",        "c3"       );
+    PARAM_CREATE(PARAM_SCALE,         "scale",         "200"      );
+    PARAM_CREATE(PARAM_SCOPE_A,       "scope_a",       "off"      ); // xxx need to validate these next 4
+    PARAM_CREATE(PARAM_SCOPE_B,       "scope_b",       "off"      );
+    PARAM_CREATE(PARAM_SCOPE_C,       "scope_c",       "off"      );
+    PARAM_CREATE(PARAM_SCOPE_D,       "scope_d",       "off"      );
+    PARAM_CREATE(PARAM_SCOPE_T,       "scope_t",       "1s"       );
+    PARAM_CREATE(PARAM_SCOPE_MODE,    "scope_mode",    "trigger"  );
+    PARAM_CREATE(PARAM_SCOPE_TRIGGER, "scope_trigger", "0"        );
 }
 
 int32_t param_set(int32_t id, char *str_val)
@@ -1118,13 +1120,16 @@ int32_t param_set(int32_t id, char *str_val)
     }
 
     // check for params that have simple numeric values
-    if ((id == PARAM_SCALE) &&
-        (sscanf(str_val, "%Lf", &num_val) != 1 || 
-         num_val < MIN_GRID_SCALE ||
-         num_val > MAX_GRID_SCALE))
+    if ((id == PARAM_SCALE ||
+         id == PARAM_SCOPE_TRIGGER) &&
+        (sscanf(str_val, "%Lf", &num_val) != 1))
     {
-        ERROR("failed to set '%s', invalid numeric value\n", param_name(id));
-        return -1;
+        if ((id == PARAM_SCALE && (num_val < MIN_GRID_SCALE || num_val > MAX_GRID_SCALE)) ||
+            (id == PARAM_SCOPE_TRIGGER && (num_val != 0 && num_val != 1)))
+        {
+            ERROR("failed to set '%s', invalid numeric value\n", param_name(id));
+            return -1;
+        }
     }
 
     // check for params whose value must be 'on' or 'off'
@@ -1152,6 +1157,14 @@ int32_t param_set(int32_t id, char *str_val)
           (sscanf(p+1, "%d,%d", &xadj, &yadj) != 2))))
     {
         ERROR("failed to set '%s', expected <gl>[nnn,nnn]\n", param_name(id));
+        return -1;
+    }
+
+    // check PARAM_SCOPE_MODE
+    if ((id == PARAM_SCOPE_MODE) &&
+        (strcmp(str_val, "continuous") != 0 && strcmp(str_val, "trigger") != 0))
+    {
+        ERROR("failed to set '%s', expected 'value' or 'id'\n", param_name(id));
         return -1;
     }
 

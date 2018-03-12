@@ -68,20 +68,22 @@
 #define UNITS_SECONDS   7
 
 // parameters
-#define PARAM_RUN_T      0
-#define PARAM_DELTA_T    1
-#define PARAM_DCPWR_T    2
-#define PARAM_GRID       3
-#define PARAM_CURRENT    4
-#define PARAM_VOLTAGE    5
-#define PARAM_COMPONENT  6
-#define PARAM_CENTER     7
-#define PARAM_SCALE      8
-#define PARAM_SCOPE_A    9
-#define PARAM_SCOPE_B    10
-#define PARAM_SCOPE_C    11
-#define PARAM_SCOPE_D    12
-#define PARAM_SCOPE_T    13  
+#define PARAM_RUN_T           0
+#define PARAM_DELTA_T         1
+#define PARAM_DCPWR_T         2
+#define PARAM_GRID            3
+#define PARAM_CURRENT         4
+#define PARAM_VOLTAGE         5
+#define PARAM_COMPONENT       6
+#define PARAM_CENTER          7
+#define PARAM_SCALE           8
+#define PARAM_SCOPE_A         9
+#define PARAM_SCOPE_B         10
+#define PARAM_SCOPE_C         11
+#define PARAM_SCOPE_D         12
+#define PARAM_SCOPE_T         13  
+#define PARAM_SCOPE_MODE      14
+#define PARAM_SCOPE_TRIGGER   15
 
 #define param_has_changed(id) \
     ({ static int32_t last_update_count=-1; \

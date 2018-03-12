@@ -1,29 +1,24 @@
-ps1: #add wire       c4 c5   # XXX used to be c4 to c6 and got no warning
+add cap to ps1
 
-test/rl4 not working
+set params on the command line
 
-clean up
+scope trigger
+- scope_mode param
+    continuous
+    trigger
+- scope trigger param
+    set scope_trigger 1 or 0
 
 auto retrigger scope
 trigger button for scope
 
-cont button on screen<  perhaps cont forever if stopt is reached
-
-scope headings should be english
-
-try a full wave rectifier and filter power supply
-
-should allow setting delta_t whne model is stopped ?
-
-add diode
-
 XXX issues
 
 scope ...
+- scope headings should be english
 - identify scope points on display
 - need a better way to trigger the scope
 - validate scope params in main.c
-- check time params for > 0
 
 ====================  NEXT  =================================================
 
@@ -35,6 +30,8 @@ optimize model computations
   - optimization, and multi threads, change O0 to O2
 
 ====================  LOWER  ================================================
+
+ps1: #add wire       c4 c5   # XXX used to be c4 to c6 and got no warning
 
 update DOCUMENTATION
 
@@ -101,3 +98,10 @@ clean up the test scripts
 try a single test with 2 or 3 circurits,  LC, RC, RL
 and with 3 graphs
 
+try a full wave rectifier and filter power supply
+
+should allow setting delta_t whne model is stopped ?
+
+add diode
+
+- check time params for > 0

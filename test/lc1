@@ -19,5 +19,6 @@ set scale   354
 set scope_t 5s
 set scope_a voltage,-1,1,c4
 set scope_b current,-1,1,c5,d5
+set scope_mode continuous
 
-model run 5s
+model run 1000000s

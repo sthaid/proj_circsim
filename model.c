@@ -29,10 +29,12 @@ cmd: reset          - resets to time 0 initial condition\n\
 \n\
 "
 
-#define RUN_T    (param_num_val(PARAM_RUN_T))
-#define DELTA_T  (param_num_val(PARAM_DELTA_T))
-#define DCPWR_T  (param_num_val(PARAM_DCPWR_T))
-#define SCOPE_T  (param_num_val(PARAM_SCOPE_T))
+#define RUN_T           (param_num_val(PARAM_RUN_T))
+#define DELTA_T         (param_num_val(PARAM_DELTA_T))
+#define DCPWR_T         (param_num_val(PARAM_DCPWR_T))
+#define SCOPE_T         (param_num_val(PARAM_SCOPE_T))
+#define SCOPE_MODE      (param_str_val(PARAM_SCOPE_MODE))
+#define SCOPE_TRIGGER   (param_num_val(PARAM_SCOPE_TRIGGER))
 
 //
 // typedefs
@@ -468,6 +470,7 @@ static void * model_thread(void * cx)
         } while (0)
 
     int32_t i,j,idx;
+    long double last_scope_t = -1;
 
     while (true) {
         // handle request to transition model_state
@@ -478,8 +481,16 @@ static void * model_thread(void * cx)
         model_state = model_state_req;
         __sync_synchronize();
 
-        // if scope time param has changed then reset scope history
-        if (param_has_changed(PARAM_SCOPE_T)) {
+        // if scope time param has changed or scope trigger is requested 
+        // then reset scope history
+        if (SCOPE_T != last_scope_t) {
+            last_scope_t = SCOPE_T;
+            history_t = model_t;
+            max_history = 0;
+            __sync_synchronize();
+        }
+        if (SCOPE_TRIGGER == 1) {
+            param_set(PARAM_SCOPE_TRIGGER, "0");
             history_t = model_t;
             max_history = 0;
             __sync_synchronize();
@@ -645,6 +656,10 @@ static void * model_thread(void * cx)
             }
             __sync_synchronize();
             max_history = idx + 1;
+            __sync_synchronize();
+        } else if (strcmp(SCOPE_MODE, "continuous") == 0) {
+            history_t = model_t;
+            max_history = 0;
             __sync_synchronize();
         }
 
