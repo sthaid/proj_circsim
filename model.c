@@ -21,15 +21,15 @@
 #define USAGE "\
 usage: model <cmd> [<args>]\n\
 \n\
-cmd: reset             - resets to time 0 initial condition\n\
-     run [<stop_t>]    - reset and run the model\n\
-     stop              - stop the model\n\
-     cont [<delta_t>] - continue from stop\n\
-     step             - executes model for one time increment\n\
+cmd: reset          - resets to time 0 initial condition\n\
+     run [<run_t>]  - reset and run the model\n\
+     stop           - stop the model\n\
+     cont [<run_t>] - continue from stop or reset\n\
+     step           - executes model for one time increment\n\
 \n\
 "
 
-#define STOP_T   (param_num_val(PARAM_STOP_T))
+#define RUN_T    (param_num_val(PARAM_RUN_T))
 #define DELTA_T  (param_num_val(PARAM_DELTA_T))
 #define DCPWR_T  (param_num_val(PARAM_DCPWR_T))
 #define SCOPE_T  (param_num_val(PARAM_SCOPE_T))
@@ -71,8 +71,7 @@ void model_init(void)
 int32_t model_cmd(char *cmdline)
 {
     int32_t rc;
-    char *cmd, *arg, s[100];
-    long double val;
+    char *cmd, *arg;
 
     // extract cmd from cmdline
     cmd = strtok(cmdline, " ");
@@ -85,22 +84,21 @@ int32_t model_cmd(char *cmdline)
     if (strcmp(cmd, "reset") == 0) {
         rc = model_reset();
     } else if (strcmp(cmd, "run") == 0) {
-        if ((arg = strtok(NULL, " ")) != NULL) {
-            if (param_set(PARAM_STOP_T, arg) < 0) {
-                ERROR("invalid time '%s'\n", arg);
-                return -1;
-            }
+        if (((arg = strtok(NULL, " ")) != NULL) &&
+            (param_set(PARAM_RUN_T, arg) < 0)) 
+        {
+            ERROR("invalid time '%s'\n", arg);
+            return -1;
         }
         rc = model_run();
     } else if (strcmp(cmd, "stop") == 0) {
         rc = model_stop();
     } else if (strcmp(cmd, "cont") == 0) {
-        if ((arg = strtok(NULL, " ")) != NULL) {
-            if (str_to_val(arg, UNITS_SECONDS, &val) == -1) {
-                ERROR("invalid delta time '%s'\n", arg);
-                return -1;
-            }
-            param_set(PARAM_STOP_T, val_to_str(model_t+val,UNITS_SECONDS,s));
+        if (((arg = strtok(NULL, " ")) != NULL) &&
+            (param_set(PARAM_RUN_T, arg) < 0)) 
+        {
+            ERROR("invalid time '%s'\n", arg);
+            return -1;
         }
         rc = model_cont();
     } else if (strcmp(cmd, "step") == 0) {
@@ -137,6 +135,9 @@ int32_t model_run(void)
     // reset the model
     reset();
 
+    // set model stop time
+    stop_t = RUN_T;
+
     // analyze the grid and components to create list of nodes;
     // if this fails then reset the model variables
     rc = init_nodes();
@@ -166,12 +167,15 @@ int32_t model_stop(void)
 
 int32_t model_cont(void)
 {
-    if (model_state != MODEL_STATE_STOPPED) {
-        ERROR("not stopped\n");
+    if (model_state == MODEL_STATE_RESET) {
+        model_run();
+    } else if (model_state == MODEL_STATE_STOPPED) {
+        stop_t = model_t + RUN_T;
+        SET_MODEL_REQ(MODEL_STATE_RUNNING);
+    } else {
+        ERROR("not stopped or reset\n");
         return -1;
     }
-
-    SET_MODEL_REQ(MODEL_STATE_RUNNING);
 
     return 0;
 }
@@ -436,6 +440,7 @@ static void reset(void)
 
     model_t = 0;
     history_t = 0;
+    stop_t = 0;
     max_history = 0;
     max_node = 0;
 
@@ -645,7 +650,7 @@ static void * model_thread(void * cx)
 
         // if model has reached the stop time, or is being single stepped
         // then stop the model
-        if (model_t >= STOP_T || model_step_req) {                
+        if (model_t >= stop_t || model_step_req) {                
             model_state_req = MODEL_STATE_STOPPED;   
             model_step_req = false;
         }

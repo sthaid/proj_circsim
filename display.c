@@ -618,7 +618,7 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
         sdl_render_printf(pane, 0, ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 
                           "%-8s %s", 
                           "STOP_T",
-                          val_to_str(param_num_val(PARAM_STOP_T), UNITS_SECONDS, s));
+                          val_to_str(stop_t, UNITS_SECONDS, s));
 
         // delta_t time
         sdl_render_printf(pane, 0, ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 

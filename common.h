@@ -68,7 +68,7 @@
 #define UNITS_SECONDS   7
 
 // parameters
-#define PARAM_STOP_T     0
+#define PARAM_RUN_T      0
 #define PARAM_DELTA_T    1
 #define PARAM_DCPWR_T    2
 #define PARAM_GRID       3
@@ -202,9 +202,10 @@ grid_t      grid[MAX_GRID_X][MAX_GRID_Y];
 node_t      node[MAX_NODE];
 int32_t     max_node;
 
+int32_t     model_state;
 long double model_t;
 long double delta_t;
-int32_t     model_state;
+long double stop_t;
 
 long double history_t;
 int32_t     max_history;

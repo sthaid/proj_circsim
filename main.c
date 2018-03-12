@@ -1080,7 +1080,7 @@ static void param_init(void)
             assert(rc == 0); \
         } while (0)
 
-    PARAM_CREATE(PARAM_STOP_T,     "stop_t",     "1s");
+    PARAM_CREATE(PARAM_RUN_T,      "run_t",      "1s");
     PARAM_CREATE(PARAM_DELTA_T,    "delta_t",    "1us");
     PARAM_CREATE(PARAM_DCPWR_T,    "dcpwr_t",    "1ms");
     PARAM_CREATE(PARAM_GRID,       "grid",       "off");
@@ -1106,7 +1106,7 @@ int32_t param_set(int32_t id, char *str_val)
     assert(param[id].name[0] != '\0');
 
     // check for params that have numeric values in UNITS_SECONDS
-    if ((id == PARAM_STOP_T ||
+    if ((id == PARAM_RUN_T ||
          id == PARAM_DELTA_T ||
          id == PARAM_DCPWR_T ||
          id == PARAM_SCOPE_T) &&
