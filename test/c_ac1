@@ -1,7 +1,7 @@
 clear_schematic
 
-add power      c3   d3   1.00V,1.00Hz
-add capacitor  c4   d4   1.00F
+add power      c3   d3   1.00V,1000Hz
+add capacitor  c4   d4   1.00mf
 add wire       c3   c4   
 add wire       d3   d4   
 
@@ -10,9 +10,9 @@ ground d3
 set center d4,153,143
 set scale  354
 
-set scope_t 5
+set scope_t 5ms
 set scope_a voltage,-1.5,1.5,c3
 set scope_b current,-10,10,c4,d4
 
-model run 5
+model run 5ms
 
