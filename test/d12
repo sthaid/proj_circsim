@@ -1,0 +1,20 @@
+# XXX NOT WORKING  - BEST EXAMPLE
+clear_schematic
+
+add power      b1  c1 5v,5hz
+add diode      b1  b2 
+add capacitor  b2  c2 1mf
+add diode      c2  c1
+
+ground c1
+
+set center c2,19,100
+set scale  322
+
+set scope_t 100ms
+set scope_a voltage,-10,10,b1,c1,POWER
+set scope_b voltage,-10,10,b1,b2,DIODE
+set scope_c voltage,-10,10,c2,c1,DIODE
+
+model run 100ms
+

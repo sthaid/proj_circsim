@@ -1,0 +1,18 @@
+clear_schematic
+
+add power      b1  c1 5v,5hz
+add diode      b1  b2 
+add capacitor  b2  c2 1mf
+add wire       c2  c1
+
+ground c1
+
+set center c1,-151,-29
+set scale  322
+
+set scope_t 1s
+set scope_a voltage,-10,10,b1,b2,DIODE
+set scope_b voltage,-10,10,b2,c2,CAP
+
+model run 1s
+
