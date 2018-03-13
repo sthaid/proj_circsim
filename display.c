@@ -425,7 +425,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                         continue;
                     }
 
-                    val_to_str(n->v_current, UNITS_VOLTS, s);
+                    val_to_str(n->v_now, UNITS_VOLTS, s);
                     sdl_render_printf(pane, x, y, fpsz, BLACK, WHITE, "%s", s);
                 }
             }

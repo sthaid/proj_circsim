@@ -1,8 +1,3 @@
-#if 0
-// XXX
-// - rename v_current to v_now
-#endif
-
 #include "common.h"
 
 //
@@ -29,13 +24,12 @@ cmd: reset          - resets to time 0 initial condition\n\
 \n\
 "
 
-// xxx make it clear these are short for params from there names
-#define RUN_T           (param_num_val(PARAM_RUN_T))
-#define DELTA_T         (param_num_val(PARAM_DELTA_T))
-#define DCPWR_T         (param_num_val(PARAM_DCPWR_T))
-#define SCOPE_T         (param_num_val(PARAM_SCOPE_T))
-#define SCOPE_MODE      (param_str_val(PARAM_SCOPE_MODE))
-#define SCOPE_TRIGGER   (param_num_val(PARAM_SCOPE_TRIGGER))
+#define P_RUN_T           (param_num_val(PARAM_RUN_T))
+#define P_DELTA_T         (param_num_val(PARAM_DELTA_T))
+#define P_DCPWR_T         (param_num_val(PARAM_DCPWR_T))
+#define P_SCOPE_T         (param_num_val(PARAM_SCOPE_T))
+#define P_SCOPE_MODE      (param_str_val(PARAM_SCOPE_MODE))
+#define P_SCOPE_TRIGGER   (param_num_val(PARAM_SCOPE_TRIGGER))
 
 //
 // typedefs
@@ -140,8 +134,7 @@ int32_t model_run(void)
     // reset the model
     reset();
 
-    // xxx comment
-    // determine final_delta_t, which is used by the model_thread's call to adjust_delta_t
+    // determine final_delta_t, which is used by the model_thread call to adjust_delta_t
     rc = determine_final_delta_t();
     if (rc < 0) {
         reset();
@@ -157,7 +150,7 @@ int32_t model_run(void)
     }
 
     // set model stop time
-    stop_t = RUN_T;
+    stop_t = P_RUN_T;
 
     // set the model state to RUNNING
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
@@ -183,7 +176,7 @@ int32_t model_cont(void)
     if (model_state == MODEL_STATE_RESET) {
         model_run();
     } else if (model_state == MODEL_STATE_STOPPED) {
-        stop_t = model_t + RUN_T;
+        stop_t = model_t + P_RUN_T;
         SET_MODEL_REQ(MODEL_STATE_RUNNING);
     } else {
         ERROR("not stopped or reset\n");
@@ -487,20 +480,19 @@ static void * model_thread(void * cx)
         // handle request to transition model_state
         if (model_state_req != model_state) {
             INFO("model_state is %s\n", MODEL_STATE_STR(model_state_req));
-            INFO("xxx delta_t %Lf us\n", delta_t * 1000000);
         }
         model_state = model_state_req;
         __sync_synchronize();
 
         // if scope time param has changed or scope trigger is requested 
         // then reset scope history
-        if (SCOPE_T != last_scope_t) {
-            last_scope_t = SCOPE_T;
+        if (P_SCOPE_T != last_scope_t) {
+            last_scope_t = P_SCOPE_T;
             history_t = model_t;
             max_history = 0;
             __sync_synchronize();
         }
-        if (SCOPE_TRIGGER == 1) {
+        if (P_SCOPE_TRIGGER == 1) {
             param_set(PARAM_SCOPE_TRIGGER, "0");
             history_t = model_t;
             max_history = 0;
@@ -513,7 +505,11 @@ static void * model_thread(void * cx)
             continue;
         }
 
-        // xxx coment
+        // adjust the delta_t; when the model starts the delta_t starts very
+        // small and ramps up to 1e-9 in the first 1ms; after that the delta_t
+        // gradually adjusts to either:
+        // - dcpwr:  1us
+        // - acpwr:  1 / ac_frequency / 1000000
         adjust_delta_t(&delta_t, model_t==0);
 
         // increment time
@@ -539,17 +535,17 @@ static void * model_thread(void * cx)
 
                     switch (c->type) {
                     case COMP_RESISTOR:
-                        r_sum_num += (other_n->v_current / c->resistor.ohms);
+                        r_sum_num += (other_n->v_now / c->resistor.ohms);
                         r_sum_denom += (1 / c->resistor.ohms);
                         break;
                     case COMP_CAPACITOR:
-                        c_sum_num += (n->v_current + other_n->v_current - other_n->v_prior) *
+                        c_sum_num += (n->v_now + other_n->v_now - other_n->v_prior) *
                                      (c->capacitor.farads / delta_t);
                         c_sum_denom += c->capacitor.farads / delta_t;
                         break;
                     case COMP_INDUCTOR:
                         l_sum_num += 
-                            (delta_t / c->inductor.henrys) * (other_n->v_current + other_n->v_current - other_n->v_prior);
+                            (delta_t / c->inductor.henrys) * (other_n->v_now + other_n->v_now - other_n->v_prior);
                         if (termid == 0) {
                             l_sum_num -= c->i_current;
                         } else {
@@ -562,9 +558,9 @@ static void * model_thread(void * cx)
                         long double dv, ohms;
 
                         if (termid == 0) {
-                            dv = (n->v_current - other_n->v_current);
+                            dv = (n->v_now - other_n->v_now);
                         } else {
-                            dv = (-n->v_current + other_n->v_current);
+                            dv = (-n->v_now + other_n->v_now);
                         }
 
                         ohms = expl(50.L * (.7L - dv));
@@ -581,7 +577,7 @@ static void * model_thread(void * cx)
                         basic_exponential_smoothing(ohms, &c->diode_smooth_ohms[termid], 0.75);
 #endif
 
-                        r_sum_num += (other_n->v_current / c->diode_smooth_ohms[termid]);
+                        r_sum_num += (other_n->v_now / c->diode_smooth_ohms[termid]);
                         r_sum_denom += (1 / c->diode_smooth_ohms[termid]);
                         break; }
                     default:
@@ -603,17 +599,17 @@ static void * model_thread(void * cx)
                 c->i_next = (n0->v_next - n1->v_next) / c->resistor.ohms;
                 break;
             case COMP_CAPACITOR:
-                c->i_next = ((n0->v_next - n1->v_next) - (n0->v_current - n1->v_current)) *
+                c->i_next = ((n0->v_next - n1->v_next) - (n0->v_now - n1->v_now)) *
                             (c->capacitor.farads / delta_t);
                 break;
             case COMP_INDUCTOR: {
-                long double v0 = (n0->v_next + n0->v_current) / 2.;
-                long double v1 = (n1->v_next + n1->v_current) / 2.;
+                long double v0 = (n0->v_next + n0->v_now) / 2.;
+                long double v1 = (n1->v_next + n1->v_now) / 2.;
                 c->i_next = c->i_current + (delta_t / c->inductor.henrys) * (v0 - v1);
                 break; }
             case COMP_DIODE: {
-                long double v0 = (n0->v_next + n0->v_current) / 2.;
-                long double v1 = (n1->v_next + n1->v_current) / 2.;
+                long double v0 = (n0->v_next + n0->v_now) / 2.;
+                long double v1 = (n1->v_next + n1->v_now) / 2.;
                 long double v = (v0 - v1);
                 long double ohms = (c->diode_smooth_ohms[0] + c->diode_smooth_ohms[1]);
                 if (c->diode_smooth_ohms[0] != 0 && c->diode_smooth_ohms[1] != 0) {
@@ -647,8 +643,8 @@ static void * model_thread(void * cx)
         // rotate next -> current -> prior
         for (i = 0; i < max_node; i++) {
             node_t * n = &node[i];
-            n->v_prior = n->v_current;
-            n->v_current = n->v_next;
+            n->v_prior = n->v_now;
+            n->v_now = n->v_next;
         }
         for (i = 0; i < max_component; i++) {
             component_t *c = &component[i];
@@ -657,7 +653,7 @@ static void * model_thread(void * cx)
 
         // keep track of voltage and current history, 
         // these are used for the scope display
-        idx = (model_t - history_t) / SCOPE_T * MAX_HISTORY;
+        idx = (model_t - history_t) / P_SCOPE_T * MAX_HISTORY;
         if (idx < MAX_HISTORY) {
             for (i = 0; i < max_component; i++) {
                 component_t *c = &component[i];
@@ -672,7 +668,7 @@ static void * model_thread(void * cx)
             __sync_synchronize();
             max_history = idx + 1;
             __sync_synchronize();
-        } else if (strcmp(SCOPE_MODE, "continuous") == 0) {
+        } else if (strcmp(P_SCOPE_MODE, "continuous") == 0) {
             history_t = model_t;
             max_history = 0;
             __sync_synchronize();
@@ -695,12 +691,12 @@ static long double get_comp_power_voltage(component_t * c)
     long double v;
 
     if (c->power.hz == 0) {
-        // dc XXX try linear ramp up
+        // dc 
         // xxx get rid of this param, and use a #define
-        if (model_t >= DCPWR_T) {
+        if (model_t >= P_DCPWR_T) {
             v = c->power.volts;
         } else {
-            v = c->power.volts * sinl((model_t / DCPWR_T) * M_PI_2);
+            v = c->power.volts * model_t / P_DCPWR_T;
         }
     } else {
         // ac
@@ -755,40 +751,45 @@ static void adjust_delta_t(long double *delta_t, bool init)
 
 static int32_t determine_final_delta_t(void) 
 {
-    // xxx comments
-    if (DELTA_T > 0) {
-        final_delta_t = DELTA_T;
+    // if delta_t value has been specified then use that value for final_delta_t
+    if (P_DELTA_T > 0) {
+        final_delta_t = P_DELTA_T;
         INFO("MANUALLY DETERMINED final_delta_t = %Lf us\n", final_delta_t * 1000000);
-    } else {
-        int32_t i, dcpwr_cnt=0, acpwr_cnt=0;
-        long double max_freq=0;
-        for (i = 0; i < max_component; i++) {
-            component_t *c = &component[i];
-            if (c->type == COMP_POWER) {
-                if (c->power.hz == 0) {
-                    dcpwr_cnt++;
-                } else {
-                    acpwr_cnt++;
-                    if (c->power.hz > max_freq) {
-                        max_freq = c->power.hz;
-                    }
+        return 0;
+    }
+
+    // delta_t value has not been specified; final_delta_t will be determined as follows:
+    // - only dcpwr: use 1us
+    // - acpwr: use (1/max_freq/1000000) or 1us, whichever is smaller
+    int32_t i, dcpwr_cnt=0, acpwr_cnt=0;
+    long double max_freq=0;
+
+    for (i = 0; i < max_component; i++) {
+        component_t *c = &component[i];
+        if (c->type == COMP_POWER) {
+            if (c->power.hz == 0) {
+                dcpwr_cnt++;
+            } else {
+                acpwr_cnt++;
+                if (c->power.hz > max_freq) {
+                    max_freq = c->power.hz;
                 }
             }
         }
-        if (dcpwr_cnt == 0 && acpwr_cnt == 0) {
-            ERROR("unable to automatically determine final_delta_t\n");
-            return -1;
-        } else if (dcpwr_cnt > 0 && acpwr_cnt == 0) {
-            final_delta_t = 1e-6;  // 1 us
-        } else {
-            final_delta_t = 1 / max_freq / 1000000;
-            INFO("XXX %Le  maxfreq=%Lf\n", final_delta_t, max_freq);
-            if (final_delta_t > 1e-6) {
-                final_delta_t = 1e-6;
-            }
-        }
-        INFO("AUTO DETERMINED final_delta_t = %Lf us\n", final_delta_t * 1000000);
     }
 
+    if (dcpwr_cnt == 0 && acpwr_cnt == 0) {
+        ERROR("unable to automatically determine final_delta_t\n");
+        return -1;
+    } else if (dcpwr_cnt > 0 && acpwr_cnt == 0) {
+        final_delta_t = 1e-6;  // 1 us
+    } else {
+        final_delta_t = 1 / max_freq / 1000000;
+        if (final_delta_t > 1e-6) {
+            final_delta_t = 1e-6;
+        }
+    }
+
+    INFO("AUTO DETERMINED final_delta_t = %Lf us\n", final_delta_t * 1000000);
     return 0;
 }

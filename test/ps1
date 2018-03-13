@@ -24,6 +24,7 @@ set scale  266
 set scope_t .1    
 set scope_a voltage,-200,200,c6,d6
 set scope_b current,-1,1,c6,d6
+set scope_mode continuous
 
-model run .1     
+model run 1000000
 

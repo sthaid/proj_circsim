@@ -184,7 +184,7 @@ typedef struct node_s {
     bool ground;
     terminal_t * power;
     long double v_next;
-    long double v_current;
+    long double v_now;
     long double v_prior;
     hist_t v_history[MAX_HISTORY];
 } node_t;
