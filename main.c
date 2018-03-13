@@ -1081,7 +1081,7 @@ static void param_init(void)
         } while (0)
 
     PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
-    PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "1us"      );
+    PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "0"        );
     PARAM_CREATE(PARAM_DCPWR_T,       "dcpwr_t",       "1ms"      );
     PARAM_CREATE(PARAM_GRID,          "grid",          "off"      );
     PARAM_CREATE(PARAM_CURRENT,       "current",       "on"       );
@@ -1112,11 +1112,10 @@ int32_t param_set(int32_t id, char *str_val)
          id == PARAM_DELTA_T ||
          id == PARAM_DCPWR_T ||
          id == PARAM_SCOPE_T) &&
-        ((str_to_val(str_val, UNITS_SECONDS, &num_val) == -1) ||
-         (num_val <= 0)))
+        (str_to_val(str_val, UNITS_SECONDS, &num_val) == -1))
     {
         ERROR("failed to set '%s', invalid time value\n", param_name(id));
-        return -1;
+        return -1;   // xxx make sure some of these are not 0
     }
 
     // check for params that have simple numeric values

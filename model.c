@@ -29,6 +29,7 @@ cmd: reset          - resets to time 0 initial condition\n\
 \n\
 "
 
+// xxx make it clear these are short for params from there names
 #define RUN_T           (param_num_val(PARAM_RUN_T))
 #define DELTA_T         (param_num_val(PARAM_DELTA_T))
 #define DCPWR_T         (param_num_val(PARAM_DCPWR_T))
@@ -44,8 +45,9 @@ cmd: reset          - resets to time 0 initial condition\n\
 // variables
 //
 
-static int32_t  model_state_req;
-static bool     model_step_req;
+static int32_t     model_state_req;
+static bool        model_step_req;
+static long double final_delta_t;
 
 //
 // prototypes
@@ -59,6 +61,7 @@ static void reset(void);
 static void * model_thread(void * cx);
 static long double get_comp_power_voltage(component_t * c);
 static void adjust_delta_t(long double *delta_t, bool init);
+static int32_t determine_final_delta_t(void);
 
 // -----------------  PUBLIC ---------------------------------------------------------
 
@@ -137,8 +140,13 @@ int32_t model_run(void)
     // reset the model
     reset();
 
-    // set model stop time
-    stop_t = RUN_T;
+    // xxx comment
+    // determine final_delta_t, which is used by the model_thread's call to adjust_delta_t
+    rc = determine_final_delta_t();
+    if (rc < 0) {
+        reset();
+        return -1;
+    }
 
     // analyze the grid and components to create list of nodes;
     // if this fails then reset the model variables
@@ -147,6 +155,9 @@ int32_t model_run(void)
         reset();
         return -1;
     }
+
+    // set model stop time
+    stop_t = RUN_T;
 
     // set the model state to RUNNING
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
@@ -557,14 +568,18 @@ static void * model_thread(void * cx)
                         }
 
                         ohms = expl(50.L * (.7L - dv));
-                        if (ohms > 1e9) {
-                            ohms = 1e9;
+                        if (ohms > 1e12) {
+                            ohms = 1e12;
                         }
                         if (ohms < .1) {
                             ohms = .1;
                         }
 
+#if 1
                         basic_exponential_smoothing(ohms, &c->diode_smooth_ohms[termid], 0.01);
+#else
+                        basic_exponential_smoothing(ohms, &c->diode_smooth_ohms[termid], 0.75);
+#endif
 
                         r_sum_num += (other_n->v_current / c->diode_smooth_ohms[termid]);
                         r_sum_denom += (1 / c->diode_smooth_ohms[termid]);
@@ -673,12 +688,15 @@ static void * model_thread(void * cx)
     return NULL;
 }
 
+// -----------------  SUPPORT ROUTINES  ----------------------------------------------
+
 static long double get_comp_power_voltage(component_t * c)
 {
     long double v;
 
     if (c->power.hz == 0) {
         // dc XXX try linear ramp up
+        // xxx get rid of this param, and use a #define
         if (model_t >= DCPWR_T) {
             v = c->power.volts;
         } else {
@@ -694,23 +712,6 @@ static long double get_comp_power_voltage(component_t * c)
 
 static void adjust_delta_t(long double *delta_t, bool init)
 {
-// XXX - instead of setting delta_t, set frequency (or use a defualt), this
-//  should be 0 for dc, or the highest power supply frequency, if defulat, othersie
-//  we'll use the specified setting.
-//  if dc then delta_t is based on the dc ramp frequncy of xxx hz;  and will auto change to 
-//  delta_t=1us following that
-//
-//  for ac delta_t=10ns works for a frequency of 100hz
-//
-//  the 1 ms dcramp time is 250hz, 
-//
-//    factor is 2.5e-7    IS 4000000 samples per
-//       100hz = .01   ====  .01  * 2.5e-7   = 2.5e-9  = 2.5ns
-//       250hz = .004  ====  .004 * 2.5e-7   = 1e-9
-//
-//   try 1 million
-//
-//      formula :  delta_t = 1 / frequency / 4000000
     long double target_dt;
 
     static long double last_target_dt;
@@ -723,9 +724,9 @@ static void adjust_delta_t(long double *delta_t, bool init)
     }
 
     if (model_t < .001) {
-        target_dt = 1e-9;
+        target_dt = (final_delta_t < 1e-9 ? final_delta_t : 1e-9);
     } else {
-        target_dt = DELTA_T;
+        target_dt = final_delta_t;
     }
     assert(target_dt > 0);
 
@@ -734,8 +735,8 @@ static void adjust_delta_t(long double *delta_t, bool init)
         steps = 2 * .001 / fabsl(target_dt - *delta_t);
         if (steps < 1000) steps = 1000;
         adjust_dt = (target_dt - *delta_t) / steps;
-        //INFO("%Le - TARGET_DT=%Le  CURR_DT=%Le  STEPS=%ld  ADJUST=%Le\n", 
-        //     model_t, target_dt, *delta_t, steps, adjust_dt);
+        INFO("%Le - TARGET_DT=%Le  CURR_DT=%Le  STEPS=%ld  ADJUST=%Le\n", 
+             model_t, target_dt, *delta_t, steps, adjust_dt);
         last_target_dt = target_dt;
     }
 
@@ -743,11 +744,51 @@ static void adjust_delta_t(long double *delta_t, bool init)
         long double low  = target_dt - .51 * fabsl(adjust_dt);
         long double high = target_dt + .51 * fabsl(adjust_dt);
         if (*delta_t > low && *delta_t < high) {
-            //INFO("%Le - REACHED TARGET =%Le\n", model_t, *delta_t);
+            INFO("%Le - REACHED TARGET =%Le\n", model_t, *delta_t);
             adjust_dt = 0;
             *delta_t = target_dt;
         } else {
             *delta_t += adjust_dt;
         }
     }
+}
+
+static int32_t determine_final_delta_t(void) 
+{
+    // xxx comments
+    if (DELTA_T > 0) {
+        final_delta_t = DELTA_T;
+        INFO("MANUALLY DETERMINED final_delta_t = %Lf us\n", final_delta_t * 1000000);
+    } else {
+        int32_t i, dcpwr_cnt=0, acpwr_cnt=0;
+        long double max_freq=0;
+        for (i = 0; i < max_component; i++) {
+            component_t *c = &component[i];
+            if (c->type == COMP_POWER) {
+                if (c->power.hz == 0) {
+                    dcpwr_cnt++;
+                } else {
+                    acpwr_cnt++;
+                    if (c->power.hz > max_freq) {
+                        max_freq = c->power.hz;
+                    }
+                }
+            }
+        }
+        if (dcpwr_cnt == 0 && acpwr_cnt == 0) {
+            ERROR("unable to automatically determine final_delta_t\n");
+            return -1;
+        } else if (dcpwr_cnt > 0 && acpwr_cnt == 0) {
+            final_delta_t = 1e-6;  // 1 us
+        } else {
+            final_delta_t = 1 / max_freq / 1000000;
+            INFO("XXX %Le  maxfreq=%Lf\n", final_delta_t, max_freq);
+            if (final_delta_t > 1e-6) {
+                final_delta_t = 1e-6;
+            }
+        }
+        INFO("AUTO DETERMINED final_delta_t = %Lf us\n", final_delta_t * 1000000);
+    }
+
+    return 0;
 }

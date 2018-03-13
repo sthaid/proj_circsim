@@ -1,23 +1,14 @@
+model reset  ->  model cont 1ms    advances time extra us
+
+work on test d13 and d12
+
 add cap to ps1
-
-set params on the command line
-
-scope trigger
-- scope_mode param
-    continuous
-    trigger
-- scope trigger param
-    set scope_trigger 1 or 0
-
-auto retrigger scope
-trigger button for scope
 
 XXX issues
 
 scope ...
 - scope headings should be english
 - identify scope points on display
-- need a better way to trigger the scope
 - validate scope params in main.c
 
 ====================  NEXT  =================================================
@@ -47,6 +38,8 @@ LC circuit decay
 
 ====================  FOR CONSIDERATION  ====================================
 
+set params on the command line
+
 other component stuff to track
   - power
   - energy
@@ -59,6 +52,11 @@ init prior voltage on power up, delta_t==0
 consider reversing the gridloc A3  ->  3A
   - algebraic chess is    a b c d e f g h
                         8      etc
+
+====================  INFO  =================================================
+
+graphs
+https://www.desmos.com/calculator
 
 ====================  DONE  =================================================
 
@@ -105,3 +103,30 @@ should allow setting delta_t whne model is stopped ?
 add diode
 
 - check time params for > 0
+
+scope trigger
+- scope_mode param
+    continuous
+    trigger
+- scope trigger param
+    set scope_trigger 1 or 0
+auto retrigger scope
+trigger button for scope
+
+automatically set delta_t when running the model
+  if delta_t param is AUTO
+    loop over all components
+      count dc and ac power
+      keep track of highest ac hz
+    endloop
+    freq = dcpower and notacpwr   ? 250
+           notdcpower and acpwr   ?  maxacfreq
+           dcpower and acpwr      ?  max(250,maxacfreq)
+                                  :  error
+     if freq == 0 error
+     delta_t = xxxx
+  else
+    use fixed delta_t from the param
+  endif
+
+more diode circuits
