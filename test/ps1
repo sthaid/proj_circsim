@@ -25,7 +25,5 @@ set scope_t .1
 set scope_a voltage,-200,200,c6,d6
 set scope_b current,-1,1,c6,d6
 
-set delta_t .1us
-
 model run .1     
 
