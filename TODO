@@ -1,3 +1,9 @@
+OPTIMIZATION
+- define DOUBLE as either long doulbe or double
+  and adjust print formats
+- factor common operations
+
+
 Tests Not Working  (using .01)
 d10, d12   oscillations
 ps1        currents

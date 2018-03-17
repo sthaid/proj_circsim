@@ -96,10 +96,6 @@
 #define MIN_GRID_SCALE     100
 #define MAX_GRID_SCALE     400
 
-// use case insensitve compare
-#define strcmp strcasecmp
-#define strncmp strncasecmp
-
 //
 // typedefs
 //
@@ -158,8 +154,9 @@ typedef struct component_s {
     int32_t zero_init_component_state;
     long double i_next;
     long double i_current;
-    long double diode_smooth_ohms[2];
-    long double diode_smooth_b[2];
+    //long double diode_smooth_ohms[2];
+    //long double diode_smooth_b[2];
+    long double diode_ohms;
     hist_t i_history[MAX_HISTORY];
 } component_t;
 

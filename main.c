@@ -215,7 +215,7 @@ static int32_t process_cmd(char * cmdline)
 
     // find cmd in cmd_tbl
     for (i = 0; i < MAX_CMD_TBL; i++) {
-        if (strcmp(cmd, cmd_tbl[i].name) == 0) {
+        if (strcasecmp(cmd, cmd_tbl[i].name) == 0) {
             display_lock();
             rc = cmd_tbl[i].proc(args);
             display_unlock();
@@ -280,7 +280,7 @@ static int32_t cmd_show(char *args)
     show_all = (what == NULL);
 
     // show params
-    if (show_all || strcmp(what,"params") == 0) {
+    if (show_all || strcasecmp(what,"params") == 0) {
         INFO("PARAMS\n");
         for (i = 0; i < MAX_PARAM; i++) {
             if (param_name(i) != NULL) {
@@ -292,7 +292,7 @@ static int32_t cmd_show(char *args)
     }
 
     // show components
-    if (show_all || strcmp(what,"components") == 0) {
+    if (show_all || strcasecmp(what,"components") == 0) {
         INFO("COMPONENTS\n");
         for (i = 0; i < max_component; i++) {
             component_t * c = &component[i];
@@ -306,7 +306,7 @@ static int32_t cmd_show(char *args)
     }
 
     // show ground
-    if (show_all || strcmp(what,"ground") == 0) {
+    if (show_all || strcasecmp(what,"ground") == 0) {
         INFO("GROUND\n");
         INFO("  ground %s\n", ground_is_set ? gridloc_to_str(&ground,s) : "NOT_SET");
         BLANK_LINE;
@@ -567,7 +567,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     // convert type_str to type; 
     // if type_str does not exist then return error
     for (i = 0; i <= COMP_LAST; i++) {
-        if (strcmp(component_type_str[i], type_str) == 0) {
+        if (strcasecmp(component_type_str[i], type_str) == 0) {
             type = i;
             break;
         }
@@ -632,7 +632,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     case COMP_WIRE:
         value_str = strtok(value_str, ",");
         if (value_str) {
-            if (strcmp(value_str,"remote") != 0) {
+            if (strcasecmp(value_str,"remote") != 0) {
                 ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
                 return -1;
             }
@@ -770,12 +770,12 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
 static int32_t del_component(char * comp_str)
 {
     int32_t i, j;
-    component_t *c;
+    component_t *c = NULL;
 
     // locate the component to be deleted
     for (i = 0; i < max_component; i++) {
         c = &component[i];
-        if (c->type != COMP_NONE && strcmp(c->comp_str, comp_str) == 0) {
+        if (c->type != COMP_NONE && strcasecmp(c->comp_str, comp_str) == 0) {
             break;
         }
     }
@@ -903,11 +903,15 @@ char * component_to_value_str(component_t * c, char *s)
         break;
     case COMP_DIODE: {
         // XXX temp
+#if 0
         long double ohms = (c->diode_smooth_ohms[0] + c->diode_smooth_ohms[1]);
         if (c->diode_smooth_ohms[0] != 0 && c->diode_smooth_ohms[1] != 0) {
             ohms /= 2;
         }
         val_to_str(ohms, UNITS_OHMS, s);
+#else
+        val_to_str(c->diode_ohms, UNITS_OHMS, s);
+#endif
         break; }
     case COMP_WIRE:
         break;
@@ -998,7 +1002,7 @@ int32_t str_to_val(char * s, int32_t units, long double * val_result)
             if (t->factor == 0) {
                 return -1;
             }
-            if (strcmp(units_str, t->units) == 0) {
+            if (strcasecmp(units_str, t->units) == 0) {
                 *val_result = v * t->factor;
                 return n;
             }
@@ -1135,7 +1139,7 @@ int32_t param_set(int32_t id, char *str_val)
     if ((id == PARAM_GRID ||
          id == PARAM_CURRENT ||
          id == PARAM_VOLTAGE) &&
-        (strcmp(str_val, "on") != 0 && strcmp(str_val, "off") != 0))
+        (strcasecmp(str_val, "on") != 0 && strcasecmp(str_val, "off") != 0))
     {
         ERROR("failed to set '%s', expected 'on' or 'off'\n", param_name(id));
         return -1;
@@ -1143,7 +1147,7 @@ int32_t param_set(int32_t id, char *str_val)
 
     // check PARAM_COMPONENT
     if ((id == PARAM_COMPONENT) &&
-        (strcmp(str_val, "value") != 0 && strcmp(str_val, "id") != 0))
+        (strcasecmp(str_val, "value") != 0 && strcasecmp(str_val, "id") != 0))
     {
         ERROR("failed to set '%s', expected 'value' or 'id'\n", param_name(id));
         return -1;
@@ -1161,7 +1165,7 @@ int32_t param_set(int32_t id, char *str_val)
 
     // check PARAM_SCOPE_MODE
     if ((id == PARAM_SCOPE_MODE) &&
-        (strcmp(str_val, "continuous") != 0 && strcmp(str_val, "trigger") != 0))
+        (strcasecmp(str_val, "continuous") != 0 && strcasecmp(str_val, "trigger") != 0))
     {
         ERROR("failed to set '%s', expected 'value' or 'id'\n", param_name(id));
         return -1;
@@ -1181,7 +1185,7 @@ int32_t param_set_by_name(char *name, char *str)
     int32_t id;
 
     for (id = 0; id < MAX_PARAM; id++) {
-        if (param[id].name != NULL && strcmp(name, param[id].name) == 0) {
+        if (param[id].name != NULL && strcasecmp(name, param[id].name) == 0) {
             return param_set(id, str);
         }
     }

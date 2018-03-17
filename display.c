@@ -1,3 +1,4 @@
+// XXX don't display current arrows if = 0
 #include "common.h"
 
 //
@@ -207,7 +208,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         fpsz = grid_scale * 40 / MAX_GRID_SCALE;
 
         // draw grid, if enabled
-        if (strcmp(param_str_val(PARAM_GRID), "on") == 0) {
+        if (strcasecmp(param_str_val(PARAM_GRID), "on") == 0) {
             int32_t glx, gly, x, y, count=0;
             point_t points[MAX_GRID_X*MAX_GRID_Y];
 
@@ -350,10 +351,10 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         } }
 
         // display component id or value, if enabled
-        if (strcmp(param_str_val(PARAM_COMPONENT), "id") == 0 ||
-            strcmp(param_str_val(PARAM_COMPONENT), "value") == 0)
+        if (strcasecmp(param_str_val(PARAM_COMPONENT), "id") == 0 ||
+            strcasecmp(param_str_val(PARAM_COMPONENT), "value") == 0)
         {
-            bool display_id = (strcmp(param_str_val(PARAM_COMPONENT), "id") == 0 );
+            bool display_id = (strcasecmp(param_str_val(PARAM_COMPONENT), "id") == 0 );
             int32_t i, x, y;
             char *s, s1[100];
             component_t *c;
@@ -398,8 +399,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         } 
 
         // display the voltage at all node gridlocs;
-        if (strcmp(param_str_val(PARAM_GRID), "off") == 0 &&
-            strcmp(param_str_val(PARAM_VOLTAGE), "on") == 0) 
+        if (strcasecmp(param_str_val(PARAM_GRID), "off") == 0 &&
+            strcasecmp(param_str_val(PARAM_VOLTAGE), "on") == 0) 
         {
             int32_t i, j, x, y;
             component_t *c;
@@ -432,7 +433,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         }
 
         // display current for all components, if enabled
-        if (strcmp(param_str_val(PARAM_CURRENT), "on") == 0) {
+        if (strcasecmp(param_str_val(PARAM_CURRENT), "on") == 0) {
             int32_t i, x, y;
             component_t *c;
             long double current;
@@ -750,7 +751,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
         sdl_render_text_and_register_event(
             pane, pane->w-COL2X(4,FPSZ_SMALL), 0, FPSZ_SMALL, "MODE", LIGHT_BLUE, WHITE,
             SDL_EVENT_SCOPE_MODE, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
-        if (strcmp(param_str_val(PARAM_SCOPE_MODE), "continuous") == 0) {
+        if (strcasecmp(param_str_val(PARAM_SCOPE_MODE), "continuous") == 0) {
             sdl_render_printf(
                pane, pane->w-COL2X(4,FPSZ_SMALL), ROW2Y(1,FPSZ_SMALL), 
                FPSZ_SMALL, BLACK, WHITE, "CONT");
@@ -799,11 +800,11 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             {
                 continue;
             }
-            if (strcmp(select_str,"voltage") == 0) {
+            if (strcasecmp(select_str,"voltage") == 0) {
                 history0 = grid[gl0.x][gl0.y].node->v_history;
                 history1 = (gl1_str ? grid[gl1.x][gl1.y].node->v_history : NULL);
                 sign = 1;
-            } else if (strcmp(select_str,"current") == 0) {
+            } else if (strcasecmp(select_str,"current") == 0) {
                 // gl0 and gl1 must both be specified to identify the component 
                 // for which we'll be displaying the current flow
                 if (gl1_str == NULL) {
@@ -902,7 +903,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
     if (request == PANE_HANDLER_REQ_EVENT) {
         switch(event->event_id) {
         case SDL_EVENT_SCOPE_MODE: {
-            bool continuous = (strcmp(param_str_val(PARAM_SCOPE_MODE),"continuous") == 0);
+            bool continuous = (strcasecmp(param_str_val(PARAM_SCOPE_MODE),"continuous") == 0);
             param_set(PARAM_SCOPE_MODE, continuous ? "trigger" : "continuous");
             break; }
         case SDL_EVENT_SCOPE_TRIG:

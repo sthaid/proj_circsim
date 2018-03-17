@@ -1,6 +1,6 @@
 clear_schematic
 
-add power      c2  d2 200,50hz
+add power      c2  d2 200,100hz
 add wire       c2 c3
 add diode      c3 c4
 add diode      d3 c3
@@ -23,10 +23,12 @@ ground d2
 set center d4,-4,-19
 set scale  266
 
-set scope_t .1    
+set scope_t 100ms   
 set scope_a voltage,-500,500,c6,d6
 set scope_b current,-5,5,c6,d6
 set scope_mode continuous
 
-model run 1000000
+set delta_t 1ps
+
+model run 100ms   
 

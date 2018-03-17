@@ -4,7 +4,7 @@ CC = gcc
 OUTPUT_OPTION=-MMD -MP -o $@
 # CFLAGS_PROFILING = -pg
 CFLAGS_SDL2 = $(shell sdl2-config --cflags)
-CFLAGS = -g -O0 -Wall -Iutil $(CFLAGS_PROFILING) $(CFLAGS_SDL2)
+CFLAGS = -g -O2 -Wall -Iutil $(CFLAGS_PROFILING) $(CFLAGS_SDL2)
 
 SRC_MODEL = main.c \
             display.c \

@@ -80,9 +80,9 @@ int32_t model_cmd(char *cmdline)
     }
 
     // parse and process the cmd
-    if (strcmp(cmd, "reset") == 0) {
+    if (strcasecmp(cmd, "reset") == 0) {
         rc = model_reset();
-    } else if (strcmp(cmd, "run") == 0) {
+    } else if (strcasecmp(cmd, "run") == 0) {
         if (((arg = strtok(NULL, " ")) != NULL) &&
             (param_set(PARAM_RUN_T, arg) < 0)) 
         {
@@ -90,9 +90,9 @@ int32_t model_cmd(char *cmdline)
             return -1;
         }
         rc = model_run();
-    } else if (strcmp(cmd, "stop") == 0) {
+    } else if (strcasecmp(cmd, "stop") == 0) {
         rc = model_stop();
-    } else if (strcmp(cmd, "cont") == 0) {
+    } else if (strcasecmp(cmd, "cont") == 0) {
         if (((arg = strtok(NULL, " ")) != NULL) &&
             (param_set(PARAM_RUN_T, arg) < 0)) 
         {
@@ -100,7 +100,7 @@ int32_t model_cmd(char *cmdline)
             return -1;
         }
         rc = model_cont();
-    } else if (strcmp(cmd, "step") == 0) {
+    } else if (strcasecmp(cmd, "step") == 0) {
         rc = model_step();
     } else {
         ERROR("unsupported cmd '%s'\n", cmd);
@@ -176,6 +176,7 @@ int32_t model_cont(void)
     if (model_state == MODEL_STATE_RESET) {
         model_run();
     } else if (model_state == MODEL_STATE_STOPPED) {
+        // XXX if haven't reached the stop_t then don't update it
         stop_t = model_t + P_RUN_T;
         SET_MODEL_REQ(MODEL_STATE_RUNNING);
     } else {
@@ -436,6 +437,7 @@ static void reset(void)
         memset(&c->zero_init_component_state, 
                0,
                sizeof(component_t) - offsetof(component_t,zero_init_component_state));
+        c->diode_ohms = 1e9;
     }
 
     for (glx = 0; glx < MAX_GRID_X; glx++) {
@@ -547,7 +549,7 @@ static void * model_thread(void * cx)
                         l_sum_num += 
                             (delta_t / c->inductor.henrys) * (other_n->v_now + other_n->v_now - other_n->v_prior);
                         if (termid == 0) {
-                            l_sum_num -= c->i_current;
+                            l_sum_num -= c->i_current;  // XXX change to i_now
                         } else {
                             l_sum_num += c->i_current;
                         }
@@ -555,37 +557,8 @@ static void * model_thread(void * cx)
                         break;
                     case COMP_DIODE: {
                         // XXX this section needs work
-                        long double dv, ohms;
-
-                        if (termid == 0) {
-                            dv = (n->v_now - other_n->v_now);
-                        } else {
-                            dv = (-n->v_now + other_n->v_now);
-                        }
-
-                        ohms = expl(50.L * (.7L - dv));
-                        if (ohms > 1e8) {
-                            ohms = 1e8;
-                        }
-                        if (ohms < .1) {
-                            ohms = .1;
-                        }
-
-#if 1
-                        // .7 works for  d10,d12       FAILS d1
-                        // .01 works for  MOST         FAILS d10,d12
-                        basic_exponential_smoothing(ohms, &c->diode_smooth_ohms[termid], 0.01);   
-#else
-                        double_exponential_smoothing(ohms,
-                                                     &c->diode_smooth_ohms[termid],
-                                                     &c->diode_smooth_b[termid],
-                                                     .7,      // long double alpha, 
-                                                     .0,     // long double beta, 
-                                                     model_t == delta_t);
-#endif
-
-                        r_sum_num += (other_n->v_now / c->diode_smooth_ohms[termid]);
-                        r_sum_denom += (1 / c->diode_smooth_ohms[termid]);
+                        r_sum_num += (other_n->v_now / c->diode_ohms);
+                        r_sum_denom += (1 / c->diode_ohms);
                         break; }
                     default:
                         FATAL("comp type %s not supported\n", c->type_str);
@@ -598,7 +571,7 @@ static void * model_thread(void * cx)
                 long double v_next;
                 v_next = (r_sum_num + c_sum_num + l_sum_num) /
                          (r_sum_denom + c_sum_denom + l_sum_denom);
-                basic_exponential_smoothing(v_next, &n->v_next, 0.99);
+                basic_exponential_smoothing(v_next, &n->v_next, 0.999);
 #endif
             }
         }
@@ -617,11 +590,27 @@ static void * model_thread(void * cx)
                             (c->capacitor.farads / delta_t);
                 break;
             case COMP_INDUCTOR: {
-                long double v0 = (n0->v_next + n0->v_now) / 2.;
+                long double v0 = (n0->v_next + n0->v_now) / 2.;  // xxx is now needed
                 long double v1 = (n1->v_next + n1->v_now) / 2.;
                 c->i_next = c->i_current + (delta_t / c->inductor.henrys) * (v0 - v1);
                 break; }
             case COMP_DIODE: {
+                long double dv, ohms;
+                long double v0 = (n0->v_next + n0->v_now) / 2.;  // xxx is now needed
+                long double v1 = (n1->v_next + n1->v_now) / 2.;
+                dv = (v0 - v1);
+                ohms = expl(50.L * (.7L - dv));
+                if (ohms > 1e9) {
+                    ohms = 1e9;
+                }
+                if (ohms < .01) {
+                    ohms = .01;
+                }
+                basic_exponential_smoothing(ohms, &c->diode_ohms, 0.01); 
+
+                c->i_next = dv / ohms;
+
+#if 0
                 long double v0 = (n0->v_next + n0->v_now) / 2.;
                 long double v1 = (n1->v_next + n1->v_now) / 2.;
                 long double v = (v0 - v1);
@@ -630,6 +619,7 @@ static void * model_thread(void * cx)
                     ohms /= 2;
                 }
                 c->i_next = v / ohms;
+#endif
                 break; }
             }
         }
@@ -682,7 +672,7 @@ static void * model_thread(void * cx)
             __sync_synchronize();
             max_history = idx + 1;
             __sync_synchronize();
-        } else if (strcmp(P_SCOPE_MODE, "continuous") == 0) {
+        } else if (strcasecmp(P_SCOPE_MODE, "continuous") == 0) {
             history_t = model_t;
             max_history = 0;
             __sync_synchronize();
@@ -711,6 +701,7 @@ static long double get_comp_power_voltage(component_t * c)
             v = c->power.volts;
         } else {
             v = c->power.volts * model_t / P_DCPWR_T;
+            //v = c->power.volts * sin((model_t / P_DCPWR_T) * M_PI_2);
         }
     } else {
         // ac
