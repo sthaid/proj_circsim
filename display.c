@@ -455,7 +455,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     continue;
                 }
 
-                current = c->i_current;
+                current = c->i_now;
                 val_to_str(fabsl(current), UNITS_AMPS, current_str);
                 pre_str = "";
                 post_str = "";

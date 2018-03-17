@@ -456,7 +456,7 @@ static void reset(void)
         component_t *c = &component[i];
         if (c->type == COMP_INDUCTOR && c->inductor.i_init != 0) {
             c->i_next    = c->inductor.i_init;
-            c->i_current = c->inductor.i_init;
+            c->i_now = c->inductor.i_init;
         }
     }
 }
@@ -549,9 +549,9 @@ static void * model_thread(void * cx)
                         l_sum_num += 
                             (delta_t / c->inductor.henrys) * (other_n->v_now + other_n->v_now - other_n->v_prior);
                         if (termid == 0) {
-                            l_sum_num -= c->i_current;  // XXX change to i_now
+                            l_sum_num -= c->i_now;
                         } else {
-                            l_sum_num += c->i_current;
+                            l_sum_num += c->i_now;
                         }
                         l_sum_denom += delta_t / c->inductor.henrys;
                         break;
@@ -592,7 +592,7 @@ static void * model_thread(void * cx)
             case COMP_INDUCTOR: {
                 long double v0 = (n0->v_next + n0->v_now) / 2.;  // xxx is now needed
                 long double v1 = (n1->v_next + n1->v_now) / 2.;
-                c->i_next = c->i_current + (delta_t / c->inductor.henrys) * (v0 - v1);
+                c->i_next = c->i_now + (delta_t / c->inductor.henrys) * (v0 - v1);
                 break; }
             case COMP_DIODE: {
                 long double dv, ohms;
@@ -652,7 +652,7 @@ static void * model_thread(void * cx)
         }
         for (i = 0; i < max_component; i++) {
             component_t *c = &component[i];
-            c->i_current = c->i_next;
+            c->i_now = c->i_next;
         }
 
         // keep track of voltage and current history, 
