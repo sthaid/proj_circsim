@@ -159,6 +159,7 @@ typedef struct component_s {
     long double i_next;
     long double i_current;
     long double diode_smooth_ohms[2];
+    long double diode_smooth_b[2];
     hist_t i_history[MAX_HISTORY];
 } component_t;
 

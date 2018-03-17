@@ -1,0 +1,20 @@
+clear_schematic
+
+add power      c1   d1   5.00V
+add resistor   c1   c2   3.33
+add capacitor  c2   c3   200mF
+add capacitor  c3   c4   200mF
+add resistor   c4   c5   3.33
+add resistor   c5   c6   3.33
+add wire       c6   d6   
+add wire       d6   d1   
+
+ground d1
+
+set center c4,121,-99
+set scale  240
+
+set scope_t 1s
+set scope_a voltage,0,1.58,c2,c3
+
+model run 1s

@@ -16,5 +16,6 @@ set scope_t 1s
 set scope_a voltage,-5,5,b2,c2
 set scope_b voltage,-5,5,c2,d2
 
-model run 1s
+#model run .05
+model run 1
 

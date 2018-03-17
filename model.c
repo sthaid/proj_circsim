@@ -564,17 +564,24 @@ static void * model_thread(void * cx)
                         }
 
                         ohms = expl(50.L * (.7L - dv));
-                        if (ohms > 1e12) {
-                            ohms = 1e12;
+                        if (ohms > 1e8) {
+                            ohms = 1e8;
                         }
                         if (ohms < .1) {
                             ohms = .1;
                         }
 
 #if 1
-                        basic_exponential_smoothing(ohms, &c->diode_smooth_ohms[termid], 0.01);
+                        // .7 works for  d10,d12       FAILS d1
+                        // .01 works for  MOST         FAILS d10,d12
+                        basic_exponential_smoothing(ohms, &c->diode_smooth_ohms[termid], 0.01);   
 #else
-                        basic_exponential_smoothing(ohms, &c->diode_smooth_ohms[termid], 0.75);
+                        double_exponential_smoothing(ohms,
+                                                     &c->diode_smooth_ohms[termid],
+                                                     &c->diode_smooth_b[termid],
+                                                     .7,      // long double alpha, 
+                                                     .0,     // long double beta, 
+                                                     model_t == delta_t);
 #endif
 
                         r_sum_num += (other_n->v_now / c->diode_smooth_ohms[termid]);
@@ -584,8 +591,15 @@ static void * model_thread(void * cx)
                         FATAL("comp type %s not supported\n", c->type_str);
                     }
                 }
+#if 0
                 n->v_next = (r_sum_num + c_sum_num + l_sum_num) /
                             (r_sum_denom + c_sum_denom + l_sum_denom);
+#else
+                long double v_next;
+                v_next = (r_sum_num + c_sum_num + l_sum_num) /
+                         (r_sum_denom + c_sum_denom + l_sum_denom);
+                basic_exponential_smoothing(v_next, &n->v_next, 0.99);
+#endif
             }
         }
 
@@ -719,11 +733,21 @@ static void adjust_delta_t(long double *delta_t, bool init)
         *delta_t       = 1e-16;
     }
 
+#if 1
     if (model_t < .001) {
         target_dt = (final_delta_t < 1e-9 ? final_delta_t : 1e-9);
     } else {
         target_dt = final_delta_t;
     }
+#else
+    if (model_t < .001) {
+        target_dt = (P_DELTA_T < 1e-9 ? P_DELTA_T : 1e-9);
+        if (target_dt < 1e-9) target_dt = 1e-9;
+    } else {
+        target_dt = P_DELTA_T;
+        if (target_dt < 1e-6) target_dt = 1e-6;
+    }
+#endif
     assert(target_dt > 0);
 
     if (target_dt != last_target_dt) {

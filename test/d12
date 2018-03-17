@@ -1,4 +1,5 @@
 # XXX NOT WORKING  - BEST EXAMPLE
+
 clear_schematic
 
 add power      b1  c1 5v,5hz
@@ -11,10 +12,17 @@ ground c1
 set center c2,19,100
 set scale  322
 
-set scope_t 1s
-set scope_a voltage,-5,5,b1,c1,POWER
-set scope_b voltage,-5,5,b1,b2,DIODE
-set scope_c voltage,-5,5,c2,c1,DIODE
+set scope_t 25ms
+set scope_a voltage,-5,5,b1 POWER
+set scope_b voltage,-1,1,b1,b2 DIODE
+set scope_c voltage,-1,1,c2 CAPACITOR
+set scope_d current,-1,1,b2,c2 CAPACITOR
 
-model run 1s
+#set delta_t 1e-7
 
+#model run 24ms
+
+#model run .009015
+
+set scope_t 1
+model run 1

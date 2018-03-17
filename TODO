@@ -1,3 +1,11 @@
+Tests Not Working  (using .01)
+d10, d12   oscillations
+ps1        currents
+ps1x       fluctiations
+
+Tests Not Working  (using .7)  
+d1, d2, ...
+
 model reset  ->  model cont 1ms    advances time extra us
 
 work on test d13 and d12
@@ -57,6 +65,15 @@ consider reversing the gridloc A3  ->  3A
 
 graphs
 https://www.desmos.com/calculator
+
+ltspice
+https://electronics.stackexchange.com/questions/353826/how-to-make-an-ideal-diode-model-in-ltspice
+
+exponential smoothing
+https://en.wikipedia.org/wiki/Exponential_smoothing
+
+rectivier
+https://en.wikipedia.org/wiki/Rectifier
 
 ====================  DONE  =================================================
 
@@ -130,3 +147,5 @@ automatically set delta_t when running the model
   endif
 
 more diode circuits
+
+TRY two caps in series
