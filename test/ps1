@@ -23,12 +23,20 @@ ground d2
 set center d4,-4,-19
 set scale  266
 
-set scope_t 100ms   
-set scope_a voltage,-500,500,c6,d6
-set scope_b current,-5,5,c6,d6
-set scope_mode continuous
+set scope_t 20ms   
+set scope_a voltage,-500,500,c6,d6  RESISTOR
+set scope_b current,-2,2,c6,d6  RESISTOR
+set scope_c voltage,-2,2,d5  RETURN
+set scope_d voltage,-200,200,c2  POWER
 
-set delta_t 1ps
+#set scope_mode continuous
 
-model run 100ms   
+set delta_t 100ps
+
+#model run .010345 
+#model run .005062 
+#model run .004538 
+#model run .005009 
+#model run .005000 
+model run .006000 
 
