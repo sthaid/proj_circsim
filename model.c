@@ -40,7 +40,7 @@ cmd: reset          - resets to time 0 initial condition\n\
 //
 
 static int32_t     model_state_req;
-static bool        model_step_req;
+static int32_t     model_step_count;
 static long double final_delta_t;
 
 //
@@ -101,7 +101,14 @@ int32_t model_cmd(char *cmdline)
         }
         rc = model_cont();
     } else if (strcasecmp(cmd, "step") == 0) {
-        rc = model_step();
+        int32_t count = 1;
+        if (((arg = strtok(NULL, " ")) != NULL) &&
+            (sscanf(arg,"%d",&count) != 1))
+        {
+            ERROR("invalid count '%s'\n", arg);
+            return -1;
+        }
+        rc = model_step(count);
     } else {
         ERROR("unsupported cmd '%s'\n", cmd);
         rc = -1;
@@ -188,15 +195,14 @@ int32_t model_cont(void)
     return 0;
 }
 
-int32_t model_step(void)
+int32_t model_step(int32_t count)
 {
     if (model_state != MODEL_STATE_STOPPED && model_state != MODEL_STATE_RESET) {
         ERROR("model state is not stopped or reset\n");
         return -1;
     }
 
-    model_step_req = true;
-
+    model_step_count = count;
     if (model_state == MODEL_STATE_RESET) {
         model_run();
     } else {
@@ -673,11 +679,15 @@ static void * model_thread(void * cx)
             __sync_synchronize();
         }
 
-        // if model has reached the stop time, or is being single stepped
-        // then stop the model
-        if (model_t >= stop_t || model_step_req) {                
+        // if model has reached the stop time, or 
+        // has reached single step count then stop the model
+        if (model_t >= stop_t && model_step_count == 0) {
             model_state_req = MODEL_STATE_STOPPED;   
-            model_step_req = false;
+        }
+        if (model_step_count > 0) {
+            if (--model_step_count == 0) {
+                model_state_req = MODEL_STATE_STOPPED;   
+            }
         }
     }
     return NULL;
@@ -708,8 +718,18 @@ static long double get_comp_power_voltage(component_t * c)
 
 static void adjust_delta_t(long double *delta_t, bool init)
 {
-#if 0  // XXX this works for many test cases
+#if 1  // XXX this works for many test cases
     *delta_t = P_DELTA_T ? P_DELTA_T : 1e-6;
+    static long double last_delta_t;
+    if (param_has_changed(PARAM_DELTA_T) && last_delta_t != 0) {
+        int32_t i;
+        for (i = 0; i < max_node; i++) {
+            node_t *n = &node[i];
+            //n->v_prior = n->v_now;
+            n->v_prior = n->v_now - (n->v_now - n->v_prior) * (P_DELTA_T / last_delta_t);
+        }
+    }
+    last_delta_t = P_DELTA_T;
     return;
 #endif
 

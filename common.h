@@ -241,6 +241,6 @@ int32_t model_reset(void);
 int32_t model_run(void);
 int32_t model_stop(void);
 int32_t model_cont(void);
-int32_t model_step(void);
+int32_t model_step(int32_t count);
 
 #endif

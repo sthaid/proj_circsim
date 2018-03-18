@@ -44,6 +44,7 @@ static int32_t cmd_add(char *args);
 static int32_t cmd_del(char *args);
 static int32_t cmd_ground(char *args);
 static int32_t cmd_model(char *args);
+static int32_t cmd_test(char *args);
 
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
 static int32_t del_component(char * comp_str);
@@ -169,6 +170,8 @@ static struct {
     { "ground",          cmd_ground,          "<gl>"                             },
 
     { "model",           cmd_model,           "<reset|run|stop|cont|step>"       },
+
+    { "test",            cmd_test,            "" },
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -531,6 +534,29 @@ static int32_t cmd_model(char *args)
 {
     // pass args to the model
     return model_cmd(args);
+}
+
+// XXX temp command
+static int32_t cmd_test(char *args)
+{
+    int32_t i, rc;
+    long double ohms;
+
+    rc = str_to_val(args, UNITS_OHMS, &ohms);
+    if (rc < 0) {
+        ERROR("invalid ohms\n");
+        return -1;
+    }    
+
+    for (i = 0; i < max_component; i++) {
+        component_t * c = &component[i];
+        INFO("%d type='%s'\n", i, c->comp_str);
+        if (strcasecmp(c->comp_str, "R2") == 0) {
+            INFO("FOUND R2\n");
+            c->resistor.ohms = ohms;
+        }
+    }
+    return 0;
 }
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------
