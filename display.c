@@ -682,7 +682,7 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
             model_cont();
             break;
         case SDL_EVENT_MODEL_STEP:
-            model_step();
+            model_step(1);
             break;
         }
         return PANE_HANDLER_RET_NO_ACTION;
