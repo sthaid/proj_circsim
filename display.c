@@ -461,23 +461,31 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 post_str = "";
 
                 if (c->term[1].gridloc.x == c->term[0].gridloc.x + 1) {         // right
-                    if (current > 0) post_str = " >";
-                    else if (current < 0) pre_str = "< ";
+                    if (strcasecmp(current_str, "0A")) {
+                        if (current > 0) post_str = " >";
+                        else if (current < 0) pre_str = "< ";
+                    }
                     x += grid_scale / 2 - (strlen(current_str)+2) * sdl_font_char_width(fpsz) / 2;
                     y += 1 * sdl_font_char_height(fpsz);
                 } else if (c->term[1].gridloc.x == c->term[0].gridloc.x - 1) {  // left
-                    if (current > 0) pre_str = "< ";
-                    else if (current < 0) post_str = " >";
+                    if (strcasecmp(current_str, "0A")) {
+                        if (current > 0) pre_str = "< ";
+                        else if (current < 0) post_str = " >";
+                    }
                     x -= grid_scale / 2 + (strlen(current_str)+2) * sdl_font_char_width(fpsz) / 2;
                     y += 1 * sdl_font_char_height(fpsz);
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y + 1) {  // down 
-                    if (current > 0) pre_str = "v ";
-                    else if (current < 0) pre_str = "^ ";
+                    if (strcasecmp(current_str, "0A")) {
+                        if (current > 0) pre_str = "v ";
+                        else if (current < 0) pre_str = "^ ";
+                    }
                     x += 2 * sdl_font_char_width(fpsz);
                     y += grid_scale / 2 - sdl_font_char_height(fpsz) / 2 - 2 * sdl_font_char_height(fpsz);
                 } else if (c->term[1].gridloc.y == c->term[0].gridloc.y - 1) {  // up
-                    if (current > 0) pre_str = "^ ";
-                    else if (current < 0) pre_str = "v ";
+                    if (strcasecmp(current_str, "0A")) {
+                        if (current > 0) pre_str = "^ ";
+                        else if (current < 0) pre_str = "v ";
+                    }
                     x += 2 * sdl_font_char_width(fpsz);
                     y -= grid_scale / 2 + sdl_font_char_height(fpsz) / 2 + 2 * sdl_font_char_height(fpsz);
                 } else {
