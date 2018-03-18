@@ -176,8 +176,9 @@ int32_t model_cont(void)
     if (model_state == MODEL_STATE_RESET) {
         model_run();
     } else if (model_state == MODEL_STATE_STOPPED) {
-        // XXX if haven't reached the stop_t then don't update it
-        stop_t = model_t + P_RUN_T;
+        if (param_has_changed(PARAM_RUN_T) || model_t >= stop_t) {
+            stop_t = model_t + P_RUN_T;
+        }
         SET_MODEL_REQ(MODEL_STATE_RUNNING);
     } else {
         ERROR("not stopped or reset\n");
@@ -455,8 +456,8 @@ static void reset(void)
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
         if (c->type == COMP_INDUCTOR && c->inductor.i_init != 0) {
-            c->i_next    = c->inductor.i_init;
-            c->i_now = c->inductor.i_init;
+            c->i_next = c->inductor.i_init;
+            c->i_now  = c->inductor.i_init;
         }
     }
 }
@@ -556,7 +557,6 @@ static void * model_thread(void * cx)
                         l_sum_denom += delta_t / c->inductor.henrys;
                         break;
                     case COMP_DIODE: {
-                        // XXX this section needs work
                         r_sum_num += (other_n->v_now / c->diode_ohms);
                         r_sum_denom += (1 / c->diode_ohms);
                         break; }
@@ -564,15 +564,10 @@ static void * model_thread(void * cx)
                         FATAL("comp type %s not supported\n", c->type_str);
                     }
                 }
-#if 0
-                n->v_next = (r_sum_num + c_sum_num + l_sum_num) /
-                            (r_sum_denom + c_sum_denom + l_sum_denom);
-#else
                 long double v_next;
                 v_next = (r_sum_num + c_sum_num + l_sum_num) /
                          (r_sum_denom + c_sum_denom + l_sum_denom);
-                basic_exponential_smoothing(v_next, &n->v_next, 0.999);
-#endif
+                basic_exponential_smoothing(v_next, &n->v_next, 0.99);
             }
         }
 
@@ -606,7 +601,7 @@ static void * model_thread(void * cx)
                 if (ohms < .01) {
                     ohms = .01;
                 }
-                basic_exponential_smoothing(ohms, &c->diode_ohms, 0.01); 
+                basic_exponential_smoothing(ohms, &c->diode_ohms, 0.01);
 
                 c->i_next = dv / ohms;
 
@@ -713,6 +708,11 @@ static long double get_comp_power_voltage(component_t * c)
 
 static void adjust_delta_t(long double *delta_t, bool init)
 {
+#if 0  // XXX this works for many test cases
+    *delta_t = P_DELTA_T ? P_DELTA_T : 1e-6;
+    return;
+#endif
+
     long double target_dt;
 
     static long double last_target_dt;
@@ -724,7 +724,7 @@ static void adjust_delta_t(long double *delta_t, bool init)
         *delta_t       = 1e-16;
     }
 
-#if 1
+#if 0
     if (model_t < .001) {
         target_dt = (final_delta_t < 1e-9 ? final_delta_t : 1e-9);
     } else {
@@ -733,18 +733,22 @@ static void adjust_delta_t(long double *delta_t, bool init)
 #else
     if (model_t < .001) {
         target_dt = (P_DELTA_T < 1e-9 ? P_DELTA_T : 1e-9);
-        if (target_dt < 1e-9) target_dt = 1e-9;
+        if (target_dt == 0) target_dt = 1e-9;
     } else {
         target_dt = P_DELTA_T;
-        if (target_dt < 1e-6) target_dt = 1e-6;
+        if (target_dt == 0) target_dt = 1e-6;
     }
 #endif
     assert(target_dt > 0);
 
     if (target_dt != last_target_dt) {
         int64_t steps;
-        steps = 2 * .001 / fabsl(target_dt - *delta_t);
-        if (steps < 1000) steps = 1000;
+        if (init) {
+            // tuned to reach target in dcpwr_t
+            steps = 2 * .001 / fabsl(target_dt - *delta_t); 
+        } else {
+            steps = 100;
+        }
         adjust_dt = (target_dt - *delta_t) / steps;
         INFO("%Le - TARGET_DT=%Le  CURR_DT=%Le  STEPS=%ld  ADJUST=%Le\n", 
              model_t, target_dt, *delta_t, steps, adjust_dt);
