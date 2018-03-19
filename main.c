@@ -44,7 +44,8 @@ static int32_t cmd_add(char *args);
 static int32_t cmd_del(char *args);
 static int32_t cmd_ground(char *args);
 static int32_t cmd_model(char *args);
-static int32_t cmd_test(char *args);
+static int32_t cmd_test(char *args);  // xxx temp
+static int32_t cmd_pause(char *args);  // xxx temp
 
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
 static int32_t del_component(char * comp_str);
@@ -59,6 +60,7 @@ static void grid_init(void);
 int32_t main(int32_t argc, char ** argv)
 {
     pthread_t thread_id;
+    char *filename;
 
     // call initialization routines
     main_init();
@@ -81,17 +83,9 @@ int32_t main(int32_t argc, char ** argv)
         }
     }
 
-    // if filename arg is supplied then call cmd_read to 
-    // open the filename and read/process the cmds
-    if (argc - optind >= 1) {
-        char *filename = argv[optind];
-        if (cmd_read(filename) < 0) {
-            return -1;
-        }
-    }
-
     // create thread for cli
-    pthread_create(&thread_id, NULL, cli_thread, NULL);
+    filename = (argc - optind >= 1) ? argv[optind] : NULL;
+    pthread_create(&thread_id, NULL, cli_thread, filename);
 
     // call display handler
     display_handler();
@@ -122,9 +116,15 @@ static void * cli_thread(void * cx)
 {
     char *cmd_str = NULL, prompt_str[100];
     sdl_event_t event;
+    char *filename = cx;
 
-    // give display time to initialize before starting cli
+    // give display time to initialize first
     sleep(1);
+
+    // if filename arg was supplied on cmdline then read commands from the file
+    if (filename) {
+        cmd_read(filename);
+    }
 
     // use readline/add_history to read commands, and
     // call process_cmd to process them
@@ -172,6 +172,7 @@ static struct {
     { "model",           cmd_model,           "<reset|run|stop|cont|step>"       },
 
     { "test",            cmd_test,            "" },
+    { "pause",           cmd_pause,           "" },
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -536,7 +537,6 @@ static int32_t cmd_model(char *args)
     return model_cmd(args);
 }
 
-// XXX temp command
 static int32_t cmd_test(char *args)
 {
     int32_t i, rc;
@@ -556,6 +556,18 @@ static int32_t cmd_test(char *args)
             c->resistor.ohms = ohms;
         }
     }
+    return 0;
+}
+
+static int32_t cmd_pause(char *args)
+{
+    char s[2];
+    printf("%s%sENTER <CR> TO CONTINUE ",
+           args ? args : "",
+           args ? " - " : "");
+    display_unlock();
+    fgets(s,sizeof(s),stdin);
+    display_lock();
     return 0;
 }
 
