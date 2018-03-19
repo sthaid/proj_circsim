@@ -109,6 +109,8 @@ int32_t model_cmd(char *cmdline)
             return -1;
         }
         rc = model_step(count);
+    } else if (strcasecmp(cmd, "wait") == 0) {
+        rc = model_wait();
     } else {
         ERROR("unsupported cmd '%s'\n", cmd);
         rc = -1;
@@ -208,6 +210,22 @@ int32_t model_step(int32_t count)
     } else {
         model_cont();
     }
+
+    return 0;
+}
+
+int32_t model_wait(void)
+{
+    if (model_state != MODEL_STATE_STOPPED && model_state != MODEL_STATE_RUNNING) {
+        ERROR("model state is not stopped or running\n");
+        return -1;
+    }
+
+    display_unlock();
+    while (model_state == MODEL_STATE_RUNNING) {
+        usleep(1000);
+    }
+    display_lock();
 
     return 0;
 }
