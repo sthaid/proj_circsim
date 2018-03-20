@@ -1,3 +1,6 @@
+^c to interupt model_wait or the reading of a cmd file
+
+
 OPTIMIZATION
 - define DOUBLE as either long doulbe or double
   and adjust print formats

@@ -119,7 +119,7 @@ static void * cli_thread(void * cx)
     char *filename = cx;
 
     // give display time to initialize first
-    sleep(1);
+    usleep(100000);
 
     // if filename arg was supplied on cmdline then read commands from the file
     if (filename) {
@@ -1124,7 +1124,6 @@ static void param_init(void)
 
     PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
     PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "0"        );
-    PARAM_CREATE(PARAM_DCPWR_T,       "dcpwr_t",       "1ms"      );
     PARAM_CREATE(PARAM_GRID,          "grid",          "off"      );
     PARAM_CREATE(PARAM_CURRENT,       "current",       "on"       );
     PARAM_CREATE(PARAM_VOLTAGE,       "voltage",       "on"       );
@@ -1152,7 +1151,6 @@ int32_t param_set(int32_t id, char *str_val)
     // check for params that have numeric values in UNITS_SECONDS
     if ((id == PARAM_RUN_T ||
          id == PARAM_DELTA_T ||
-         id == PARAM_DCPWR_T ||
          id == PARAM_SCOPE_T) &&
         (str_to_val(str_val, UNITS_SECONDS, &num_val) == -1))
     {

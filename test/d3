@@ -17,5 +17,6 @@ set scope_a voltage,-20kv,20kv,b2,c2
 set scope_b voltage,-20kv,20kv,c2,d2
 set scope_c voltage,-20kv,20kv,b1
 
+set delta_t 1ns
 model run 1ms
 

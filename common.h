@@ -70,20 +70,19 @@
 // parameters
 #define PARAM_RUN_T           0
 #define PARAM_DELTA_T         1
-#define PARAM_DCPWR_T         2
-#define PARAM_GRID            3
-#define PARAM_CURRENT         4
-#define PARAM_VOLTAGE         5
-#define PARAM_COMPONENT       6
-#define PARAM_CENTER          7
-#define PARAM_SCALE           8
-#define PARAM_SCOPE_A         9
-#define PARAM_SCOPE_B         10
-#define PARAM_SCOPE_C         11
-#define PARAM_SCOPE_D         12
-#define PARAM_SCOPE_T         13  
-#define PARAM_SCOPE_MODE      14
-#define PARAM_SCOPE_TRIGGER   15
+#define PARAM_GRID            2
+#define PARAM_CURRENT         3
+#define PARAM_VOLTAGE         4
+#define PARAM_COMPONENT       5
+#define PARAM_CENTER          6
+#define PARAM_SCALE           7
+#define PARAM_SCOPE_A         8
+#define PARAM_SCOPE_B         9
+#define PARAM_SCOPE_C         10
+#define PARAM_SCOPE_D         11
+#define PARAM_SCOPE_T         12  
+#define PARAM_SCOPE_MODE      13
+#define PARAM_SCOPE_TRIGGER   14
 
 #define param_has_changed(id) \
     ({ static int32_t last_update_count=-1; \
@@ -150,12 +149,10 @@ typedef struct component_s {
         } diode;
     };
     // component state, used by model.c, follow:
-    // when clearing component state, zero from here
-    int32_t zero_init_component_state;
+    // when clearing component state, zero and init from here
+    int32_t start_init_component_state;
     long double i_next;
     long double i_now;
-    //long double diode_smooth_ohms[2];
-    //long double diode_smooth_b[2];
     long double diode_ohms;
     hist_t i_history[MAX_HISTORY];
 } component_t;
@@ -175,15 +172,15 @@ typedef struct node_s {
     gridloc_t * gridloc;
     int32_t max_alloced_term;
     int32_t max_alloced_gridloc;
-    // when clearing a node, zero from here
-    int32_t zero_init_node_state;
+    // when clearing a node, zero and init from here
+    int32_t start_init_node_state;
     int32_t max_term;
     int32_t max_gridloc;
     bool ground;
     terminal_t * power;
     long double v_next;
     long double v_now;
-    long double v_prior;
+    long double dv_dt;
     hist_t v_history[MAX_HISTORY];
 } node_t;
 

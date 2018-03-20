@@ -12,9 +12,9 @@ ground c1
 set center c1,-151,-29
 set scale  322
 
-set scope_t 2ms
+set scope_t 0.50ms
 set scope_a voltage,0,5,b2,c2
 set scope_b voltage,0,5,c2,d2
 
-model run 2ms
+model run 1ms
 
