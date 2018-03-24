@@ -34,6 +34,7 @@ void basic_exponential_smoothing(long double x, long double *s, long double alph
 // i = C dv/dt
 // i = v / r
 
+// XXX update these comments
 //    power  ----  resistor  ---- cap  ---- resistor  ---- ground
 //
 //     vp                    vn1       vn2             vg
@@ -156,7 +157,8 @@ void run(int64_t steps)
         // update time
         model_t += delta_t;
 
-        // determine the next voltages
+        // determine the next voltages and currents,
+        // exit the loop when all node current sums are close to 0
         count = 0;
         while (true) {
             vn1_next = node_eval(vn1, vp, dvdt2, r1, c1);
@@ -185,12 +187,14 @@ void run(int64_t steps)
             }
         }
 
-        // determine the next currents
+        // determine the next currents;
+        // this is a double check
         ir1_next = (vp - vn1_next) / r1;
         ic1_next = c1 * (dvdt1 - dvdt2);
         ir2_next = (vn2_next - vg) / r2;
 
-        // warn if node current not close to zero
+        // warn if node current not close to zero;
+        // this is a double check
         sum_abs = fabsl(ir1_next) + fabsl(ic1_next);
         sum     = ir1_next - ic1_next;
         if (sum_abs && fabsl(sum / sum_abs) > .01) {
