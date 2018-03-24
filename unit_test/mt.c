@@ -1,13 +1,26 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
-long double delta_t = .001;
-long double model_t;
+#include <readline/readline.h>
+#include <readline/history.h>
 
-void run(int32_t steps);
+bool verbose = false;
+
+long double model_t = 0;
+long double delta_t = .001;
+long double vp      = 300;
+long double vn1     = 0;
+long double vn2     = 0;
+long double vg      = 0;
+long double r1      = 19;
+long double c1      = .05;
+long double r2      = 1;
+
+void run(int64_t steps);
 long double node_eval(
     long double v,
     long double v_r_other,
@@ -16,52 +29,10 @@ long double node_eval(
     long double farads);
 void basic_exponential_smoothing(long double x, long double *s, long double alpha);
 
-// ---------------------------------------------------------------
+// -----------------  MAIN  --------------------------------------
 
-int32_t main(int32_t argc, char **argv)
-{
-    char s[100], *cmd, *arg;
-    long double argval;
-    int32_t steps;
-    
-    // loop 
-    while (true) {
-        // read command
-        // - dt <secs>
-        // - r <secs>    or 0 means 1 interval
-        printf("? ");
-        if (fgets(s, sizeof(s), stdin) == NULL) {
-            break;
-        }
-        cmd = strtok(s, " \n");
-        if (cmd == NULL) {
-            continue;
-        }
-        argval = 0;
-        arg = strtok(NULL, " \n");
-        if (arg && sscanf(arg, "%Lf", &argval) != 1) {
-            printf("error: %s not a number\n", arg);
-            continue;
-        }
-
-// XXX cmds to set r1,r2,c1
-
-        // process command
-        if (strcmp(cmd, "dt") == 0) {
-            delta_t = argval;
-        } else if (strcmp(cmd, "r") == 0) {
-            steps = argval / delta_t;
-            if (steps == 0) steps = 1;
-            run(steps);
-        } else {
-            printf("error: invalid command\n");
-        }
-    }
-
-    return 0;
-}
-
-// ---------------------------------------------------------------
+// i = C dv/dt
+// i = v / r
 
 //    power  ----  resistor  ---- cap  ---- resistor  ---- ground
 //
@@ -70,71 +41,182 @@ int32_t main(int32_t argc, char **argv)
 //
 //                   r1           c1           c2
 //                   10          .05           10
-//
-//
-// i = C dv/dt
-// i = v / r
 
-long double vp  = 300;
-long double vn1 = 200;
-long double vn2 = 100;
-long double vg  = 0;
-#if 0
-long double r1  = 10;
-long double c1  = .05;
-long double r2  = 10;
-#else
-long double r1  = 19;
-long double c1  = .05;
-long double r2  = 1;
-#endif
+// commands
+// - set <name> <value>
+//      delta_t <secs>
+//      r1 <ohms>
+//      r2 <ohms>
+//      c1 <farads>
+//      vp <volts>
+//      vn1 <volts>
+//      vn2 <volts>
+// - run <secs>        or 0 means 1 interval
+// - show              displays the circuit and values
+// - reset             resets to time 0
+// - verbose on|off
 
-void run(int32_t steps) 
+int32_t main(int32_t argc, char **argv)
 {
-    int32_t i, iter;
+    char *cmdline=NULL, *cmd_str=NULL, *arg1_str=NULL, *arg2_str=NULL;
+    
+    // loop 
+    while (true) {
+        // read command
+        free(cmdline);
+        if ((cmdline = readline("? ")) == NULL) {
+            break;
+        }
+        if (cmdline[0] != '\0') {
+            add_history(cmdline);
+        }
+
+        // use strtok to parse cmdline
+        cmd_str = strtok(cmdline, " \n");
+        arg1_str = strtok(NULL, " \n");
+        arg2_str = strtok(NULL, " \n");
+
+        // if no command then continue
+        if (cmd_str == NULL) {
+            continue;
+        }
+
+        // process command
+        if (strcmp(cmd_str, "set") == 0) {
+            long double val;
+            if (arg2_str == NULL || sscanf(arg2_str, "%Lf", &val) != 1) {
+                printf("error: usage - set <delta_t|r1|r2|c1|vp|vn1|vn2> <value>\n");
+                continue;
+            }
+            if (strcmp(arg1_str, "delta_t") == 0) {
+                delta_t = val;
+            } else if (strcmp(arg1_str, "r1") == 0) {
+                r1 = val;
+            } else if (strcmp(arg1_str, "r2") == 0) {
+                r2 = val;
+            } else if (strcmp(arg1_str, "c1") == 0) {
+                c1 = val;
+            } else if (strcmp(arg1_str, "vp") == 0) {
+                vp = val;
+            } else if (strcmp(arg1_str, "vn1") == 0) {
+                vn1 = val;
+            } else if (strcmp(arg1_str, "vn2") == 0) {
+                vn2 = val;
+            } else {
+                printf("error: usage - set <delta_t|r1|r2|c1|vp|vn1|vn2> <value>\n");
+            }
+        } else if (strcmp(cmd_str, "run") == 0 || strcmp(cmd_str, "r") == 0) {
+            long double secs;
+            int64_t steps;
+            if (arg1_str && sscanf(arg1_str, "%Lf", &secs) != 1) {
+                printf("error: not a number '%s'\n", arg1_str);
+                continue;
+            }
+            steps = secs / delta_t;
+            if (steps <= 0) steps = 1;
+            run(steps);
+            printf("%Lf  (%Lf)\n", (vn1-vn2)/300, 1-expl(-1));
+        } else if (strcmp(cmd_str, "show") == 0) {
+            // XXX do this
+        } else if (strcmp(cmd_str, "reset") == 0) {
+            model_t = 0;
+            vn1 = vn2 = 0;
+        } else if (strcmp(cmd_str, "verbose") == 0) {
+            if (arg1_str == NULL) {
+                printf("verbose is %s\n", verbose ? "on" : "off");
+            } else if (strcmp(arg1_str, "on") == 0) {
+                verbose = true;
+            } else if (strcmp(arg1_str, "off") == 0) {
+                verbose = false;
+            } else {
+                printf("error: expected 'on' or 'off'\n");
+            }
+        } else {
+            printf("error: invalid command '%s'\n", cmd_str);
+        }
+    }
+
+    return 0;
+}
+
+// ---------------------------------------------------------------
+
+void run(int64_t steps) 
+{
+    int64_t count, i;
+    long double vn1_next, vn2_next;
     long double dvdt1, dvdt2;
-    long double vn1_next, vn2_next, dvdt1_next, dvdt2_next;
-    long double ir1, ic1, ir2;
+    long double ir1_next, ic1_next, ir2_next;
+    long double sum_abs, sum;
 
-// XXX print r1,r2,c1, and initial voltages
+    printf("      TIME        VN1        VN2        IR1        IC1        IR2\n");
+
+    dvdt1 = dvdt2 = 0;
     for (i = 0; i < steps; i++) {
+        // update time
         model_t += delta_t;
-        printf("model_t = %Lf\n", model_t);
 
-        dvdt1 = 0;
-        dvdt2 = 0;
-        dvdt1_next = 0;
-        dvdt2_next = 0;
-        printf("       VN1        VN2        IR1        IC1        IR2\n");
-        for (iter = 0; iter < 1000; iter++) {
-            // determine the next node voltages
+        // determine the next voltages
+        count = 0;
+        while (true) {
             vn1_next = node_eval(vn1, vp, dvdt2, r1, c1);
             vn2_next = node_eval(vn2, vg, dvdt1, r2, c1);
+            dvdt1 = (vn1_next - vn1) / delta_t;
+            dvdt2 = (vn2_next - vn2) / delta_t;
 
-            // xxx
-#if 0
-            dvdt1_next = (vn1_next - vn1) / delta_t;
-            dvdt2_next = (vn2_next - vn2) / delta_t;
-#else
-            basic_exponential_smoothing((vn1_next - vn1) / delta_t, &dvdt1_next, 0.5);
-            basic_exponential_smoothing((vn2_next - vn2) / delta_t, &dvdt2_next, 0.5);
-#endif
+            ir1_next = (vp - vn1_next) / r1;
+            ic1_next = c1 * (dvdt1 - dvdt2);
+            ir2_next = (vn2_next - vg) / r2;
 
-            // determine the next component currents
-            ir1 = (vp - vn1_next) / r1;
-            ic1 = c1 * (dvdt1_next - dvdt2_next);
-            ir2 = (vn2_next - vg) / r2;
-
-            // print the next values
-            printf("%10Lf %10Lf %10Lf %10Lf %10Lf\n",
-                   vn1, vn2, ir1, ic1, ir2);
-
-            // init for next iteration
-            dvdt1 = dvdt1_next;
-            dvdt2 = dvdt2_next;
-            vn1 = vn1_next;
-            vn2 = vn2_next;
+            count++;
+            if ((fabsl((ir1_next - ic1_next) / ic1_next) < .0001) &&
+                (fabsl((ir2_next - ic1_next) / ic1_next) < .0001))
+            {
+                if (count > 10000) {
+                    printf("WARNING - CURRENT BREAK count=%ld T=%Lf - %Le %Le %Le\n",
+                           count, model_t, ir1_next, ic1_next, ir2_next);
+                }
+                break;
+            }
+            if (count == 1000000) {
+                printf("WARNING - FORCE BREAK count=%ld T=%Lf - %Le %Le %Le\n",
+                       count, model_t, ir1_next, ic1_next, ir2_next);
+                break;
+            }
         }
+
+        // determine the next currents
+        ir1_next = (vp - vn1_next) / r1;
+        ic1_next = c1 * (dvdt1 - dvdt2);
+        ir2_next = (vn2_next - vg) / r2;
+
+        // warn if node current not close to zero
+        sum_abs = fabsl(ir1_next) + fabsl(ic1_next);
+        sum     = ir1_next - ic1_next;
+        if (sum_abs && fabsl(sum / sum_abs) > .01) {
+            printf("WARNING - CURRENT FLUCTUATION-A T=%Lf - %Lf %Lf %Lf\n", 
+                   model_t, ir1_next, ic1_next, ir2_next);
+        }
+        sum_abs = fabsl(ir2_next) + fabsl(ic1_next);
+        sum     = ir2_next - ic1_next;
+        if (sum_abs && fabsl(sum / sum_abs) > .01) {
+            printf("WARNING - CURRENT FLUCTUATION-B T=%Lf - %Lf %Lf %Lf\n", 
+                   model_t, ir1_next, ic1_next, ir2_next);
+        }
+
+        // print the next values
+        if (verbose || i == steps-1) {
+            printf("%10Lf %10Lf %10Lf %10Lf %10Lf %10Lf\n",
+                   model_t, vn1_next, vn2_next, ir1_next, ic1_next, ir2_next);
+        }
+
+        // init for next iteration
+        vn1 = vn1_next;
+        vn2 = vn2_next;
+    }
+
+    if (verbose) {
+        printf("      TIME        VN1        VN2        IR1        IC1        IR2\n");
     }
 }
 
@@ -162,4 +244,3 @@ void basic_exponential_smoothing(long double x, long double *s, long double alph
     long double s_last = *s;
     *s = alpha * x + (1 - alpha) * s_last;
 }
-

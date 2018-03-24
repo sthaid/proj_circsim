@@ -1,5 +1,5 @@
 #!/bin/bash
-gcc -o mt -Wall -O0 -g mt.c
+gcc -o mt -Wall -O0 -g mt.c -lreadline
 if [ $? -ne 0 ]; then
   echo ERROR
   exit
