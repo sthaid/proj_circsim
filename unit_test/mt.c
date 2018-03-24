@@ -16,9 +16,12 @@ long double vp      = 300;
 long double vn1     = 0;
 long double vn2     = 0;
 long double vg      = 0;
-long double r1      = 19;
-long double c1      = .05;
-long double r2      = 1;
+//long double r1      = 19;
+//long double c1      = .05;
+//long double r2      = 1;
+long double r1      = 100e6;
+long double c1      = .001;
+long double r2      = 100e6;
 
 long double ir1, ir2, ic1;
 
@@ -82,7 +85,7 @@ int32_t main(int32_t argc, char **argv)
         // process command
         if (strcmp(cmd_str, "set") == 0) {
             long double val;
-            if (arg2_str == NULL || sscanf(arg2_str, "%Lf", &val) != 1) {
+            if (arg2_str == NULL || sscanf(arg2_str, "%Lg", &val) != 1) {
                 printf("error: usage - set <delta_t|r1|r2|c1|vp|vn1|vn2> <value>\n");
                 continue;
             }
@@ -104,16 +107,16 @@ int32_t main(int32_t argc, char **argv)
                 printf("error: usage - set <delta_t|r1|r2|c1|vp|vn1|vn2> <value>\n");
             }
         } else if (strcmp(cmd_str, "run") == 0 || strcmp(cmd_str, "r") == 0) {
-            long double secs;
+            long double secs = 0;
             int64_t steps;
-            if (arg1_str && sscanf(arg1_str, "%Lf", &secs) != 1) {
+            if (arg1_str && sscanf(arg1_str, "%Lg", &secs) != 1) {
                 printf("error: not a number '%s'\n", arg1_str);
                 continue;
             }
             steps = secs / delta_t;
             if (steps <= 0) steps = 1;
             run(steps);
-            printf("info: %Lf  (%Lf)\n", (vn1-vn2)/300, 1-expl(-1));
+            printf("info: %Lg  (%Lg)\n", (vn1-vn2)/300, 1-expl(-1));
             printf("\n");
             show();
         } else if (strcmp(cmd_str, "show") == 0) {
@@ -146,15 +149,14 @@ void run(int64_t steps)
 {
     int64_t count, i;
     long double vn1_next, vn2_next;
-    long double dvdt1, dvdt2;
     long double ir1_next, ic1_next, ir2_next;
-    long double sum_abs, sum;
+
+    static long double dvdt1, dvdt2;
 
     if (verbose) {
         printf("      TIME        VN1        VN2        IR1        IC1        IR2\n");
     }
 
-    dvdt1 = dvdt2 = 0;
     for (i = 0; i < steps; i++) {
         // update time
         model_t += delta_t;
@@ -173,21 +175,28 @@ void run(int64_t steps)
             ir2_next = (vn2_next - vg) / r2;
 
             count++;
-            if ((fabsl((ir1_next - ic1_next) / ic1_next) < .0001) &&
-                (fabsl((ir2_next - ic1_next) / ic1_next) < .0001))
+            if ((fabsl((ir1_next - ic1_next) / ic1_next) < .01) &&
+                (fabsl((ir2_next - ic1_next) / ic1_next) < .01))
             {
                 if (count > 10000) {
-                    printf("WARNING - CURRENT BREAK count=%ld T=%Lf - %Le %Le %Le\n",
-                           count, model_t, ir1_next, ic1_next, ir2_next);
+                    printf("WARNING - CURRENT BREAK count=%ld T=%Lg - %Lg %Lg %Lg - %Lg %Lg\n",
+                           count, model_t, ir1_next, ic1_next, ir2_next, vn1_next, vn2_next);
                 }
                 break;
             }
-            if (count == 1000000) {
-                printf("WARNING - FORCE BREAK count=%ld T=%Lf - %Le %Le %Le\n",
-                       count, model_t, ir1_next, ic1_next, ir2_next);
+            if (count == 1000000000L) {
+                printf("WARNING - FORCE BREAK count=%ld T=%Lg - %Lg %Lg %Lg - %Lg %Lg\n",
+                       count, model_t, ir1_next, ic1_next, ir2_next, vn1_next, vn2_next);
                 break;
             }
+            if ((count % 10000000L) == 0) {
+                printf("INFO count=%ld T=%Lg - %Lg %Lg %Lg - %Lg %Lg\n",
+                       count, model_t, ir1_next, ic1_next, ir2_next, vn1_next, vn2_next);
+            }
         }
+
+#if 0
+        long double sum_abs, sum;
 
         // determine the next currents;
         // this is a double check
@@ -200,19 +209,20 @@ void run(int64_t steps)
         sum_abs = fabsl(ir1_next) + fabsl(ic1_next);
         sum     = ir1_next - ic1_next;
         if (sum_abs && fabsl(sum / sum_abs) > .01) {
-            printf("WARNING - CURRENT FLUCTUATION-A T=%Lf - %Lf %Lf %Lf\n", 
+            printf("WARNING - CURRENT FLUCTUATION-A T=%Lg - %Lg %Lg %Lg\n", 
                    model_t, ir1_next, ic1_next, ir2_next);
         }
         sum_abs = fabsl(ir2_next) + fabsl(ic1_next);
         sum     = ir2_next - ic1_next;
         if (sum_abs && fabsl(sum / sum_abs) > .01) {
-            printf("WARNING - CURRENT FLUCTUATION-B T=%Lf - %Lf %Lf %Lf\n", 
+            printf("WARNING - CURRENT FLUCTUATION-B T=%Lg - %Lg %Lg %Lg\n", 
                    model_t, ir1_next, ic1_next, ir2_next);
         }
+#endif
 
         // print the next values
         if (verbose) {
-            printf("%10Lf %10Lf %10Lf %10Lf %10Lf %10Lf\n",
+            printf("%10Lg %10Lg %10Lg %10Lg %10Lg %10Lg\n",
                    model_t, vn1_next, vn2_next, ir1_next, ic1_next, ir2_next);
         }
 
@@ -252,14 +262,14 @@ long double node_eval(
 
 void show(void)
 {
-    printf("time    = %Lf\n", model_t);
-    printf("delta_t = %Lf\n", delta_t);
+    printf("time    = %Lg\n", model_t);
+    printf("delta_t = %Lg\n", delta_t);
     printf("\n");
-    printf("%12s %12Lf %12s %12Lf %12s %12Lf %12s\n",
+    printf("%12s %12Lg %12s %12Lg %12s %12Lg %12s\n",
            "", r1, "", c1, "", r2, "");
-    printf("%12Lf %12s %12Lf %12s %12Lf %12s %12Lf\n",
+    printf("%12Lg %12s %12Lg %12s %12Lg %12s %12Lg\n",
            vp, "resistor", vn1, "capacitor", vn2, "resistor", vg);
-    printf("%12s %12Lf %12s %12Lf %12s %12Lf %12s\n",
+    printf("%12s %12Lg %12s %12Lg %12s %12Lg %12s\n",
            "", ir1, "", ic1, "", ir2, "");
 }
 
