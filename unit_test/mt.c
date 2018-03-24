@@ -18,12 +18,15 @@ long double vp      = 300;
 long double vn1     = 0;
 long double vn2     = 0;
 long double vg      = 0;
-//long double r1      = 19;
-//long double c1      = .05;
-//long double r2      = 1;
-long double r1      = 100e6;
+#if 0
+long double r1      = 19;
+long double c1      = .05;
+long double r2      = 1;
+#else
+long double r1      = 10e6;
 long double c1      = .001;
-long double r2      = 100e6;
+long double r2      = 10e6;
+#endif
 
 long double ir1, ir2, ic1;
 
@@ -211,8 +214,8 @@ void run(int64_t steps)
             ir2_next = (vn2_next - vg) / r2;
 
             count++;
-            if ((fabsl((ir1_next - ic1_next) / ic1_next) < .01) &&
-                (fabsl((ir2_next - ic1_next) / ic1_next) < .01))
+            if ((fabsl((ir1_next - ic1_next) / ic1_next) < .005) &&
+                (fabsl((ir2_next - ic1_next) / ic1_next) < .005))
             {
                 if (count > 10000) {
                     printf("WARNING - CURRENT BREAK count=%ld T=%Lg - %Lg %Lg %Lg - %Lg %Lg\n",
@@ -228,6 +231,11 @@ void run(int64_t steps)
             if ((count % 10000000L) == 0) {
                 printf("INFO count=%ld T=%Lg - %Lg %Lg %Lg - %Lg %Lg\n",
                        count, model_t, ir1_next, ic1_next, ir2_next, vn1_next, vn2_next);
+                if (interrupt) {
+                    printf("interrupt at model_t %Lg\n", model_t);
+                    interrupt = false;
+                    return;
+                }
             }
         }
 
