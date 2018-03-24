@@ -4,11 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <signal.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
 
 bool verbose = false;
+bool interrupt = false;
 
 long double model_t = 0;
 long double delta_t = .001;
@@ -34,6 +36,7 @@ long double node_eval(
     long double farads);
 void show(void);
 void basic_exponential_smoothing(long double x, long double *s, long double alpha);
+void sig_handler(int32_t signum);
 
 // -----------------  MAIN  --------------------------------------
 
@@ -61,6 +64,11 @@ int32_t main(int32_t argc, char **argv)
 {
     char *cmdline=NULL, *cmd_str=NULL, *arg1_str=NULL, *arg2_str=NULL;
     
+    // register signal handler
+    static struct sigaction act;
+    act.sa_handler = sig_handler;
+    sigaction(SIGINT, &act, NULL);
+    
     // loop 
     while (true) {
         // read command
@@ -81,6 +89,9 @@ int32_t main(int32_t argc, char **argv)
         if (cmd_str == NULL) {
             continue;
         }
+
+        // clear interrupt flag, which is set by sig_handler to interrupt a run
+        interrupt = false;
 
         // process command
         if (strcmp(cmd_str, "set") == 0) {
@@ -150,6 +161,8 @@ void run(int64_t steps)
     int64_t count, i;
     long double vn1_next, vn2_next;
     long double ir1_next, ic1_next, ir2_next;
+    time_t time_print_progress=time(NULL), time_now;
+    bool print_progress_flag;
 
     static long double dvdt1, dvdt2;
 
@@ -158,6 +171,24 @@ void run(int64_t steps)
     }
 
     for (i = 0; i < steps; i++) {
+        // check for request to interrupt
+        if (interrupt) {
+            printf("interrupt at model_t %Lg\n", model_t);
+            interrupt = false;
+            return;
+        }
+
+        // print progress every 10 seconds
+        print_progress_flag = false;
+        time_now = time(NULL) ;
+        if (time_now - time_print_progress > 10) {
+            time_print_progress = time_now;
+            print_progress_flag = true;
+        }
+        if (print_progress_flag) {
+            printf("model_t = %Lg\n", model_t);
+        }
+
         // update time
         model_t += delta_t;
 
@@ -167,8 +198,13 @@ void run(int64_t steps)
         while (true) {
             vn1_next = node_eval(vn1, vp, dvdt2, r1, c1);
             vn2_next = node_eval(vn2, vg, dvdt1, r2, c1);
+#if 1
             dvdt1 = (vn1_next - vn1) / delta_t;
             dvdt2 = (vn2_next - vn2) / delta_t;
+#else
+            basic_exponential_smoothing((vn1_next - vn1) / delta_t, &dvdt1, 0.5);
+            basic_exponential_smoothing((vn2_next - vn2) / delta_t, &dvdt2, 0.5);
+#endif
 
             ir1_next = (vp - vn1_next) / r1;
             ic1_next = c1 * (dvdt1 - dvdt2);
@@ -273,8 +309,15 @@ void show(void)
            "", ir1, "", ic1, "", ir2, "");
 }
 
+// -----------------  MISC CMD  ----------------------------------
+
 void basic_exponential_smoothing(long double x, long double *s, long double alpha)
 {
     long double s_last = *s;
     *s = alpha * x + (1 - alpha) * s_last;
+}
+
+void sig_handler(int32_t signum)
+{
+    interrupt = true;
 }
