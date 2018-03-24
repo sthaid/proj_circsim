@@ -20,6 +20,8 @@ long double r1      = 19;
 long double c1      = .05;
 long double r2      = 1;
 
+long double ir1, ir2, ic1;
+
 void run(int64_t steps);
 long double node_eval(
     long double v,
@@ -27,6 +29,7 @@ long double node_eval(
     long double dvdt_c_other,
     long double ohms,
     long double farads);
+void show(void);
 void basic_exponential_smoothing(long double x, long double *s, long double alpha);
 
 // -----------------  MAIN  --------------------------------------
@@ -34,14 +37,8 @@ void basic_exponential_smoothing(long double x, long double *s, long double alph
 // i = C dv/dt
 // i = v / r
 
-// XXX update these comments
+// Circuit
 //    power  ----  resistor  ---- cap  ---- resistor  ---- ground
-//
-//     vp                    vn1       vn2             vg
-//     300v                  200v      100v            0v
-//
-//                   r1           c1           c2
-//                   10          .05           10
 
 // commands
 // - set <name> <value>
@@ -54,7 +51,7 @@ void basic_exponential_smoothing(long double x, long double *s, long double alph
 //      vn2 <volts>
 // - run <secs>        or 0 means 1 interval
 // - show              displays the circuit and values
-// - reset             resets to time 0
+// - reset             resets to time 0, and 0 volts on node1,node2
 // - verbose on|off
 
 int32_t main(int32_t argc, char **argv)
@@ -116,12 +113,15 @@ int32_t main(int32_t argc, char **argv)
             steps = secs / delta_t;
             if (steps <= 0) steps = 1;
             run(steps);
-            printf("%Lf  (%Lf)\n", (vn1-vn2)/300, 1-expl(-1));
+            printf("info: %Lf  (%Lf)\n", (vn1-vn2)/300, 1-expl(-1));
+            printf("\n");
+            show();
         } else if (strcmp(cmd_str, "show") == 0) {
-            // XXX do this
+            show();
         } else if (strcmp(cmd_str, "reset") == 0) {
             model_t = 0;
             vn1 = vn2 = 0;
+            ir1 = ir2 = ic1 = 0;
         } else if (strcmp(cmd_str, "verbose") == 0) {
             if (arg1_str == NULL) {
                 printf("verbose is %s\n", verbose ? "on" : "off");
@@ -140,7 +140,7 @@ int32_t main(int32_t argc, char **argv)
     return 0;
 }
 
-// ---------------------------------------------------------------
+// -----------------  RUN CMD  -----------------------------------
 
 void run(int64_t steps) 
 {
@@ -150,7 +150,9 @@ void run(int64_t steps)
     long double ir1_next, ic1_next, ir2_next;
     long double sum_abs, sum;
 
-    printf("      TIME        VN1        VN2        IR1        IC1        IR2\n");
+    if (verbose) {
+        printf("      TIME        VN1        VN2        IR1        IC1        IR2\n");
+    }
 
     dvdt1 = dvdt2 = 0;
     for (i = 0; i < steps; i++) {
@@ -209,7 +211,7 @@ void run(int64_t steps)
         }
 
         // print the next values
-        if (verbose || i == steps-1) {
+        if (verbose) {
             printf("%10Lf %10Lf %10Lf %10Lf %10Lf %10Lf\n",
                    model_t, vn1_next, vn2_next, ir1_next, ic1_next, ir2_next);
         }
@@ -217,6 +219,9 @@ void run(int64_t steps)
         // init for next iteration
         vn1 = vn1_next;
         vn2 = vn2_next;
+        ir1 = ir1_next;
+        ir2 = ir2_next;
+        ic1 = ic1_next;
     }
 
     if (verbose) {
@@ -241,6 +246,21 @@ long double node_eval(
     denom += farads / delta_t;
 
     return num / denom;
+}
+
+// -----------------  SHOW CMD  ----------------------------------
+
+void show(void)
+{
+    printf("time    = %Lf\n", model_t);
+    printf("delta_t = %Lf\n", delta_t);
+    printf("\n");
+    printf("%12s %12Lf %12s %12Lf %12s %12Lf %12s\n",
+           "", r1, "", c1, "", r2, "");
+    printf("%12Lf %12s %12Lf %12s %12Lf %12s %12Lf\n",
+           vp, "resistor", vn1, "capacitor", vn2, "resistor", vg);
+    printf("%12s %12Lf %12s %12Lf %12s %12Lf %12s\n",
+           "", ir1, "", ic1, "", ir2, "");
 }
 
 void basic_exponential_smoothing(long double x, long double *s, long double alpha)
