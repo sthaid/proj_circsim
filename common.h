@@ -83,6 +83,7 @@
 #define PARAM_SCOPE_T         12  
 #define PARAM_SCOPE_MODE      13
 #define PARAM_SCOPE_TRIGGER   14
+#define PARAM_STEP_COUNT      15  // xxx order
 
 #define param_has_changed(id) \
     ({ static int32_t last_update_count=-1; \
@@ -233,12 +234,10 @@ void display_handler(void);
 
 // model.c
 void model_init(void);
-int32_t model_cmd(char *cmdline);
 int32_t model_reset(void);
 int32_t model_run(void);
 int32_t model_stop(void);
 int32_t model_cont(void);
-int32_t model_step(int32_t count);
-int32_t model_wait(void);
+int32_t model_step(void);
 
 #endif

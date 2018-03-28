@@ -43,9 +43,11 @@ static int32_t cmd_write(char *args);
 static int32_t cmd_add(char *args);
 static int32_t cmd_del(char *args);
 static int32_t cmd_ground(char *args);
-static int32_t cmd_model(char *args);
-static int32_t cmd_test(char *args);  // xxx temp
-static int32_t cmd_pause(char *args);  // xxx temp
+static int32_t cmd_reset(char *args);
+static int32_t cmd_run(char *args);
+static int32_t cmd_stop(char *args);
+static int32_t cmd_cont(char *args);
+static int32_t cmd_step(char *args);
 
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
 static int32_t del_component(char * comp_str);
@@ -169,10 +171,11 @@ static struct {
     { "del",             cmd_del,             "<comp_str>"                       },
     { "ground",          cmd_ground,          "<gl>"                             },
 
-    { "model",           cmd_model,           "<reset|run|stop|cont|step>"       },
-
-    { "test",            cmd_test,            "" },
-    { "pause",           cmd_pause,           "" },
+    { "reset",           cmd_reset,           ""                                 },
+    { "run",             cmd_run,             "[<secs>]"                         },
+    { "stop",            cmd_stop,            ""                                 },
+    { "cont",            cmd_cont,            "[<secs>]"                         },
+    { "step",            cmd_step,            "[<count>]"                        },
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -260,7 +263,7 @@ static int32_t cmd_set(char *args)
 
     // tokenize args, and verify all supplied
     name = strtok(args, " ");
-    value = strtok(NULL, " ");
+    value = strtok(NULL, " ");  // xxx could remov leading and trailing spaces, and use "" instead of " "
     if (name == NULL || value == NULL) {
         ERROR("insufficient args\n");
         return -1;
@@ -531,44 +534,44 @@ static int32_t cmd_ground(char *args)
     return 0;
 }
 
-static int32_t cmd_model(char *args)
+static int32_t cmd_reset(char *args)
 {
-    // pass args to the model
-    return model_cmd(args);
+    return model_reset();
 }
 
-static int32_t cmd_test(char *args)
+static int32_t cmd_run(char *args)
 {
-    int32_t i, rc;
-    long double ohms;
-
-    rc = str_to_val(args, UNITS_OHMS, &ohms);
-    if (rc < 0) {
-        ERROR("invalid ohms\n");
+    char * secs_str = strtok(args, " ");
+    if (secs_str && param_set(PARAM_RUN_T, secs_str) < 0) {
+        ERROR("invalid time '%s'\n", secs_str);
         return -1;
-    }    
-
-    for (i = 0; i < max_component; i++) {
-        component_t * c = &component[i];
-        INFO("%d type='%s'\n", i, c->comp_str);
-        if (strcasecmp(c->comp_str, "R2") == 0) {
-            INFO("FOUND R2\n");
-            c->resistor.ohms = ohms;
-        }
     }
-    return 0;
+    return model_run();
 }
 
-static int32_t cmd_pause(char *args)
+static int32_t cmd_stop(char *args)
 {
-    char s[2];
-    printf("%s%sENTER <CR> TO CONTINUE ",
-           args ? args : "",
-           args ? " - " : "");
-    display_unlock();
-    fgets(s,sizeof(s),stdin);
-    display_lock();
-    return 0;
+    return model_stop();
+}
+
+static int32_t cmd_cont(char *args)
+{
+    char * secs_str = strtok(args, " ");
+    if (secs_str && param_set(PARAM_RUN_T, secs_str) < 0) {
+        ERROR("invalid time '%s'\n", secs_str);
+        return -1;
+    }
+    return model_cont();
+}
+
+static int32_t cmd_step(char *args)
+{
+    char * step_count_str = strtok(args, " ");
+    if (step_count_str && param_set(PARAM_STEP_COUNT, step_count_str) < 0) {
+        ERROR("invalid step count '%s'\n", step_count_str);
+        return -1;
+    }
+    return model_step();
 }
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------
@@ -1055,6 +1058,7 @@ char * val_to_str(long double val, int32_t units, char *s)
 {
     char *fmt;
     convert_t *tbl, *t;
+    int32_t len;
     long double absval = fabsl(val);
 
     // pick the conversion table
@@ -1068,6 +1072,7 @@ char * val_to_str(long double val, int32_t units, char *s)
                                      NULL);
     assert(tbl);
 
+#if 0
     // for UNITS_SECONDS always use nnn.nnnnnns format
     if (units == UNITS_SECONDS) {
         if (val < 1e-6) {
@@ -1077,12 +1082,13 @@ char * val_to_str(long double val, int32_t units, char *s)
         }
         return s;
     }
+#endif
 
     // if volts or amps are close to zero then set to zero
-    if (units == UNITS_VOLTS && absval < 1e-6) {
+    if (units == UNITS_VOLTS && absval < 1e-3) {
         val = absval = 0;
     }
-    if (units == UNITS_AMPS && absval < 1e-6) {
+    if (units == UNITS_AMPS && absval < 1e-3) {
         val = absval = 0;
     }
     
@@ -1094,12 +1100,32 @@ char * val_to_str(long double val, int32_t units, char *s)
             if (t->factor == 0) {
                 sprintf(s, "%.2Lg%s", val, t->units);
             } else {
+                // scale val by the table factor
                 val /= t->factor;
+                // select format based on the scaled val
                 absval = fabsl(val);
-                fmt = (absval > 99.99 ? "%.0Lf%s" :
-                       absval > 9.999 ? "%.1Lf%s" :
-                                        "%.2Lf%s");
-                sprintf(s, fmt, val, t->units);
+                fmt = (absval > 99.99 ? "%.0Lf" :
+                       absval > 9.999 ? "%.1Lf" :
+                                        "%.2Lf");
+                // print val to string
+                len = sprintf(s, fmt, val);
+                // if decimal point is contained in string then remove trailing 0s and decimal point
+                if (strchr(s,'.') != NULL) {
+                    while (true) {
+                        if (s[len-1] == '0') {
+                            s[len-1] = '\0';
+                            len--;
+                        } else if (s[len-1] == '.') {
+                            s[len-1] = '\0';
+                            len--;
+                            break;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                // add the table units to the string
+                strcat(s, t->units);
             }
             break;
         }
@@ -1137,6 +1163,7 @@ static void param_init(void)
     PARAM_CREATE(PARAM_SCOPE_T,       "scope_t",       "1s"       );
     PARAM_CREATE(PARAM_SCOPE_MODE,    "scope_mode",    "trigger"  );
     PARAM_CREATE(PARAM_SCOPE_TRIGGER, "scope_trigger", "0"        );
+    PARAM_CREATE(PARAM_STEP_COUNT,    "step_count",    "1"        );  // xxx order
 }
 
 int32_t param_set(int32_t id, char *str_val)
@@ -1160,11 +1187,13 @@ int32_t param_set(int32_t id, char *str_val)
 
     // check for params that have simple numeric values
     if ((id == PARAM_SCALE ||
-         id == PARAM_SCOPE_TRIGGER) &&
+         id == PARAM_SCOPE_TRIGGER ||
+         id == PARAM_STEP_COUNT) &&
         (sscanf(str_val, "%Lf", &num_val) != 1))
     {
         if ((id == PARAM_SCALE && (num_val < MIN_GRID_SCALE || num_val > MAX_GRID_SCALE)) ||
-            (id == PARAM_SCOPE_TRIGGER && (num_val != 0 && num_val != 1)))
+            (id == PARAM_SCOPE_TRIGGER && (num_val != 0 && num_val != 1)) || 
+            (id == PARAM_STEP_COUNT && (num_val <= 0)))
         {
             ERROR("failed to set '%s', invalid numeric value\n", param_name(id));
             return -1;
@@ -1206,6 +1235,9 @@ int32_t param_set(int32_t id, char *str_val)
         ERROR("failed to set '%s', expected 'value' or 'id'\n", param_name(id));
         return -1;
     }
+
+    // check PARAM_SCOPE_A,B,C,D
+    // xxx tbd
 
     // checks have passed, commit the new param value
     strcpy(param[id].str_val, str_val);
