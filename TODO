@@ -1,52 +1,23 @@
 ====================  NEXT  =================================================
 
-str_to_val for time                               DONE
-redo header line                                  DONE
-make them smaller so they all fit                 DONE
-display y units                                   DONE
-val_to_str, remove trailing 0 and .               DONE
-adjust position of title line                    DONE
-set scope_a v,0,5mv,a1,a2,the title str           DONE
-str_to_val for scope values                       DONE
-click to hightlight graph and points/component    IN PROGRESS
-
-scope ...
-- scope headings should be english - add title
-- identify scope points on display
-- validate scope params in main.c
-- hover or click to highlight the component, or the gridlocs
-
-LC / inductor stablize
-- update Inductor to use v_next, and retest inductor circuits, and LC circuit
-- LC circuit
-
-in model.c break model_thread up into 2 routines
-
-advance model time after data is ready
-- model reset  ->  model cont 1ms    advances time extra us
-
-----------
-
-detect when model is stable
-
-XXX issues in main and display
-
-rgrid support
-- instant dcon param
-- display intermediate values param
-- be nice to see rgrid values update
+work the xxx issues in model.c
 
 check for model stabilized, how to support the small currents such as in test rc7?
 
-clean up all of the test scripts, again
+XXX issues in main and display
+- validate scope params in main.c
+- etc
 
 --------------------------------------
+
+clean up all of the test scripts, again
 
 add capability to adjust component values while model is running
 - structure have current and target fields, and steps
 - keep count of how many active adjusts there are
 - use exponential adjust to get there in N steps
 - chnage dt while adjusting
+- be nice to implement a switch for the LC circuit
 
 optimize model computations
   - and check with profiling
@@ -61,6 +32,8 @@ test rc7 converge with 1mf cap
 IDEA - if model is slow to converge just advance the nodes by 100x their rate
 
 ====================  LOWER  ================================================
+
+add copyright
 
 What is best diode smoothing?
 - Tests Not Working  (using .7)  
@@ -217,3 +190,29 @@ TRY two caps in series
 
 -- DONE
 run,step,reset,cont cmds
+
+str_to_val for time                               DONE
+redo header line                                  DONE
+make them smaller so they all fit                 DONE
+display y units                                   DONE
+val_to_str, remove trailing 0 and .               DONE
+adjust position of title line                    DONE
+set scope_a v,0,5mv,a1,a2,the title str           DONE
+str_to_val for scope values                       DONE
+click to hightlight graph and points/component    DONE
+scope ...
+- scope headings should be english - add title
+- identify scope points on display
+- hover or click to highlight the component, or the gridlocs
+
+LC / inductor stablize
+- update Inductor to use v_next, and retest inductor circuits, and LC circuit
+- LC circuit
+
+in model.c break model_thread up into 2 routines
+
+advance model time after data is ready
+- model reset  ->  model cont 1ms    advances time extra us
+
+rgrid support
+- be nice to see rgrid values update
