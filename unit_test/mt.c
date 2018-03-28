@@ -201,13 +201,8 @@ void run(int64_t steps)
         while (true) {
             vn1_next = node_eval(vn1, vp, dvdt2, r1, c1);
             vn2_next = node_eval(vn2, vg, dvdt1, r2, c1);
-#if 1
             dvdt1 = (vn1_next - vn1) / delta_t;
             dvdt2 = (vn2_next - vn2) / delta_t;
-#else
-            basic_exponential_smoothing((vn1_next - vn1) / delta_t, &dvdt1, 0.5);
-            basic_exponential_smoothing((vn2_next - vn2) / delta_t, &dvdt2, 0.5);
-#endif
 
             ir1_next = (vp - vn1_next) / r1;
             ic1_next = c1 * (dvdt1 - dvdt2);
