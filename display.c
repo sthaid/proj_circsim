@@ -1,5 +1,3 @@
-// XXX don't display current arrows if = 0
-
 #include "common.h"
 
 //
@@ -188,6 +186,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
     if (request == PANE_HANDLER_REQ_RENDER) {
         int32_t x_min, x_max, y_min, y_max;
         int32_t fpsz;
+        bool    display_intermediate_values;
 
         // determine grid_xoff, grid_yoff, grid_scale from
         // PARAM_CENTER, PARAM_SCALE
@@ -202,8 +201,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         }
 
         grid_scale = param_num_val(PARAM_SCALE);
-        grid_xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2 - xadj * grid_scale / 100;
-        grid_yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2 - yadj * grid_scale / 100;
+        grid_xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2 - xadj * grid_scale / 1000;
+        grid_yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2 - yadj * grid_scale / 1000;
         }
 
         // initialize range of x,y that will be rendered by the 
@@ -215,6 +214,15 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
         // select font point size based on grid_scale
         fpsz = grid_scale * 40 / MAX_GRID_SCALE;
+
+        // determine whether intermediate voltage and current values will be displayed
+        // - normally the intermediate values should not be displayed;
+        // - intermediate values are the values that are computed by the model during the 
+        //   circuit evaluation before the evaluation stabilizes at the values that allow
+        //   the model to proceed to the next time;
+        // - displaying intermediate values is useful when evaluating the resistor grid, 
+        //   to watch the progression prior to the resistor grid evaluation stabilizing
+        display_intermediate_values = (strcasecmp(param_str_val(PARAM_INTERMEDIATE), "on") == 0);
 
         // draw grid, if enabled
         if (strcasecmp(param_str_val(PARAM_GRID), "on") == 0) {
@@ -400,6 +408,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             terminal_t *term;
             node_t *n;
             char s[100];
+            long double voltage;
 
             for (i = 0; i < max_component; i++) {
                 c  = &component[i];
@@ -419,7 +428,8 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                         continue;
                     }
 
-                    val_to_str(n->v_now, UNITS_VOLTS, s);
+                    voltage = (display_intermediate_values ? n->v_next : n->v_now);
+                    val_to_str(voltage, UNITS_VOLTS, s);
                     sdl_render_printf(pane, x, y, fpsz, BLACK, WHITE, "%s", s);
                 }
             }
@@ -448,7 +458,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     continue;
                 }
 
-                current = c->i_now;
+                current = (display_intermediate_values ? c->i_next : c->i_now);
                 val_to_str(fabsl(current), UNITS_AMPS, current_str);
                 pre_str = "";
                 post_str = "";
@@ -579,11 +589,12 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             if (gl.y >= MAX_GRID_X) gl.y = MAX_GRID_Y-1;
 
             // determine xadj/yadj which is the difference between the new_grid_xoff/yoff and
-            // the nearest gridloc; the xadj/yadj are in units of percent to the adjacent gridloc
+            // the nearest gridloc; an xadj/yadj value of 1000 will move the center to the
+            // adjacent gridloc
             xoff = -grid_scale * gl.x + PH_SCHEMATIC_W/2;
             yoff = -grid_scale * gl.y + PH_SCHEMATIC_H/2;
-            xadj = -(new_grid_xoff - xoff) * 100 / grid_scale;
-            yadj = -(new_grid_yoff - yoff) * 100 / grid_scale;
+            xadj = -(new_grid_xoff - xoff) * 1000 / grid_scale;
+            yadj = -(new_grid_yoff - yoff) * 1000 / grid_scale;
 
             // update PARAM_CENTER, using gl,xadj,yadj;  which exactly specifies the center
             sprintf(param_center_str, "%s,%d,%d",
@@ -794,6 +805,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
         #define GRAPH_YSPACE  30
         #define GRAPH_XSPAN   500
         #define FPSZ_SMALL    24
+        #define FPSZ_SMALLER  16
 
         // the graph xspan must equal MAX_HISTORY, because there
         // is currently no x-scaling done for the graphs
@@ -970,8 +982,8 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             // display y axis units
             val_to_str(ymax, units, ymax_str2);
             val_to_str(ymin, units, ymin_str2);
-            sdl_render_printf(pane, x_left+1, y_top, FPSZ_SMALL, color, WHITE, "%s", ymax_str2);
-            sdl_render_printf(pane, x_left+1, y_top+GRAPH_YSPAN-FPSZ_SMALL, FPSZ_SMALL, color, WHITE, "%s", ymin_str2);
+            sdl_render_printf(pane, x_left+1, y_top, FPSZ_SMALLER, color, WHITE, "%s", ymax_str2);
+            sdl_render_printf(pane, x_left+1, y_top+GRAPH_YSPAN-FPSZ_SMALLER-1, FPSZ_SMALLER, color, WHITE, "%s", ymin_str2);
 
             // register the scope select events; if a scope is clicked then it is 
             // selected and will be displayed in BLUE, and the associated gridlocs and

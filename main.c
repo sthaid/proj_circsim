@@ -1109,8 +1109,9 @@ char * val_to_str(long double val, int32_t units, char *s)
                                         "%.2Lf");
                 // print val to string
                 len = sprintf(s, fmt, val);
-                // if decimal point is contained in string then remove trailing 0s and decimal point
-                if (strchr(s,'.') != NULL) {
+                // if decimal point is contained in string then remove trailing 0s and decimal point;
+                // don't do this for UNITS_SECONDS, the time values look better if this is not done
+                if (units != UNITS_SECONDS && strchr(s,'.') != NULL) {
                     while (true) {
                         if (s[len-1] == '0') {
                             s[len-1] = '\0';
@@ -1149,7 +1150,7 @@ static void param_init(void)
         } while (0)
 
     PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
-    PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "0"        );
+    PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "100ns"    );
     PARAM_CREATE(PARAM_GRID,          "grid",          "off"      );
     PARAM_CREATE(PARAM_CURRENT,       "current",       "on"       );
     PARAM_CREATE(PARAM_VOLTAGE,       "voltage",       "on"       );
@@ -1164,6 +1165,7 @@ static void param_init(void)
     PARAM_CREATE(PARAM_SCOPE_MODE,    "scope_mode",    "trigger"  );
     PARAM_CREATE(PARAM_SCOPE_TRIGGER, "scope_trigger", "0"        );
     PARAM_CREATE(PARAM_STEP_COUNT,    "step_count",    "1"        );  // xxx order
+    PARAM_CREATE(PARAM_INTERMEDIATE,  "intermediate",  "off"      );  // xxx order
 }
 
 int32_t param_set(int32_t id, char *str_val)
@@ -1179,10 +1181,11 @@ int32_t param_set(int32_t id, char *str_val)
     if ((id == PARAM_RUN_T ||
          id == PARAM_DELTA_T ||
          id == PARAM_SCOPE_T) &&
-        (str_to_val(str_val, UNITS_SECONDS, &num_val) == -1))
+        ((str_to_val(str_val, UNITS_SECONDS, &num_val) == -1) ||
+         (num_val <= 0)))
     {
         ERROR("failed to set '%s', invalid time value\n", param_name(id));
-        return -1;   // xxx make sure some of these are not 0
+        return -1;
     }
 
     // check for params that have simple numeric values
@@ -1203,7 +1206,8 @@ int32_t param_set(int32_t id, char *str_val)
     // check for params whose value must be 'on' or 'off'
     if ((id == PARAM_GRID ||
          id == PARAM_CURRENT ||
-         id == PARAM_VOLTAGE) &&
+         id == PARAM_VOLTAGE ||
+         id == PARAM_INTERMEDIATE) &&
         (strcasecmp(str_val, "on") != 0 && strcasecmp(str_val, "off") != 0))
     {
         ERROR("failed to set '%s', expected 'on' or 'off'\n", param_name(id));

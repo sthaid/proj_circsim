@@ -13,18 +13,7 @@
         } \
     } while (0)
 
-#define USAGE "\
-usage: model <cmd> [<args>]\n\
-\n\
-cmd: reset          - resets to time 0 initial condition\n\
-     run [<run_t>]  - reset and run the model\n\
-     stop           - stop the model\n\
-     cont [<run_t>] - continue from stop or reset\n\
-     step [<count>] - executes model for count time increments\n\
-     wait           - wait for model to enter stopped state\n\
-\n\
-"
-
+// XXX not sure that I like these shorthands
 #define P_RUN_T           (param_num_val(PARAM_RUN_T))
 #define P_DELTA_T         (param_num_val(PARAM_DELTA_T))
 #define P_SCOPE_T         (param_num_val(PARAM_SCOPE_T))
@@ -53,6 +42,7 @@ static void add_terms_to_node(node_t *node, gridloc_t *gl);
 static void debug_print_nodes(void);
 static void reset(void);
 static void * model_thread(void * cx);
+static void eval_circuit_for_delta_t(void);
 static long double get_comp_power_voltage(component_t * c);
 
 // -----------------  PUBLIC ---------------------------------------------------------
@@ -153,7 +143,7 @@ int32_t model_step(void)
     return 0;
 }
 
-// -----------------  MODEL SUPPORT  -------------------------------------------------
+// -----------------  NODE INITIALIZATION  -------------------------------------------
 
 static int32_t init_nodes(void)
 {
@@ -363,7 +353,7 @@ static void debug_print_nodes(void)
     }
 }
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - 
+// -----------------  RESET  ---------------------------------------------------------
 
 static void reset(void)
 {
@@ -385,7 +375,7 @@ static void reset(void)
         memset(&c->start_init_component_state, 
                0,
                sizeof(component_t) - offsetof(component_t,start_init_component_state));
-        c->diode_ohms = 1e8;
+        c->diode_ohms = 1e8;  // xxx #define
     }
 
     for (glx = 0; glx < MAX_GRID_X; glx++) {
@@ -423,7 +413,7 @@ static void * model_thread(void * cx)
             } \
         } while (0)
 
-    uint64_t i,j,idx;
+    uint64_t i,idx;
     long double last_scope_t = -1;
 
     while (true) {
@@ -456,182 +446,17 @@ static void * model_thread(void * cx)
         }
 
         // determine delta_t value, using small delta_t when the model is starting
-        // xxx this too slow for rgrid
-#if 0
-        delta_t = model_t < 1e-3 ? 1e-9 :
-                  P_DELTA_T == 0 ? 1e-6 
-                                 : P_DELTA_T;
-#else
-        delta_t = .0000001;  // XXX diode testing
-#endif
-// XXX don't plot history values if not set
+        // XXX use the param, and default it to ?
+        delta_t = .0000001;
 
-        // increment time
-        model_t += delta_t;
-        //INFO("model_t = %Lg\n", model_t);
-
-        // XXX lc not working
-        // XXX doide not working
-
-        // xxx
-        uint64_t count = 0;
-        while (true) {
-            // loop over all nodes, computing the next voltage for that node
-            for (i = 0; i < max_node; i++) {
-                node_t * n = & node[i];
-
-                if (n->ground) {
-                    n->v_next = 0;
-                } else if (n->power) {
-                    n->v_next = get_comp_power_voltage(n->power->component);
-                    n->v_now = n->v_next;
-                } else {
-                    long double r_sum_num=0, r_sum_denom=0;
-                    long double c_sum_num=0, c_sum_denom=0;
-                    long double l_sum_num=0, l_sum_denom=0;
-                    for (j = 0; j < n->max_term; j++) {
-                        component_t *c = n->term[j]->component;
-                        int32_t termid = n->term[j]->termid;
-                        int32_t other_termid = (termid ^ 1);
-                        node_t *other_n = c->term[other_termid].node;
-
-                        switch (c->type) {
-                        case COMP_RESISTOR:
-#if 0
-                            r_sum_num += (other_n->v_now / c->resistor.ohms);
-#else
-                            r_sum_num += (other_n->v_next / c->resistor.ohms);
-#endif
-                            r_sum_denom += (1 / c->resistor.ohms);
-                            break;
-                        case COMP_CAPACITOR:
-                            c_sum_num += (c->capacitor.farads / delta_t) * n->v_now +
-                                         c->capacitor.farads * other_n->dv_dt;
-                            c_sum_denom += c->capacitor.farads / delta_t;
-                            break;
-                        case COMP_INDUCTOR:
-                            // XXX v_next?
-#if 0
-                            l_sum_num += (delta_t / c->inductor.henrys) * other_n->v_now;
-#else
-                            l_sum_num += (delta_t / c->inductor.henrys) * other_n->v_next;
-#endif
-                            if (termid == 0) {
-                                l_sum_num -= c->i_now;
-                            } else {
-                                l_sum_num += c->i_now;
-                            }
-                            l_sum_denom += delta_t / c->inductor.henrys;
-                            break;
-                        case COMP_DIODE: {
-                            // XXX not working
-#if 0
-                            r_sum_num += (other_n->v_now / c->diode_ohms);
-#else
-                            r_sum_num += (other_n->v_next / c->diode_ohms);
-#endif
-                            r_sum_denom += (1 / c->diode_ohms);
-                            break; }
-                        default:
-                            FATAL("comp type %s not supported\n", c->type_str);
-                        }
-                    }
-                    long double v_next;
-                    v_next = (r_sum_num + c_sum_num + l_sum_num) /
-                             (r_sum_denom + c_sum_denom + l_sum_denom);
-                    //INFO("node %ld v_next %Lg\n", i, n->v_next);
-                    basic_exponential_smoothing(v_next, &n->v_next, 0.99);
-                }
-            }
-
-            // comute the current through each component
-            // xxx more comments
-            for (i = 0; i < max_component; i++) {
-                component_t *c = &component[i];
-                node_t *n0 = c->term[0].node;
-                node_t *n1 = c->term[1].node;
-                switch (c->type) {
-                case COMP_RESISTOR:
-                    c->i_next = (n0->v_next - n1->v_next) / c->resistor.ohms;
-                    break;
-                case COMP_CAPACITOR:
-                    c->i_next = ((n0->v_next - n1->v_next) - (n0->v_now - n1->v_now)) *
-                                (c->capacitor.farads / delta_t);
-                    break;
-                case COMP_INDUCTOR: {
-                    long double dv = n0->v_next - n1->v_next;
-                    c->i_next = c->i_now + (delta_t / c->inductor.henrys) * dv;
-                    break; }
-                case COMP_DIODE: {
-                    long double v0 = (n0->v_next + n0->v_now) / 2.;
-                    long double v1 = (n1->v_next + n1->v_now) / 2.;
-                    long double dv = (v0 - v1);
-                    long double ohms;
-                    ohms = expl(50.L * (.7L - dv));  // XXX was 50
-                    if (ohms > 1e8) {
-                        ohms = 1e8;
-                    }
-                    if (ohms < .10) {
-                        ohms = .10;
-                    }
-                    basic_exponential_smoothing(ohms, &c->diode_ohms, 0.01);
-                    c->i_next = dv / ohms;
-                    break; }
-                }
-            }
-
-            // compute the power supply current
-            for (i = 0; i < max_node; i++) {
-                node_t * n = & node[i];
-                if (n->power == NULL) {
-                    continue;
-                }
-                long double total_current = 0;
-                for (j = 0; j < n->max_term; j++) {
-                    if (n->term[j] == n->power) {
-                        continue;
-                    }
-                    if (n->term[j]->termid == 0) {
-                        total_current += n->term[j]->component->i_next;
-                    } else {
-                        total_current -= n->term[j]->component->i_next;
-                    }
-                }
-                n->power->component->i_next = -total_current;
-            }
-
-            // dv_dt
-            for (i = 0; i < max_node; i++) {
-                node_t * n = &node[i];
-                //INFO("count %ld node %ld v_next %Lg v_now = %Lg\n",
-                     //count, i, n->v_next, n->v_now);
-                n->dv_dt = (n->v_next - n->v_now) / delta_t;
-            }
-
-            // XXX check if stable
-            // RGRID 50000
-            // RC7 configured  100M 1ohm 100M    > 100000000
-            // 1000 works well for most diodes
-            // 10000 worked well for ps1
-            count++;
-            if (count == 100) {
-                //INFO("BREAK\n");
-                break;
-            }
-        }
-
-        // rotate next -> current -> prior
-        for (i = 0; i < max_node; i++) {
-            node_t * n = &node[i];
-            n->v_now = n->v_next;
-        }
-        for (i = 0; i < max_component; i++) {
-            component_t *c = &component[i];
-            c->i_now = c->i_next;
-        }
+        // evaluate the circuit to determine the circuit values after
+        // the circuit evolves for delta_t interval
+        eval_circuit_for_delta_t();
 
         // keep track of voltage and current history, 
         // these are used for the scope display
+        // xxx if values have been skipped then fill them in somehow, maybe with INVALID
+        // xxx maybe don't need the min and max any more
         idx = (model_t - history_t) / P_SCOPE_T * MAX_HISTORY;
         if (idx < MAX_HISTORY) {
             for (i = 0; i < max_component; i++) {
@@ -653,6 +478,9 @@ static void * model_thread(void * cx)
             __sync_synchronize();
         }
 
+        // increment time
+        model_t += delta_t;
+
         // if model has reached the stop time, or 
         // has reached single step count then stop the model
         if (model_t >= stop_t && model_step_count == 0) {
@@ -667,17 +495,171 @@ static void * model_thread(void * cx)
     return NULL;
 }
 
+static void eval_circuit_for_delta_t(void)
+{
+    uint64_t i, j, count=0;
+
+    while (true) {
+        // loop over all nodes, computing the next voltage for that node
+        for (i = 0; i < max_node; i++) {
+            node_t * n = & node[i];
+
+            if (n->ground) {
+                n->v_next = 0;
+            } else if (n->power) {
+                n->v_next = get_comp_power_voltage(n->power->component);
+                n->v_now = n->v_next;
+            } else {
+                // XXX could do this with just one num and one denom
+                long double r_sum_num=0, r_sum_denom=0;
+                long double c_sum_num=0, c_sum_denom=0;
+                long double l_sum_num=0, l_sum_denom=0;
+                for (j = 0; j < n->max_term; j++) {
+                    component_t *c = n->term[j]->component;
+                    int32_t termid = n->term[j]->termid;
+                    int32_t other_termid = (termid ^ 1);
+                    node_t *other_n = c->term[other_termid].node;
+
+                    switch (c->type) {
+                    case COMP_RESISTOR:
+                        r_sum_num += (other_n->v_next / c->resistor.ohms);
+                        r_sum_denom += (1 / c->resistor.ohms);
+                        break;
+                    case COMP_CAPACITOR:
+                        c_sum_num += (c->capacitor.farads / delta_t) * n->v_now +
+                                     c->capacitor.farads * other_n->dv_dt;
+                        c_sum_denom += c->capacitor.farads / delta_t;
+                        break;
+                    case COMP_INDUCTOR:
+                        l_sum_num += (delta_t / c->inductor.henrys) * other_n->v_next;
+                        if (termid == 0) {
+                            l_sum_num -= c->i_now;
+                        } else {
+                            l_sum_num += c->i_now;
+                        }
+                        l_sum_denom += delta_t / c->inductor.henrys;
+                        break;
+                    case COMP_DIODE: {
+                        r_sum_num += (other_n->v_next / c->diode_ohms);
+                        r_sum_denom += (1 / c->diode_ohms);
+                        break; }
+                    default:
+                        FATAL("comp type %s not supported\n", c->type_str);
+                    }
+                }
+#if 0
+                // xxx delete if not needed
+                long double v_next;
+                v_next = (r_sum_num + c_sum_num + l_sum_num) /
+                         (r_sum_denom + c_sum_denom + l_sum_denom);
+                basic_exponential_smoothing(v_next, &n->v_next, 0.99);
+#else
+                n->v_next = (r_sum_num + c_sum_num + l_sum_num) /
+                            (r_sum_denom + c_sum_denom + l_sum_denom);
+#endif
+            }
+        }
+
+        // comute the current through each component
+        // xxx comment about diode ohms, use macro for DIODE_OHMS
+        for (i = 0; i < max_component; i++) {
+            component_t *c = &component[i];
+            node_t *n0 = c->term[0].node;
+            node_t *n1 = c->term[1].node;
+            switch (c->type) {
+            case COMP_RESISTOR:
+                c->i_next = (n0->v_next - n1->v_next) / c->resistor.ohms;
+                break;
+            case COMP_CAPACITOR:
+                c->i_next = ((n0->v_next - n1->v_next) - (n0->v_now - n1->v_now)) *
+                            (c->capacitor.farads / delta_t);
+                break;
+            case COMP_INDUCTOR: {
+                long double dv = n0->v_next - n1->v_next;
+                c->i_next = c->i_now + (delta_t / c->inductor.henrys) * dv;
+                break; }
+            case COMP_DIODE: {
+                long double v0 = (n0->v_next + n0->v_now) / 2.;
+                long double v1 = (n1->v_next + n1->v_now) / 2.;
+                long double dv = (v0 - v1);  // XXX try just the v_next in calc v0 v1
+                long double ohms;
+                ohms = expl(50.L * (.7L - dv));
+                if (ohms > 1e8) {
+                    ohms = 1e8;
+                }
+                if (ohms < .10) {
+                    ohms = .10;
+                }
+                basic_exponential_smoothing(ohms, &c->diode_ohms, 0.01);
+                c->i_next = dv / ohms;
+                break; }
+            }
+        }
+
+        // compute the power supply component current
+        for (i = 0; i < max_node; i++) {
+            node_t * n = & node[i];
+            if (n->power == NULL) {
+                continue;
+            }
+            long double total_current = 0;
+            for (j = 0; j < n->max_term; j++) {
+                if (n->term[j] == n->power) {
+                    continue;
+                }
+                if (n->term[j]->termid == 0) {
+                    total_current += n->term[j]->component->i_next;
+                } else {
+                    total_current -= n->term[j]->component->i_next;
+                }
+            }
+            n->power->component->i_next = -total_current;
+        }
+
+        // compute dv_dt for all nodes
+        for (i = 0; i < max_node; i++) {
+            node_t * n = &node[i];
+            n->dv_dt = (n->v_next - n->v_now) / delta_t;
+        }
+
+        // XXX check if stable
+        // rgrid        50000
+        // ps1          10000
+        // RC7          >100000000   100M-1ohm-100M 
+        // most diodes  1000
+        // lc1          100
+        // rc1          10
+        // rc5          100  unstable at begining
+        count++;
+        if (count == 100) {
+            break;
+        }
+    }
+
+    // completed evaluating the circuit's progression for the delta_t interval;
+    // move next values to now values
+    for (i = 0; i < max_node; i++) {
+        node_t * n = &node[i];
+        n->v_now = n->v_next;
+    }
+    for (i = 0; i < max_component; i++) {
+        component_t *c = &component[i];
+        c->i_now = c->i_next;
+    }
+}
+
 // -----------------  SUPPORT ROUTINES  ----------------------------------------------
 
 static long double get_comp_power_voltage(component_t * c)
 {
     long double v;
 
-#define DCPWR_RAMP_T 0.25e-3
-
     if (c->power.hz == 0) {
         // dc 
-#if 1
+#if 0
+        // xxx hopefully can eventually get rid of this dcrampup
+        // xxx must be off for rgrid
+        #define DCPWR_RAMP_T 0.25e-3
         if (model_t >= DCPWR_RAMP_T) {
             v = c->power.volts;
         } else {

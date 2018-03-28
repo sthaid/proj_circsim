@@ -84,6 +84,7 @@
 #define PARAM_SCOPE_MODE      13
 #define PARAM_SCOPE_TRIGGER   14
 #define PARAM_STEP_COUNT      15  // xxx order
+#define PARAM_INTERMEDIATE    16  // xxx order
 
 #define param_has_changed(id) \
     ({ static int32_t last_update_count=-1; \
