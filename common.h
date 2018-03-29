@@ -70,21 +70,22 @@
 // parameters
 #define PARAM_RUN_T           0
 #define PARAM_DELTA_T         1
-#define PARAM_GRID            2
-#define PARAM_CURRENT         3
-#define PARAM_VOLTAGE         4
-#define PARAM_COMPONENT       5
-#define PARAM_CENTER          6
-#define PARAM_SCALE           7
-#define PARAM_SCOPE_A         8
-#define PARAM_SCOPE_B         9
-#define PARAM_SCOPE_C         10
-#define PARAM_SCOPE_D         11
-#define PARAM_SCOPE_T         12  
-#define PARAM_SCOPE_MODE      13
-#define PARAM_SCOPE_TRIGGER   14
-#define PARAM_STEP_COUNT      15  // xxx order
-#define PARAM_INTERMEDIATE    16  // xxx order
+#define PARAM_STEP_COUNT      2
+#define PARAM_DCPWR_RAMP      3
+#define PARAM_GRID            4
+#define PARAM_CURRENT         5
+#define PARAM_VOLTAGE         6
+#define PARAM_COMPONENT       7
+#define PARAM_INTERMEDIATE    8
+#define PARAM_CENTER          9
+#define PARAM_SCALE           10
+#define PARAM_SCOPE_A         11
+#define PARAM_SCOPE_B         12
+#define PARAM_SCOPE_C         13
+#define PARAM_SCOPE_D         14
+#define PARAM_SCOPE_T         15  
+#define PARAM_SCOPE_MODE      16
+#define PARAM_SCOPE_TRIGGER   17
 
 #define param_has_changed(id) \
     ({ static int32_t last_update_count=-1; \

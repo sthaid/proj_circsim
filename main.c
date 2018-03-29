@@ -1,4 +1,3 @@
-#define MAIN
 #include "common.h"
 
 //
@@ -263,7 +262,7 @@ static int32_t cmd_set(char *args)
 
     // tokenize args, and verify all supplied
     name = strtok(args, " ");
-    value = strtok(NULL, " ");  // xxx could remov leading and trailing spaces, and use "" instead of " "
+    value = strtok(NULL, " ");
     if (name == NULL || value == NULL) {
         ERROR("insufficient args\n");
         return -1;
@@ -576,7 +575,6 @@ static int32_t cmd_step(char *args)
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------
 
-// xxx review
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str)
 {
     component_t new_comp, *c;
@@ -770,7 +768,27 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
         }
     }
         
-    // xxx verify not overlapping with existing component
+    // verify not overlapping with existing component
+    for (i = 0; i < max_component; i++) {
+        char s1[50], s2[50];
+        c = &component[idx];
+        if ((memcmp(&c->term[0].gridloc, &new_comp.term[0].gridloc, sizeof(gridloc_t)) == 0) &&
+            (memcmp(&c->term[1].gridloc, &new_comp.term[1].gridloc, sizeof(gridloc_t)) == 0)) 
+        {
+            ERROR("new_comp overlaps existing component at %s %s\n",
+                  gridloc_to_str(&c->term[0].gridloc,s1),
+                  gridloc_to_str(&c->term[1].gridloc,s2));
+            return -1;
+        }
+        if ((memcmp(&c->term[1].gridloc, &new_comp.term[0].gridloc, sizeof(gridloc_t)) == 0) &&
+            (memcmp(&c->term[0].gridloc, &new_comp.term[1].gridloc, sizeof(gridloc_t)) == 0)) 
+        {
+            ERROR("new_comp overlaps existing component at %s %s\n",
+                  gridloc_to_str(&c->term[0].gridloc,s1),
+                  gridloc_to_str(&c->term[1].gridloc,s2));
+            return -1;
+        }
+    }
 
     // commit the new component ...
 
@@ -943,7 +961,7 @@ char * component_to_value_str(component_t * c, char *s)
 #endif
         break;
     case COMP_DIODE: {
-        // XXX temp
+        // xxx temp diode print ohms
 #if 0
         long double ohms = (c->diode_smooth_ohms[0] + c->diode_smooth_ohms[1]);
         if (c->diode_smooth_ohms[0] != 0 && c->diode_smooth_ohms[1] != 0) {
@@ -1151,21 +1169,25 @@ static void param_init(void)
 
     PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
     PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "100ns"    );
+    PARAM_CREATE(PARAM_STEP_COUNT,    "step_count",    "1"        );
+    PARAM_CREATE(PARAM_DCPWR_RAMP,    "dcpwr_ramp",    "on"       );
+
     PARAM_CREATE(PARAM_GRID,          "grid",          "off"      );
     PARAM_CREATE(PARAM_CURRENT,       "current",       "on"       );
     PARAM_CREATE(PARAM_VOLTAGE,       "voltage",       "on"       );
     PARAM_CREATE(PARAM_COMPONENT,     "component",     "value"    );
+    PARAM_CREATE(PARAM_INTERMEDIATE,  "intermediate",  "off"      );
+
     PARAM_CREATE(PARAM_CENTER,        "center",        "c3"       );
     PARAM_CREATE(PARAM_SCALE,         "scale",         "200"      );
-    PARAM_CREATE(PARAM_SCOPE_A,       "scope_a",       "off"      ); // xxx need to validate these next 4
+
+    PARAM_CREATE(PARAM_SCOPE_A,       "scope_a",       "off"      );
     PARAM_CREATE(PARAM_SCOPE_B,       "scope_b",       "off"      );
     PARAM_CREATE(PARAM_SCOPE_C,       "scope_c",       "off"      );
     PARAM_CREATE(PARAM_SCOPE_D,       "scope_d",       "off"      );
     PARAM_CREATE(PARAM_SCOPE_T,       "scope_t",       "1s"       );
     PARAM_CREATE(PARAM_SCOPE_MODE,    "scope_mode",    "trigger"  );
     PARAM_CREATE(PARAM_SCOPE_TRIGGER, "scope_trigger", "0"        );
-    PARAM_CREATE(PARAM_STEP_COUNT,    "step_count",    "1"        );  // xxx order
-    PARAM_CREATE(PARAM_INTERMEDIATE,  "intermediate",  "off"      );  // xxx order
 }
 
 int32_t param_set(int32_t id, char *str_val)
@@ -1204,7 +1226,8 @@ int32_t param_set(int32_t id, char *str_val)
     }
 
     // check for params whose value must be 'on' or 'off'
-    if ((id == PARAM_GRID ||
+    if ((id == PARAM_DCPWR_RAMP ||
+         id == PARAM_GRID ||
          id == PARAM_CURRENT ||
          id == PARAM_VOLTAGE ||
          id == PARAM_INTERMEDIATE) &&
@@ -1241,7 +1264,7 @@ int32_t param_set(int32_t id, char *str_val)
     }
 
     // check PARAM_SCOPE_A,B,C,D
-    // xxx tbd
+    // xxx tbd - check PARAM_SCOPE
 
     // checks have passed, commit the new param value
     strcpy(param[id].str_val, str_val);

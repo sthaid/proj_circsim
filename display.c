@@ -794,7 +794,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
     if (request == PANE_HANDLER_REQ_RENDER) {
         int32_t       i, j, count, x_left, y_top, units, x_title_str, color;
         char          p[100], s1[100], s2[100], *select_str, *ymin_str, *ymax_str, *gl0_str, *gl1_str;
-        char          *title_str, ymax_str2[100], ymin_str2[100];
+        char          *title_str, ymax_str2[100], ymin_str2[100], title_str_ext[100];
         long double   ymin, ymax;
         hist_t       *history0, *history1;
         gridloc_t     gl0, gl1;
@@ -975,9 +975,12 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             sdl_render_lines(pane, points, count, color);
 
             // display the graph title
-            x_title_str = x_left + GRAPH_XSPAN/2 - COL2X(strlen(title_str),FPSZ_SMALL)/2;
+            sprintf(title_str_ext, "%s - %s", 
+                    units == UNITS_VOLTS ? "VOLTAGE" : "CURRENT", 
+                    title_str);
+            x_title_str = x_left + GRAPH_XSPAN/2 - COL2X(strlen(title_str_ext),FPSZ_SMALL)/2;
             if (x_title_str < x_left) x_title_str = x_left;
-            sdl_render_printf(pane, x_title_str, y_top-FPSZ_SMALL, FPSZ_SMALL, color, WHITE, "%s", title_str);
+            sdl_render_printf(pane, x_title_str, y_top-FPSZ_SMALL, FPSZ_SMALL, color, WHITE, "%s", title_str_ext);
 
             // display y axis units
             val_to_str(ymax, units, ymax_str2);

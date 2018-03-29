@@ -13,13 +13,7 @@
         } \
     } while (0)
 
-// XXX not sure that I like these shorthands
-#define P_RUN_T           (param_num_val(PARAM_RUN_T))
-#define P_DELTA_T         (param_num_val(PARAM_DELTA_T))
-#define P_SCOPE_T         (param_num_val(PARAM_SCOPE_T))
-#define P_SCOPE_MODE      (param_str_val(PARAM_SCOPE_MODE))
-#define P_SCOPE_TRIGGER   (param_num_val(PARAM_SCOPE_TRIGGER))
-#define P_STEP_COUNT      (param_num_val(PARAM_STEP_COUNT))
+#define DCPWR_RAMP_T 0.25e-3    // 0.25ms
 
 //
 // typedefs
@@ -88,7 +82,7 @@ int32_t model_run(void)
     }
 
     // set model stop time
-    stop_t = P_RUN_T;
+    stop_t = param_num_val(PARAM_RUN_T);
 
     // set the model state to RUNNING
     SET_MODEL_REQ(MODEL_STATE_RUNNING);
@@ -115,7 +109,7 @@ int32_t model_cont(void)
         model_run();
     } else if (model_state == MODEL_STATE_STOPPED) {
         if (param_has_changed(PARAM_RUN_T) || model_t >= stop_t) {
-            stop_t = model_t + P_RUN_T;
+            stop_t = model_t + param_num_val(PARAM_RUN_T);
         }
         SET_MODEL_REQ(MODEL_STATE_RUNNING);
     } else {
@@ -133,7 +127,7 @@ int32_t model_step(void)
         return -1;
     }
 
-    model_step_count = P_STEP_COUNT;
+    model_step_count = param_num_val(PARAM_STEP_COUNT);
     if (model_state == MODEL_STATE_RESET) {
         model_run();
     } else {
@@ -426,13 +420,13 @@ static void * model_thread(void * cx)
 
         // if scope time param has changed or scope trigger is requested 
         // then reset scope history
-        if (P_SCOPE_T != last_scope_t) {
-            last_scope_t = P_SCOPE_T;
+        if (param_num_val(PARAM_SCOPE_T) != last_scope_t) {
+            last_scope_t = param_num_val(PARAM_SCOPE_T);
             history_t = model_t;
             max_history = 0;
             __sync_synchronize();
         }
-        if (P_SCOPE_TRIGGER == 1) {
+        if (param_num_val(PARAM_SCOPE_TRIGGER) == 1) {
             param_set(PARAM_SCOPE_TRIGGER, "0");
             history_t = model_t;
             max_history = 0;
@@ -446,8 +440,7 @@ static void * model_thread(void * cx)
         }
 
         // determine delta_t value, using small delta_t when the model is starting
-        // XXX use the param, and default it to ?
-        delta_t = .0000001;
+        delta_t = param_num_val(PARAM_DELTA_T);
 
         // evaluate the circuit to determine the circuit values after
         // the circuit evolves for delta_t interval
@@ -457,7 +450,7 @@ static void * model_thread(void * cx)
         // these are used for the scope display
         // xxx if values have been skipped then fill them in somehow, maybe with INVALID
         // xxx maybe don't need the min and max any more
-        idx = (model_t - history_t) / P_SCOPE_T * MAX_HISTORY;
+        idx = (model_t - history_t) / param_num_val(PARAM_SCOPE_T) * MAX_HISTORY;
         if (idx < MAX_HISTORY) {
             for (i = 0; i < max_component; i++) {
                 component_t *c = &component[i];
@@ -472,7 +465,7 @@ static void * model_thread(void * cx)
             __sync_synchronize();
             max_history = idx + 1;
             __sync_synchronize();
-        } else if (strcasecmp(P_SCOPE_MODE, "continuous") == 0) {
+        } else if (strcasecmp(param_str_val(PARAM_SCOPE_MODE), "continuous") == 0) {
             history_t = model_t;
             max_history = 0;
             __sync_synchronize();
@@ -510,10 +503,8 @@ static void eval_circuit_for_delta_t(void)
                 n->v_next = get_comp_power_voltage(n->power->component);
                 n->v_now = n->v_next;
             } else {
-                // XXX could do this with just one num and one denom
-                long double r_sum_num=0, r_sum_denom=0;
-                long double c_sum_num=0, c_sum_denom=0;
-                long double l_sum_num=0, l_sum_denom=0;
+                long double sum_num=0, sum_denom=0;
+
                 for (j = 0; j < n->max_term; j++) {
                     component_t *c = n->term[j]->component;
                     int32_t termid = n->term[j]->termid;
@@ -522,46 +513,37 @@ static void eval_circuit_for_delta_t(void)
 
                     switch (c->type) {
                     case COMP_RESISTOR:
-                        r_sum_num += (other_n->v_next / c->resistor.ohms);
-                        r_sum_denom += (1 / c->resistor.ohms);
+                        sum_num += (other_n->v_next / c->resistor.ohms);
+                        sum_denom += (1 / c->resistor.ohms);
                         break;
                     case COMP_CAPACITOR:
-                        c_sum_num += (c->capacitor.farads / delta_t) * n->v_now +
-                                     c->capacitor.farads * other_n->dv_dt;
-                        c_sum_denom += c->capacitor.farads / delta_t;
+                        sum_num += (c->capacitor.farads / delta_t) * n->v_now +
+                                   c->capacitor.farads * other_n->dv_dt;
+                        sum_denom += c->capacitor.farads / delta_t;
                         break;
                     case COMP_INDUCTOR:
-                        l_sum_num += (delta_t / c->inductor.henrys) * other_n->v_next;
+                        sum_num += (delta_t / c->inductor.henrys) * other_n->v_next;
                         if (termid == 0) {
-                            l_sum_num -= c->i_now;
+                            sum_num -= c->i_now;
                         } else {
-                            l_sum_num += c->i_now;
+                            sum_num += c->i_now;
                         }
-                        l_sum_denom += delta_t / c->inductor.henrys;
+                        sum_denom += delta_t / c->inductor.henrys;
                         break;
                     case COMP_DIODE: {
-                        r_sum_num += (other_n->v_next / c->diode_ohms);
-                        r_sum_denom += (1 / c->diode_ohms);
+                        sum_num += (other_n->v_next / c->diode_ohms);
+                        sum_denom += (1 / c->diode_ohms);
                         break; }
                     default:
                         FATAL("comp type %s not supported\n", c->type_str);
                     }
                 }
-#if 0
-                // xxx delete if not needed
-                long double v_next;
-                v_next = (r_sum_num + c_sum_num + l_sum_num) /
-                         (r_sum_denom + c_sum_denom + l_sum_denom);
-                basic_exponential_smoothing(v_next, &n->v_next, 0.99);
-#else
-                n->v_next = (r_sum_num + c_sum_num + l_sum_num) /
-                            (r_sum_denom + c_sum_denom + l_sum_denom);
-#endif
+                n->v_next = sum_num / sum_denom;
             }
         }
 
-        // comute the current through each component
-        // xxx comment about diode ohms, use macro for DIODE_OHMS
+        // compute the current through each component;
+        // also, for COMP_DIODE, compute the equivalent resistance, c->diode_ohms
         for (i = 0; i < max_component; i++) {
             component_t *c = &component[i];
             node_t *n0 = c->term[0].node;
@@ -579,17 +561,19 @@ static void eval_circuit_for_delta_t(void)
                 c->i_next = c->i_now + (delta_t / c->inductor.henrys) * dv;
                 break; }
             case COMP_DIODE: {
+#if 0
+                // xxx cleanup, remove this ifdefed out code
                 long double v0 = (n0->v_next + n0->v_now) / 2.;
                 long double v1 = (n1->v_next + n1->v_now) / 2.;
-                long double dv = (v0 - v1);  // XXX try just the v_next in calc v0 v1
+                long double dv = (v0 - v1);
                 long double ohms;
+#else
+                long double dv = n0->v_next - n1->v_next;
+                long double ohms;
+#endif
                 ohms = expl(50.L * (.7L - dv));
-                if (ohms > 1e8) {
-                    ohms = 1e8;
-                }
-                if (ohms < .10) {
-                    ohms = .10;
-                }
+                if (ohms > 1e8) ohms = 1e8;
+                if (ohms < .10) ohms = .10;
                 basic_exponential_smoothing(ohms, &c->diode_ohms, 0.01);
                 c->i_next = dv / ohms;
                 break; }
@@ -631,7 +615,7 @@ static void eval_circuit_for_delta_t(void)
         // rc1          10
         // rc5          100  unstable at begining
         count++;
-        if (count == 100) {
+        if (count == 1000) {
             break;
         }
     }
@@ -656,18 +640,15 @@ static long double get_comp_power_voltage(component_t * c)
 
     if (c->power.hz == 0) {
         // dc 
-#if 0
-        // xxx hopefully can eventually get rid of this dcrampup
-        // xxx must be off for rgrid
-        #define DCPWR_RAMP_T 0.25e-3
-        if (model_t >= DCPWR_RAMP_T) {
-            v = c->power.volts;
+        if (strcasecmp(param_str_val(PARAM_DCPWR_RAMP), "on") == 0) {
+            if (model_t >= DCPWR_RAMP_T) {
+                v = c->power.volts;
+            } else {
+                v = c->power.volts * model_t / DCPWR_RAMP_T;
+            }
         } else {
-            v = c->power.volts * model_t / DCPWR_RAMP_T;
+            v = c->power.volts;
         }
-#else
-        v = c->power.volts;
-#endif
     } else {
         // ac
         v = c->power.volts * sinl(model_t * c->power.hz * (2. * M_PI));
