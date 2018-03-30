@@ -187,6 +187,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         int32_t x_min, x_max, y_min, y_max;
         int32_t fpsz;
         bool    display_intermediate_values;
+        int32_t large_point_size, small_point_size;
 
         // determine grid_xoff, grid_yoff, grid_scale from
         // PARAM_CENTER, PARAM_SCALE
@@ -215,6 +216,16 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         // select font point size based on grid_scale
         fpsz = grid_scale * 40 / MAX_GRID_SCALE;
 
+        // determine the size of the large and small points,
+        // the largest size currently supported by util_sdl is 9
+        // - large points are to display the selected scope
+        // - small points are used for component and wire junctions
+        // - small points are used to display the grid locations  (set grid on)
+        large_point_size = 9 * grid_scale / 350;
+        if (large_point_size > 9) large_point_size = 9;
+        if (large_point_size < 6) large_point_size = 6;
+        small_point_size = large_point_size - 3;
+
         // determine whether intermediate voltage and current values will be displayed
         // - normally the intermediate values should not be displayed;
         // - intermediate values are the values that are computed by the model during the 
@@ -229,6 +240,18 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             int32_t glx, gly, x, y, count=0;
             point_t points[MAX_GRID_X*MAX_GRID_Y];
 
+            // draw gridloc_str at each grid point
+            for (glx = 0; glx < MAX_GRID_X; glx++) {
+                for (gly = 0; gly < MAX_GRID_Y; gly++) {
+                    x = glx * grid_scale + grid_xoff + 2;
+                    y = gly * grid_scale + grid_yoff - 2 - sdl_font_char_height(fpsz);
+                    if (OUT_OF_PANE(x,y)) {
+                        continue;
+                    }
+                    sdl_render_printf(pane, x, y, fpsz, BLUE, WHITE, "%s", grid[glx][gly].glstr);
+                }
+            }
+
             // draw grid points
             for (glx = 0; glx < MAX_GRID_X; glx++) {
                 for (gly = 0; gly < MAX_GRID_Y; gly++) {
@@ -242,19 +265,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     count++;
                 }
             }
-            sdl_render_points(pane, points, count, BLUE, 4);
-
-            // draw gridloc_str at each grid point
-            for (glx = 0; glx < MAX_GRID_X; glx++) {
-                for (gly = 0; gly < MAX_GRID_Y; gly++) {
-                    x = glx * grid_scale + grid_xoff + 2;
-                    y = gly * grid_scale + grid_yoff - 2 - sdl_font_char_height(fpsz);
-                    if (OUT_OF_PANE(x,y)) {
-                        continue;
-                    }
-                    sdl_render_printf(pane, x, y, fpsz, BLUE, WHITE, "%s", grid[glx][gly].glstr);
-                }
-            }
+            sdl_render_points(pane, points, count, BLUE, small_point_size);
         }
 
         // draw schematic components
@@ -429,7 +440,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     }
 
                     voltage = (display_intermediate_values ? n->v_next : n->v_now);
-                    val_to_str(voltage, UNITS_VOLTS, s);
+                    val_to_str(voltage, UNITS_VOLTS, s, false);
                     sdl_render_printf(pane, x, y, fpsz, BLACK, WHITE, "%s", s);
                 }
             }
@@ -459,7 +470,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                 }
 
                 current = (display_intermediate_values ? c->i_next : c->i_now);
-                val_to_str(fabsl(current), UNITS_AMPS, current_str);
+                val_to_str(fabsl(current), UNITS_AMPS, current_str, false);
                 pre_str = "";
                 post_str = "";
 
@@ -502,20 +513,14 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
         // if scope select is enabled then draw a large blue dot at the 
         // two gridloc's associated with the selected scope
-        { int32_t large_dot_size;
-          int32_t x,y;
-
-        large_dot_size = 9 * grid_scale / 300;
-        if (large_dot_size > 9) large_dot_size = 9;
-        if (large_dot_size < 4) large_dot_size = 4;
-
+        { int32_t x,y;
         if (scope_select.enabled) {
             x = scope_select.gl0.x * grid_scale + grid_xoff;
             y = scope_select.gl0.y * grid_scale + grid_yoff;
-            sdl_render_point(pane, x, y, BLUE, large_dot_size);
+            sdl_render_point(pane, x, y, BLUE, large_point_size);
             x = scope_select.gl1.x * grid_scale + grid_xoff;
             y = scope_select.gl1.y * grid_scale + grid_yoff;
-            sdl_render_point(pane, x, y, BLUE, large_dot_size);
+            sdl_render_point(pane, x, y, BLUE, large_point_size);
         } }
 
         // draw a point at all grid locations that have at least one terminal as follows:
@@ -523,14 +528,10 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
         // - remote_wire : the color assigned to the remote wire
         // - otherwise   : BLACK
         // if a grid location is both ground and remote-wire then alternate the color
-        { int32_t glx, gly, color, small_dot_size, x, y;
+        { int32_t glx, gly, color, x, y;
           grid_t *g;
           static int32_t count;
-
         count++;
-        small_dot_size = 4 * grid_scale / 300;
-        if (small_dot_size > 4) small_dot_size = 4;
-        if (small_dot_size < 2) small_dot_size = 2;
         for (glx = 0; glx < MAX_GRID_X; glx++) {
             for (gly = 0; gly < MAX_GRID_Y; gly++) {
                 g = &grid[glx][gly];
@@ -550,7 +551,7 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                          g->has_remote_wire                                   ? g->remote_wire_color :
                          g->ground                                            ? GREEN 
                                                                               : BLACK);
-                sdl_render_point(pane, x, y, color, small_dot_size);
+                sdl_render_point(pane, x, y, color, small_point_size);
             }
         } }
 
@@ -679,19 +680,19 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
         sdl_render_printf(pane, 0, ROW2Y(0,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 
                           "%-8s %s", 
                           MODEL_STATE_STR(model_state),
-                          val_to_str(model_t, UNITS_SECONDS, s));
+                          val_to_str(model_t, UNITS_SECONDS, s, false));
 
         // stop time
         sdl_render_printf(pane, 0, ROW2Y(1,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 
                           "%-8s %s", 
                           "STOP_T",
-                          val_to_str(stop_t, UNITS_SECONDS, s));
+                          val_to_str(stop_t, UNITS_SECONDS, s, false));
 
         // delta_t time
         sdl_render_printf(pane, 0, ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 
                           "%-8s %s", 
                           "DELTA_T", 
-                          val_to_str(delta_t, UNITS_SECONDS, s));
+                          val_to_str(delta_t, UNITS_SECONDS, s, false));
                            
 
         // register for mouse click events to control the model from the display
@@ -817,8 +818,8 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
         // display header line
         sdl_render_printf(pane, 0, 0, FPSZ_SMALL, BLACK, WHITE, 
                           "%s  SPAN=%s",
-                          val_to_str(history_t, UNITS_SECONDS, s1),
-                          val_to_str(param_num_val(PARAM_SCOPE_T), UNITS_SECONDS, s2));
+                          val_to_str(history_t, UNITS_SECONDS, s1, true),
+                          val_to_str(param_num_val(PARAM_SCOPE_T), UNITS_SECONDS, s2, true));
 
         // scope trigger control
         // - display MODE button
@@ -983,8 +984,8 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             sdl_render_printf(pane, x_title_str, y_top-FPSZ_SMALL, FPSZ_SMALL, color, WHITE, "%s", title_str_ext);
 
             // display y axis units
-            val_to_str(ymax, units, ymax_str2);
-            val_to_str(ymin, units, ymin_str2);
+            val_to_str(ymax, units, ymax_str2, true);
+            val_to_str(ymin, units, ymin_str2, true);
             sdl_render_printf(pane, x_left+1, y_top, FPSZ_SMALLER, color, WHITE, "%s", ymax_str2);
             sdl_render_printf(pane, x_left+1, y_top+GRAPH_YSPAN-FPSZ_SMALLER-1, FPSZ_SMALLER, color, WHITE, "%s", ymin_str2);
 
