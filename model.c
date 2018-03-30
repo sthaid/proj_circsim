@@ -26,6 +26,8 @@
 static int32_t     model_state_req;
 static int32_t     model_step_count;
 
+static int32_t largest_stable_count;  // xxx temp
+
 //
 // prototypes
 //
@@ -37,6 +39,7 @@ static void debug_print_nodes(void);
 static void reset(void);
 static void * model_thread(void * cx);
 static void eval_circuit_for_delta_t(void);
+static bool circuit_is_stable(int32_t count);
 static long double get_comp_power_voltage(component_t * c);
 
 // -----------------  PUBLIC ---------------------------------------------------------
@@ -312,7 +315,7 @@ static void debug_print_nodes(void)
     char s[MAX_DEBUG_STR], *p;
     int32_t i, j;
 
-    return;
+    //return;
  
     INFO("max_node = %d\n", max_node);
     for (i = 0; i < max_node; i++) {
@@ -383,6 +386,7 @@ static void reset(void)
     stop_t = 0;
     max_history = 0;
     max_node = 0;
+    largest_stable_count = 0; // xxx temp
 
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
@@ -492,6 +496,7 @@ static void eval_circuit_for_delta_t(void)
 {
     uint64_t i, j, count=0;
 
+    // xxx comments throughout
     while (true) {
         // loop over all nodes, computing the next voltage for that node
         for (i = 0; i < max_node; i++) {
@@ -501,7 +506,7 @@ static void eval_circuit_for_delta_t(void)
                 n->v_next = 0;
             } else if (n->power) {
                 n->v_next = get_comp_power_voltage(n->power->component);
-                n->v_now = n->v_next;
+                // xxx n->v_now = n->v_next;
             } else {
                 long double sum_num=0, sum_denom=0;
 
@@ -539,6 +544,8 @@ static void eval_circuit_for_delta_t(void)
                     }
                 }
                 n->v_next = sum_num / sum_denom;
+                //INFO("count %ld  node %ld sum_num %Le sum_denom %Le  voltage %Le\n",
+                     //count, i, sum_num, sum_denom, n->v_next);
             }
         }
 
@@ -606,6 +613,7 @@ static void eval_circuit_for_delta_t(void)
             n->dv_dt = (n->v_next - n->v_now) / delta_t;
         }
 
+#if 0
         // XXX check if stable
         // rgrid        50000
         // ps1          10000
@@ -615,9 +623,17 @@ static void eval_circuit_for_delta_t(void)
         // rc1          10
         // rc5          100  unstable at begining
         count++;
-        if (count == 1000) {
+        if (count == 500000) {
             break;
         }
+#else
+        // if the circuit is stable, meaning that for each node the sum of currents 
+        // is close to zero; and if stable break out of the loop 
+        count++;
+        if (circuit_is_stable(count)) {
+            break;
+        }
+#endif
     }
 
     // completed evaluating the circuit's progression for the delta_t interval;
@@ -632,7 +648,75 @@ static void eval_circuit_for_delta_t(void)
     }
 }
 
-// -----------------  SUPPORT ROUTINES  ----------------------------------------------
+// xxx might not want to pass count in
+static bool circuit_is_stable(int32_t count)
+{
+    #define MAX_COUNT 1000000
+
+    int32_t i, j;
+    long double sum_i, sum_abs_i, i_term, fraction, max_fraction;
+    char s1[100];
+
+#if 1
+    // is this needed
+    if (count < 10) {
+        //INFO("returning because count too small, %d\n", count);
+        return false;
+    }
+#endif
+
+    for (i = 0; i < max_node; i++) {
+        node_t * n = &node[i];
+
+        if (n->power || n->ground) {
+            continue;
+        }
+
+        sum_i = sum_abs_i = 0;
+        for (j = 0; j < n->max_term; j++) {
+            if (n->term[j]->termid == 0) {
+                i_term = n->term[j]->component->i_next;
+            } else {
+                i_term = -n->term[j]->component->i_next;
+            }
+            sum_i += i_term;
+            sum_abs_i += fabsl(i_term);
+        }
+        sum_i = fabsl(sum_i);
+
+        fraction = sum_i / sum_abs_i;
+
+        // xxx make an equation
+        // xxx not working well:
+        //   - rc5
+#if 0
+        max_fraction = (sum_abs_i < .0001 ? .30  :
+                        sum_abs_i < .001  ? .15  :
+                        sum_abs_i < .010  ? .01  :
+                        sum_abs_i < .050  ? .005 :
+                                            .001);
+#else
+        max_fraction = .001;
+#endif
+
+        if (fraction > max_fraction) {
+            if (count == MAX_COUNT) {
+                ERROR("failed to stabilize: count=%d gl=%s voltage=%Lf sum_i=%Lf sum_abs_i=%Lf frac=%Lf max_frac=%Lf\n",
+                      count, gridloc_to_str(&n->gridloc[0],s1), n->v_next, sum_i, sum_abs_i, fraction, max_fraction);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    if (count > largest_stable_count) {
+        INFO("largest_stable_count %d\n", count);
+        // xxx also print avg stable count, and maybe work that back into the max_fraction
+        largest_stable_count = count;
+    }
+
+    return true;
+}
 
 static long double get_comp_power_voltage(component_t * c)
 {
