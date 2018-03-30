@@ -220,7 +220,7 @@ int32_t str_to_gridloc(char *glstr, gridloc_t * gl);
 char * component_to_value_str(component_t * c, char * s);
 char * component_to_full_str(component_t * c, char * s);
 int32_t str_to_val(char * s, int32_t units, long double * val_result);
-char * val_to_str(long double val, int32_t units, char * s);
+char * val_to_str(long double val, int32_t units, char * s, bool shorten);
 int32_t param_set(int32_t id, char *str);
 int32_t param_set_by_name(char *name, char *str);
 const char * param_name(int32_t id);

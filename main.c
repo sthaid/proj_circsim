@@ -937,41 +937,26 @@ char * component_to_value_str(component_t * c, char *s)
 
     switch (c->type) {
     case COMP_POWER:
-        val_to_str(c->power.volts, UNITS_VOLTS, s);
+        val_to_str(c->power.volts, UNITS_VOLTS, s, true);
         if (c->power.hz > 0) {
             len = strlen(s);
             strcpy(s+len, ",");
-            val_to_str(c->power.hz, UNITS_HZ, s+len+1);
+            val_to_str(c->power.hz, UNITS_HZ, s+len+1, true);
         }
         break;
     case COMP_RESISTOR:
-        val_to_str(c->resistor.ohms, UNITS_OHMS, s);
+        val_to_str(c->resistor.ohms, UNITS_OHMS, s, true);
         break;
     case COMP_CAPACITOR:
-        val_to_str(c->capacitor.farads, UNITS_FARADS, s);
+        val_to_str(c->capacitor.farads, UNITS_FARADS, s, true);
         break;
     case COMP_INDUCTOR:
-        val_to_str(c->inductor.henrys, UNITS_HENRYS, s);
-#if 0   // don't display this, it is confusing
-        if (c->inductor.i_init != 0) {
-            len = strlen(s);
-            strcpy(s+len, ",");
-            val_to_str(c->inductor.i_init, UNITS_AMPS, s+len+1);
-        }
-#endif
+        val_to_str(c->inductor.henrys, UNITS_HENRYS, s, true);
         break;
-    case COMP_DIODE: {
+    case COMP_DIODE:
         // xxx temp diode print ohms
-#if 0
-        long double ohms = (c->diode_smooth_ohms[0] + c->diode_smooth_ohms[1]);
-        if (c->diode_smooth_ohms[0] != 0 && c->diode_smooth_ohms[1] != 0) {
-            ohms /= 2;
-        }
-        val_to_str(ohms, UNITS_OHMS, s);
-#else
-        val_to_str(c->diode_ohms, UNITS_OHMS, s);
-#endif
-        break; }
+        val_to_str(c->diode_ohms, UNITS_OHMS, s, true);
+        break;
     case COMP_WIRE:
         break;
     default:
@@ -1072,7 +1057,9 @@ int32_t str_to_val(char * s, int32_t units, long double * val_result)
 
 // if the tbl terminator is reached (because the value is too small) then 
 // the value is printed using "%.2g" format, followed by the tbl terminator units
-char * val_to_str(long double val, int32_t units, char *s)
+//
+// if the short flag is set then trailing ".0", ".00", etc is removed
+char * val_to_str(long double val, int32_t units, char *s, bool shorten)
 {
     char *fmt;
     convert_t *tbl, *t;
@@ -1090,23 +1077,11 @@ char * val_to_str(long double val, int32_t units, char *s)
                                      NULL);
     assert(tbl);
 
-#if 0
-    // for UNITS_SECONDS always use nnn.nnnnnns format
-    if (units == UNITS_SECONDS) {
-        if (val < 1e-6) {
-            sprintf(s, "%.3Les", val);
-        } else {
-            sprintf(s, "%.6Lfs", val);
-        }
-        return s;
-    }
-#endif
-
     // if volts or amps are close to zero then set to zero
-    if (units == UNITS_VOLTS && absval < 1e-3) {
+    if (units == UNITS_VOLTS && absval < 1e-6) {
         val = absval = 0;
     }
-    if (units == UNITS_AMPS && absval < 1e-3) {
+    if (units == UNITS_AMPS && absval < 1e-6) {
         val = absval = 0;
     }
     
@@ -1120,16 +1095,18 @@ char * val_to_str(long double val, int32_t units, char *s)
             } else {
                 // scale val by the table factor
                 val /= t->factor;
+
                 // select format based on the scaled val
                 absval = fabsl(val);
                 fmt = (absval > 99.99 ? "%.0Lf" :
                        absval > 9.999 ? "%.1Lf" :
                                         "%.2Lf");
+
                 // print val to string
                 len = sprintf(s, fmt, val);
-                // if decimal point is contained in string then remove trailing 0s and decimal point;
-                // don't do this for UNITS_SECONDS, the time values look better if this is not done
-                if (units != UNITS_SECONDS && strchr(s,'.') != NULL) {
+
+                // short flag is set then remove trailing ".0"
+                if (shorten && strchr(s,'.') != NULL) {
                     while (true) {
                         if (s[len-1] == '0') {
                             s[len-1] = '\0';
@@ -1143,6 +1120,7 @@ char * val_to_str(long double val, int32_t units, char *s)
                         }
                     }
                 }
+
                 // add the table units to the string
                 strcat(s, t->units);
             }
