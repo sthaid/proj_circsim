@@ -1,6 +1,25 @@
 ====================  NEXT  =================================================
 
+checkin
+
+display avg power used at power supply and a component
+
+more graphs and scroll them up down
+
+resolve dcpwr_ramp and delta_t params
+- when should dcpwr ramp be enabled or disabled
+- try to minimize the amount of times these params are specified in a model file
+- maybe this is better default
+    set dcpwr_ramp off
+    set delta_t 10us
+
+clean up all circuits
+
 work the xxx issues in model.c
+
+
+
+
 
 check for model stabilized, how to support the small currents such as in test rc7?
 
@@ -30,6 +49,7 @@ test rc7 converge with 1mf cap
 - perhaps change to 10M
 - go back to unit test
 IDEA - if model is slow to converge just advance the nodes by 100x their rate
+
 
 ====================  LOWER  ================================================
 
@@ -216,3 +236,11 @@ advance model time after data is ready
 
 rgrid support
 - be nice to see rgrid values update
+
+make it a tripler
+
+make voltage quadroupler
+
+make the dots bigger
+
+why is the small resistor needed
