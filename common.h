@@ -66,6 +66,7 @@
 #define UNITS_HENRYS    5
 #define UNITS_HZ        6
 #define UNITS_SECONDS   7
+#define UNITS_WATTS     8
 
 // parameters
 #define PARAM_RUN_T           0
@@ -152,12 +153,13 @@ typedef struct component_s {
         } diode;
     };
     // component state, used by model.c, follow:
-    // when clearing component state, zero and init from here
+    // when clearing component state, init from here
     int32_t start_init_component_state;
     long double i_next;
     long double i_now;
     long double diode_ohms;
     hist_t i_history[MAX_HISTORY];
+    tma_t * watts;
 } component_t;
 
 typedef struct grid_s {
@@ -175,7 +177,7 @@ typedef struct node_s {
     gridloc_t * gridloc;
     int32_t max_alloced_term;
     int32_t max_alloced_gridloc;
-    // when clearing a node, zero and init from here
+    // when clearing a node, init from here
     int32_t start_init_node_state;
     int32_t max_term;
     int32_t max_gridloc;
