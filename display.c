@@ -619,9 +619,9 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
             // determine new_grid_scale by multiplying or dividing the current
             // grid_scale by 1.1
-            if (event->mouse_motion.delta_y > 0) {
+            if (event->mouse_wheel.delta_y > 0) {
                 new_grid_scale = grid_scale * 1.1;
-            } if (event->mouse_motion.delta_y < 0) {
+            } if (event->mouse_wheel.delta_y < 0) {
                 new_grid_scale = grid_scale * (1./1.1);
             }
 
@@ -660,11 +660,11 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
 {
     #define FPSZ_MEDIUM 30
 
-    #define SDL_EVENT_MODEL_RESET  (SDL_EVENT_USER_DEFINED + 0)
-    #define SDL_EVENT_MODEL_RUN    (SDL_EVENT_USER_DEFINED + 1)
-    #define SDL_EVENT_MODEL_STOP   (SDL_EVENT_USER_DEFINED + 2)
-    #define SDL_EVENT_MODEL_CONT   (SDL_EVENT_USER_DEFINED + 3)
-    #define SDL_EVENT_MODEL_STEP   (SDL_EVENT_USER_DEFINED + 4)
+    #define SDL_EVENT_MODEL_RESET  (SDL_EVENT_USER_DEFINED + 10)
+    #define SDL_EVENT_MODEL_RUN    (SDL_EVENT_USER_DEFINED + 11)
+    #define SDL_EVENT_MODEL_STOP   (SDL_EVENT_USER_DEFINED + 12)
+    #define SDL_EVENT_MODEL_CONT   (SDL_EVENT_USER_DEFINED + 13)
+    #define SDL_EVENT_MODEL_STEP   (SDL_EVENT_USER_DEFINED + 14)
 
     struct {
         int32_t none;
@@ -777,15 +777,15 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
 
 static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event) 
 {
-    #define SDL_EVENT_SCOPE_MODE      (SDL_EVENT_USER_DEFINED + 0)
-    #define SDL_EVENT_SCOPE_TRIG      (SDL_EVENT_USER_DEFINED + 1)
-    #define SDL_EVENT_SCOPE_SELECT_A  (SDL_EVENT_USER_DEFINED + 2)
-    #define SDL_EVENT_SCOPE_SELECT_B  (SDL_EVENT_USER_DEFINED + 3)
-    #define SDL_EVENT_SCOPE_SELECT_C  (SDL_EVENT_USER_DEFINED + 4)
-    #define SDL_EVENT_SCOPE_SELECT_D  (SDL_EVENT_USER_DEFINED + 5)
+    #define SDL_EVENT_SCOPE_MODE      (SDL_EVENT_USER_DEFINED + 20)
+    #define SDL_EVENT_SCOPE_TRIG      (SDL_EVENT_USER_DEFINED + 21)
+    #define SDL_EVENT_MOUSE_WHEEL2    (SDL_EVENT_USER_DEFINED + 22)
+    #define SDL_EVENT_MOUSE_MOTION2   (SDL_EVENT_USER_DEFINED + 23)
+    #define SDL_EVENT_SCOPE_SELECT_A  (SDL_EVENT_USER_DEFINED + 24)  // for length MAX_SCOPE
 
     struct {
         int32_t scope_select_idx;
+        int32_t y_scroll;
     } * vars = pane_cx->vars;
     rect_t * pane = &pane_cx->pane;
 
@@ -796,6 +796,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
     if (request == PANE_HANDLER_REQ_INITIALIZE) {
         vars = pane_cx->vars = calloc(1,sizeof(*vars));
         vars->scope_select_idx = -1;
+        vars->y_scroll = 0;
         return PANE_HANDLER_RET_NO_ACTION;
     }
 
@@ -805,6 +806,8 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
 
     if (request == PANE_HANDLER_REQ_RENDER) {
         int32_t       i, j, count, x_left, y_top, units, x_title_str, color;
+        int32_t       y_scroll_min, y_scroll_max, last_defined_scope;
+        int32_t       y_axis_bottom;
         char          p[100], s1[100], s2[100], *select_str, *ymin_str, *ymax_str, *gl0_str, *gl1_str;
         char          *title_str, ymax_str2[100], ymin_str2[100], title_str_ext[100];
         long double   ymin, ymax;
@@ -813,6 +816,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
         point_t       points[2*MAX_HISTORY];
         float         sign;
 
+        #define YHEADER       50
         #define GRAPH_YSPAN   170
         #define GRAPH_YSPACE  30
         #define GRAPH_XSPAN   500
@@ -826,32 +830,32 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
                   GRAPH_XSPAN, MAX_HISTORY);
         }
 
-        // display header line
-        sdl_render_printf(pane, 0, 0, FPSZ_SMALL, BLACK, WHITE, 
-                          "%s  SPAN=%s",
-                          val_to_str(history_t, UNITS_SECONDS, s1, true),
-                          val_to_str(param_num_val(PARAM_SCOPE_T), UNITS_SECONDS, s2, true));
-
-        // scope trigger control
-        // - display MODE button
-        sdl_render_text_and_register_event(
-            pane, pane->w-COL2X(9,FPSZ_SMALL), 0, FPSZ_SMALL, "MODE", LIGHT_BLUE, WHITE,
-            SDL_EVENT_SCOPE_MODE, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
-        if (strcasecmp(param_str_val(PARAM_SCOPE_MODE), "continuous") == 0) {
-            sdl_render_printf(
-               pane, pane->w-COL2X(4,FPSZ_SMALL), 0, 
-               FPSZ_SMALL, BLACK, WHITE, "CONT");
-        } else {
-            sdl_render_text_and_register_event(
-                pane, pane->w-COL2X(4,FPSZ_SMALL), 0, FPSZ_SMALL, "TRIG", LIGHT_BLUE, WHITE,
-                SDL_EVENT_SCOPE_TRIG, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
-        }
-
         // clear scope_select_enabled; it will be set below if there is a selected scope
         scope_select.enabled = false;
 
-        // loop over the 4 scopes, displaying each
-        for (i = 0; i < 4; i++) {
+        // deterine the valid range for y_scroll, which depends on the 
+        // last scope defined
+        last_defined_scope = -1;
+        for (i = 0; i < MAX_SCOPE; i++) {
+            if (strncasecmp(param_str_val(PARAM_SCOPE_A+i), "off", 3) != 0) {
+                last_defined_scope = i;
+            }
+        }
+        y_scroll_min = 0;
+        y_scroll_max = (YHEADER + (last_defined_scope + 1) * (GRAPH_YSPAN + GRAPH_YSPACE)) - pane->h;
+        if (y_scroll_max < 0) y_scroll_max = 0;
+
+        // register for mouse wheel event, and mouse motion event;
+        // note that the registration for the mouse motion event needs to be done prior
+        //      to the scope select event registration that is done at the end of the
+        //      following loop; this is because the locations overlap and events that
+        //      are defined later are given priority
+        rect_t locf = {0,0,pane->w,pane->h};
+        sdl_register_event(pane, &locf, SDL_EVENT_MOUSE_WHEEL2, SDL_EVENT_TYPE_MOUSE_WHEEL, pane_cx);
+        sdl_register_event(pane, &locf, SDL_EVENT_MOUSE_MOTION2, SDL_EVENT_TYPE_MOUSE_MOTION, pane_cx);
+
+        // loop over the scopes, displaying each
+        for (i = 0; i < MAX_SCOPE; i++) {
             // if the model is reset then continue
             if (model_state == MODEL_STATE_RESET) {
                 goto no_scope;
@@ -941,13 +945,32 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
                 color = BLACK;
             }
                 
+            // limit the y_scroll value so the vertical scroll range
+            // encompasses just the defined scopes
+            if (vars->y_scroll < y_scroll_min) {
+                vars->y_scroll = y_scroll_min;
+            } else if (vars->y_scroll > y_scroll_max) {
+                vars->y_scroll = y_scroll_max;
+            }
+
             // determine the coordinates of the top left corner of the scope graph
             x_left = 12;
-            y_top  = 50 + i * (GRAPH_YSPAN + GRAPH_YSPACE);
+            y_top  = YHEADER + i * (GRAPH_YSPAN + GRAPH_YSPACE) - vars->y_scroll;
+
+            // if this scope is above the top of the pane or 
+            // is below the bottom of the pane then skip to the next scope
+            if (y_top + GRAPH_YSPAN < 0 || y_top > pane->h) {
+                continue;
+            }
 
             // display y axis
-            sdl_render_line(pane, x_left, y_top, x_left, y_top + GRAPH_YSPAN - 1, color);
-            sdl_render_line(pane, x_left-1, y_top, x_left-1, y_top + GRAPH_YSPAN - 1, color);
+            // note - the reason for limitting y_axis_bottom to pane boundary is due to 
+            //        a limitiation in util_sdl.c, where lines that are attempted to be 
+            //        drawn from inside to outside pane boundary are not drawn
+            y_axis_bottom = y_top + GRAPH_YSPAN - 1;
+            if (y_axis_bottom > pane->h-1) y_axis_bottom = pane->h-1;
+            sdl_render_line(pane, x_left, y_top, x_left, y_axis_bottom, color);
+            sdl_render_line(pane, x_left-1, y_top, x_left-1, y_axis_bottom, color);
 
             // display x axis, at the 0 volt y intercept; 
             // if there is no 0 volt y intercept then don't display 
@@ -987,7 +1010,8 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             sdl_render_lines(pane, points, count, color);
 
             // display the graph title
-            sprintf(title_str_ext, "%s - %s", 
+            sprintf(title_str_ext, "%c: %s - %s", 
+                    'A' + i,
                     units == UNITS_VOLTS ? "VOLTAGE" : "CURRENT", 
                     title_str);
             x_title_str = x_left + GRAPH_XSPAN/2 - COL2X(strlen(title_str_ext),FPSZ_SMALL)/2;
@@ -1019,6 +1043,29 @@ no_scope:   // scope is now off or improperly defined
             }
         }
 
+        // display header line
+        rect_t loc = {0, 0, pane->w, sdl_font_char_height(FPSZ_SMALL)};
+        sdl_render_fill_rect(pane, &loc, WHITE);
+        sdl_render_printf(pane, 0, 0, FPSZ_SMALL, BLACK, WHITE, 
+                          "%s  SPAN=%s",
+                          val_to_str(history_t, UNITS_SECONDS, s1, true),
+                          val_to_str(param_num_val(PARAM_SCOPE_SPAN_T), UNITS_SECONDS, s2, true));
+
+        // scope trigger control
+        // - display MODE button
+        sdl_render_text_and_register_event(
+            pane, pane->w-COL2X(9,FPSZ_SMALL), 0, FPSZ_SMALL, "MODE", LIGHT_BLUE, WHITE,
+            SDL_EVENT_SCOPE_MODE, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
+        if (strcasecmp(param_str_val(PARAM_SCOPE_MODE), "continuous") == 0) {
+            sdl_render_printf(
+               pane, pane->w-COL2X(4,FPSZ_SMALL), 0, 
+               FPSZ_SMALL, BLACK, WHITE, "CONT");
+        } else {
+            sdl_render_text_and_register_event(
+                pane, pane->w-COL2X(4,FPSZ_SMALL), 0, FPSZ_SMALL, "TRIG", LIGHT_BLUE, WHITE,
+                SDL_EVENT_SCOPE_TRIG, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
+        }
+
         return PANE_HANDLER_RET_NO_ACTION;
     }
 
@@ -1035,10 +1082,16 @@ no_scope:   // scope is now off or improperly defined
         case SDL_EVENT_SCOPE_TRIG:
             param_set(PARAM_SCOPE_TRIGGER, "1");
             break;
-        case SDL_EVENT_SCOPE_SELECT_A...SDL_EVENT_SCOPE_SELECT_D: {
+        case SDL_EVENT_SCOPE_SELECT_A...SDL_EVENT_SCOPE_SELECT_A+MAX_SCOPE-1: {
             int32_t i = event->event_id - SDL_EVENT_SCOPE_SELECT_A;
             vars->scope_select_idx = (i == vars->scope_select_idx ? -1 : i);
             break; }
+        case SDL_EVENT_MOUSE_WHEEL2:
+            vars->y_scroll -= event->mouse_wheel.delta_y * 20;
+            break;
+        case SDL_EVENT_MOUSE_MOTION2:
+            vars->y_scroll -= event->mouse_motion.delta_y;
+            break;
         }
         return PANE_HANDLER_RET_NO_ACTION;
     }

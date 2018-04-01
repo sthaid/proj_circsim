@@ -1167,6 +1167,8 @@ static void param_init(void)
             assert(rc == 0); \
         } while (0)
 
+    int32_t i;
+
     PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
     PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "1ms"      );  // XXX 100ns
     PARAM_CREATE(PARAM_STEP_COUNT,    "step_count",    "1"        );
@@ -1181,13 +1183,15 @@ static void param_init(void)
     PARAM_CREATE(PARAM_CENTER,        "center",        "c3"       );
     PARAM_CREATE(PARAM_SCALE,         "scale",         "200"      );
 
-    PARAM_CREATE(PARAM_SCOPE_A,       "scope_a",       "off"      );
-    PARAM_CREATE(PARAM_SCOPE_B,       "scope_b",       "off"      );
-    PARAM_CREATE(PARAM_SCOPE_C,       "scope_c",       "off"      );
-    PARAM_CREATE(PARAM_SCOPE_D,       "scope_d",       "off"      );
-    PARAM_CREATE(PARAM_SCOPE_T,       "scope_t",       "1s"       );
     PARAM_CREATE(PARAM_SCOPE_MODE,    "scope_mode",    "trigger"  );
     PARAM_CREATE(PARAM_SCOPE_TRIGGER, "scope_trigger", "0"        );
+    PARAM_CREATE(PARAM_SCOPE_SPAN_T,  "scope_span_t",  "1s"       );
+
+    for (i = 0; i < MAX_SCOPE; i++) {
+        static char scope_name[MAX_SCOPE][10];
+        sprintf(scope_name[i], "scope_%c", 'a'+i);
+        PARAM_CREATE(PARAM_SCOPE_A+i, scope_name[i], "off" );
+    }
 }
 
 int32_t param_set(int32_t id, char *str_val)
@@ -1202,7 +1206,7 @@ int32_t param_set(int32_t id, char *str_val)
     // check for params that have numeric values in UNITS_SECONDS
     if ((id == PARAM_RUN_T ||
          id == PARAM_DELTA_T ||
-         id == PARAM_SCOPE_T) &&
+         id == PARAM_SCOPE_SPAN_T) &&
         ((str_to_val(str_val, UNITS_SECONDS, &num_val) == -1) ||
          (num_val <= 0)))
     {
@@ -1265,7 +1269,7 @@ int32_t param_set(int32_t id, char *str_val)
         return -1;
     }
 
-    // check PARAM_SCOPE_A,B,C,D
+    // check PARAM_SCOPE_A,B,C,D,....
     // xxx tbd - check PARAM_SCOPE
 
     // checks have passed, commit the new param value

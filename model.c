@@ -414,7 +414,7 @@ static void * model_thread(void * cx)
         } while (0)
 
     uint64_t i,idx;
-    long double last_scope_t = -1;
+    long double last_scope_span_t = -1;
 
     while (true) {
         // handle request to transition model_state
@@ -424,10 +424,10 @@ static void * model_thread(void * cx)
         model_state = model_state_req;
         __sync_synchronize();
 
-        // if scope time param has changed or scope trigger is requested 
+        // if scope time span param has changed or scope trigger is requested 
         // then reset scope history
-        if (param_num_val(PARAM_SCOPE_T) != last_scope_t) {
-            last_scope_t = param_num_val(PARAM_SCOPE_T);
+        if (param_num_val(PARAM_SCOPE_SPAN_T) != last_scope_span_t) {
+            last_scope_span_t = param_num_val(PARAM_SCOPE_SPAN_T);
             history_t = model_t;
             max_history = 0;
             __sync_synchronize();
@@ -456,7 +456,7 @@ static void * model_thread(void * cx)
         // these are used for the scope display
         // xxx if values have been skipped then fill them in somehow, maybe with INVALID
         // xxx maybe don't need the min and max any more
-        idx = (model_t - history_t) / param_num_val(PARAM_SCOPE_T) * MAX_HISTORY;
+        idx = (model_t - history_t) / param_num_val(PARAM_SCOPE_SPAN_T) * MAX_HISTORY;
         if (idx < MAX_HISTORY) {
             for (i = 0; i < max_component; i++) {
                 component_t *c = &component[i];
@@ -684,7 +684,7 @@ static bool circuit_is_stable(int32_t count)
     char s1[100];
 
 #if 1
-    // is this needed
+    // xxx is this needed
     if (count < 10) {
         //INFO("returning because count too small, %d\n", count);
         return false;

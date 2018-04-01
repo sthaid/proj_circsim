@@ -37,6 +37,7 @@
 #define MAX_NODE            10000
 #define MAX_GRID_TERM       5
 #define MAX_HISTORY         500
+#define MAX_SCOPE           8
 
 // model state
 #define MODEL_STATE_RESET    0
@@ -80,13 +81,10 @@
 #define PARAM_INTERMEDIATE    8
 #define PARAM_CENTER          9
 #define PARAM_SCALE           10
-#define PARAM_SCOPE_A         11
-#define PARAM_SCOPE_B         12
-#define PARAM_SCOPE_C         13
-#define PARAM_SCOPE_D         14
-#define PARAM_SCOPE_T         15  
-#define PARAM_SCOPE_MODE      16
-#define PARAM_SCOPE_TRIGGER   17
+#define PARAM_SCOPE_MODE      11
+#define PARAM_SCOPE_TRIGGER   12
+#define PARAM_SCOPE_SPAN_T    13  
+#define PARAM_SCOPE_A         14  // for len MAX_SCOPE
 
 #define param_has_changed(id) \
     ({ static int32_t last_update_count=-1; \
