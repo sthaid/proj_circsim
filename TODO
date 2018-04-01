@@ -1,14 +1,15 @@
 ====================  NEXT  =================================================
 
-//
-// XXX delta_t 0 means auto detect
-//       - try 1 ms for DC circuits
-//       - 1/freq / 10000 for AC circuits;  choose smallest delta_t if multiple power
-//
-// -  default DCRAMP to off, and maybe delete it again
-//
-// evaluate some of the tests with the above conditions
-//
+delta_t 0 means auto detect
+  - try 1 ms for DC circuits
+  - 1/freq / 10000 for AC circuits;  choose smallest delta_t if multiple power
+evaluate some of the tests with the above conditions
+
+redesign control pane, maybe don't need delta_t, and could put controls on top
+
+default DCRAMP to off, and maybe delete it again
+
+work the xxx issues in model.c
 
 regression test scripts in test dir
   run_diode_test
@@ -16,27 +17,13 @@ regression test scripts in test dir
     ...
   run_all_tests
 
+clean up all circuits
 
-
-
-
-
-more graphs and scroll them up down
+move file to unit_test dir and add README
 
 resolve dcpwr_ramp and delta_t params
 - when should dcpwr ramp be enabled or disabled
 - try to minimize the amount of times these params are specified in a model file
-- maybe this is better default
-    set dcpwr_ramp off
-    set delta_t 10us
-
-clean up all circuits
-
-work the xxx issues in model.c
-
-
-
-
 
 check for model stabilized, how to support the small currents such as in test rc7?
 
@@ -47,13 +34,6 @@ XXX issues in main and display
 --------------------------------------
 
 clean up all of the test scripts, again
-
-add capability to adjust component values while model is running
-- structure have current and target fields, and steps
-- keep count of how many active adjusts there are
-- use exponential adjust to get there in N steps
-- chnage dt while adjusting
-- be nice to implement a switch for the LC circuit
 
 optimize model computations
   - and check with profiling
@@ -69,6 +49,13 @@ IDEA - if model is slow to converge just advance the nodes by 100x their rate
 
 
 ====================  LOWER  ================================================
+
+add capability to adjust component values while model is running
+- structure have current and target fields, and steps
+- keep count of how many active adjusts there are
+- use exponential adjust to get there in N steps
+- chnage dt while adjusting
+- be nice to implement a switch for the LC circuit
 
 add copyright
 
@@ -101,9 +88,6 @@ use of assert vs FATAL, could make my ASSERT
 
 set params on the command line
 
-other component stuff to track
-  - power
-  - energy
 
 debug param to enable prints
 
@@ -271,3 +255,11 @@ why is the small resistor needed
 //     perhaps can call this something else like reset_all, or clear_all 
 
 display avg power used at power supply and a component
+
+add support for more scopes
+
+more graphs and scroll them up down
+
+other component stuff to track
+  - power
+  - energy   NOT DOING ENERGY
