@@ -36,7 +36,7 @@ static int32_t process_cmd(char * cmdline);
 static int32_t cmd_help(char *args);
 static int32_t cmd_set(char *args);
 static int32_t cmd_show(char *args);
-static int32_t cmd_clear_schematic(char *args);
+static int32_t cmd_clear_all(char *args);
 static int32_t cmd_read(char *args);
 static int32_t cmd_write(char *args);
 static int32_t cmd_add(char *args);
@@ -163,7 +163,7 @@ static struct {
     { "set",             cmd_set,             "<param_name> <param_value>"       },
     { "show",            cmd_show,            "[<components|params|ground>]"     },
 
-    { "clear_schematic", cmd_clear_schematic, "",                                },
+    { "clear_all",       cmd_clear_all,       "",                                },
     { "read",            cmd_read,            "<filename>"                       },
     { "write",           cmd_write,           "[<filename>]"                     },
     { "add",             cmd_add,             "<type> <gl0> <gl1> [<values>]"    },
@@ -328,10 +328,17 @@ static int32_t cmd_show(char *args)
     return 0;
 }
 
-static int32_t cmd_clear_schematic(char *args)                                        
+static int32_t cmd_clear_all(char *args)                                        
 {
+    int32_t i;
+
     // reset model
     model_reset();
+
+    // free component power
+    for (i = 0; i < max_component; i++) {
+        timed_moving_average_free(component[i].watts);
+    }
 
     // remove all components
     max_component = 0;
@@ -344,6 +351,9 @@ static int32_t cmd_clear_schematic(char *args)
 
     // re-initialize the grid
     grid_init();
+
+    // init params
+    param_init();
 
     // success
     return 0;
@@ -436,7 +446,7 @@ static int32_t cmd_write(char *args)
     }
 
     // print the commands to the file
-    fprintf(fp, "clear_schematic\n");
+    fprintf(fp, "clear_all\n");
     fprintf(fp, "\n");
 
     for (i = 0; i < max_component; i++) {
@@ -734,6 +744,8 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     case COMP_DIODE:
         break;
     }
+    // - set watts
+    new_comp.watts = timed_moving_average_alloc(1.0, 1000);
 
     // verify terminals are adjacent, except for:
     // - COMP_WIRE - where they just need to be in the same row or column
@@ -753,6 +765,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     }
     if (!ok) {
         ERROR("invalid terminal locations '%s' '%s'\n", gl0_str, gl1_str);
+        timed_moving_average_free(new_comp.watts);
         return -1;
     }
 
@@ -763,6 +776,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
             grid_t * g = &grid[new_comp.term[i].gridloc.x][new_comp.term[i].gridloc.y];
             if (g->has_remote_wire) {
                 ERROR("gridloc %s already has a remote wire\n", g->glstr);
+                timed_moving_average_free(new_comp.watts);
                 return -1;
             }
         }
@@ -778,6 +792,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
             ERROR("new_comp overlaps existing component at %s %s\n",
                   gridloc_to_str(&c->term[0].gridloc,s1),
                   gridloc_to_str(&c->term[1].gridloc,s2));
+            timed_moving_average_free(new_comp.watts);
             return -1;
         }
         if ((memcmp(&c->term[1].gridloc, &new_comp.term[0].gridloc, sizeof(gridloc_t)) == 0) &&
@@ -786,6 +801,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
             ERROR("new_comp overlaps existing component at %s %s\n",
                   gridloc_to_str(&c->term[0].gridloc,s1),
                   gridloc_to_str(&c->term[1].gridloc,s2));
+            timed_moving_average_free(new_comp.watts);
             return -1;
         }
     }
@@ -874,6 +890,9 @@ static int32_t del_component(char * comp_str)
             g->has_remote_wire = false;
         }
     }
+
+    // - free component power
+    timed_moving_average_free(c->watts);
 
     // - remove from component list
     c->type = COMP_NONE;
@@ -992,6 +1011,7 @@ static convert_t farads_tbl[] = { {"F",1}, {"mF",1e-3}, {"uF",1e-6}, {"nF",1e-9}
 static convert_t henrys_tbl[] = { {"H", 1}, {"mH",1e-3}, {"uH",1e-6},                             {"H",0} };
 static convert_t hz_tbl[]     = { {"MHz",1e6}, {"kHz",1e3}, {"Hz",1},                             {"Hz",0} };
 static convert_t time_tbl[]   = { {"s",1}, {"ms",1e-3}, {"us",1e-6}, {"ns",1e-9}, {"ps",1e-12},   {"s",0} };
+static convert_t watts_tbl[]  = { {"MW",1e6}, {"kW",1e3}, {"W",1}, {"mW",1e-3},                   {"W",0} };
 
 // returns -1 on error, otherwise the number of chars from s that were processed;
 //
@@ -1018,6 +1038,7 @@ int32_t str_to_val(char * s, int32_t units, long double * val_result)
            units == UNITS_HENRYS   ? henrys_tbl :
            units == UNITS_HZ       ? hz_tbl     :
            units == UNITS_SECONDS  ? time_tbl   :
+           units == UNITS_WATTS    ? watts_tbl  :
                                      NULL);
     assert(tbl);
 
@@ -1074,6 +1095,7 @@ char * val_to_str(long double val, int32_t units, char *s, bool shorten)
            units == UNITS_HENRYS   ? henrys_tbl :
            units == UNITS_HZ       ? hz_tbl     :
            units == UNITS_SECONDS  ? time_tbl   :
+           units == UNITS_WATTS    ? watts_tbl  :
                                      NULL);
     assert(tbl);
 
@@ -1146,9 +1168,9 @@ static void param_init(void)
         } while (0)
 
     PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
-    PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "100ns"    );
+    PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "1ms"      );  // XXX 100ns
     PARAM_CREATE(PARAM_STEP_COUNT,    "step_count",    "1"        );
-    PARAM_CREATE(PARAM_DCPWR_RAMP,    "dcpwr_ramp",    "on"       );
+    PARAM_CREATE(PARAM_DCPWR_RAMP,    "dcpwr_ramp",    "off"      );   // XXX maybe delte
 
     PARAM_CREATE(PARAM_GRID,          "grid",          "off"      );
     PARAM_CREATE(PARAM_CURRENT,       "current",       "on"       );
@@ -1217,9 +1239,11 @@ int32_t param_set(int32_t id, char *str_val)
 
     // check PARAM_COMPONENT
     if ((id == PARAM_COMPONENT) &&
-        (strcasecmp(str_val, "value") != 0 && strcasecmp(str_val, "id") != 0))
+        (strcasecmp(str_val, "value") != 0 && 
+         strcasecmp(str_val, "id") != 0) && 
+         strcasecmp(str_val, "power") != 0)
     {
-        ERROR("failed to set '%s', expected 'value' or 'id'\n", param_name(id));
+        ERROR("failed to set '%s', expected 'value' or 'id' or 'power'\n", param_name(id));
         return -1;
     }
 
@@ -1279,7 +1303,7 @@ char * param_str_val(int32_t id)
 long double param_num_val(int32_t id)
 {
     assert(param[id].name[0] != '\0');
-    assert(param[id].num_val != NAN);
+    assert(isnan(param[id].num_val) == false);
     return param[id].num_val;
 }
 

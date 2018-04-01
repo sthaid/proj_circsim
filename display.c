@@ -362,11 +362,11 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             }
         } }
 
-        // display component id or value, if enabled
+        // display component id or value or power, if enabled
         if (strcasecmp(param_str_val(PARAM_COMPONENT), "id") == 0 ||
-            strcasecmp(param_str_val(PARAM_COMPONENT), "value") == 0)
+            strcasecmp(param_str_val(PARAM_COMPONENT), "value") == 0 ||
+            strcasecmp(param_str_val(PARAM_COMPONENT), "power") == 0)
         {
-            bool display_id = (strcasecmp(param_str_val(PARAM_COMPONENT), "id") == 0 );
             int32_t i, x, y;
             char *s, s1[100];
             component_t *c;
@@ -383,7 +383,18 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     continue;
                 }
 
-                s = (display_id ? c->comp_str : component_to_value_str(c,s1));
+                if (strcasecmp(param_str_val(PARAM_COMPONENT), "id") == 0) {
+                    s = c->comp_str;
+                } else if (strcasecmp(param_str_val(PARAM_COMPONENT), "value") == 0) {
+                    s = component_to_value_str(c,s1);
+                } else {  // must be "power"
+                    s = "";
+                    if (c->watts && c->type != COMP_CAPACITOR && c->type != COMP_INDUCTOR) {
+                        long double watts = timed_moving_average_query(c->watts);
+                        s = isnan(watts) ? "" : val_to_str(watts,UNITS_WATTS,s1,false);
+                    }
+                }
+
                 if (s[0] == '\0') {
                     continue;
                 }
