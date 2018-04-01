@@ -1,8 +1,25 @@
 ====================  NEXT  =================================================
 
-checkin
+//
+// XXX delta_t 0 means auto detect
+//       - try 1 ms for DC circuits
+//       - 1/freq / 10000 for AC circuits;  choose smallest delta_t if multiple power
+//
+// -  default DCRAMP to off, and maybe delete it again
+//
+// evaluate some of the tests with the above conditions
+//
 
-display avg power used at power supply and a component
+regression test scripts in test dir
+  run_diode_test
+  run_resistor_tests
+    ...
+  run_all_tests
+
+
+
+
+
 
 more graphs and scroll them up down
 
@@ -244,3 +261,13 @@ make voltage quadroupler
 make the dots bigger
 
 why is the small resistor needed
+
+// XXX display power for all devices, and use the same equation as for resistor below;
+//      - the display.c file can be used to not display for some of them
+//       - try the LC circuit with power
+
+// clear schematic should also clear scopes
+//   and reset params back to default
+//     perhaps can call this something else like reset_all, or clear_all 
+
+display avg power used at power supply and a component
