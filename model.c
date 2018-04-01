@@ -369,10 +369,12 @@ static void reset(void)
         component_t *c = &component[i];
         c->term[0].node = NULL;
         c->term[1].node = NULL;
-        memset(&c->start_init_component_state, 
-               0,
-               sizeof(component_t) - offsetof(component_t,start_init_component_state));
+
+        c->i_next = 0;
+        c->i_now = 0;
         c->diode_ohms = 1e8;  // xxx #define
+        memset(c->i_history,0,sizeof(c->i_history));
+        timed_moving_average_reset(c->watts);
     }
 
     for (glx = 0; glx < MAX_GRID_X; glx++) {
@@ -645,6 +647,30 @@ static void eval_circuit_for_delta_t(void)
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
         c->i_now = c->i_next;
+    }
+
+    // compute component power dissipation (watts)
+    // - reverse sign for power supply power, so it is positive too
+    // - used timed_moving_average routine which averages the 'watts' arg value
+    //   over a 1 second interval
+    for (i = 0; i < max_component; i++) {
+        component_t *c = &component[i];
+        long double watts;
+
+        if (c->type != COMP_RESISTOR &&
+            c->type != COMP_CAPACITOR &&
+            c->type != COMP_INDUCTOR &&
+            c->type != COMP_DIODE &&
+            c->type != COMP_POWER)
+        {
+            continue;
+        }
+
+        watts = (c->term[0].node->v_now - c->term[1].node->v_now) * c->i_now;
+        if (c->type == COMP_POWER) {
+            watts = -watts;
+        }
+        timed_moving_average(watts, model_t, c->watts);
     }
 }
 
