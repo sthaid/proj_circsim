@@ -111,11 +111,45 @@ float random_range(float min, float max);
 float random_triangular(float min, float max);
 void random_vector(float magnitude, float * x, float * y, float * z);
 
-// -----------------  MATH  ----------------------------------------------
+// -----------------  MISC MATH ------------------------------------------
 
 bool solve_quadratic_equation(float a, float b, float c, float *x1, float *x2);
 float hypotenuse(float x, float y, float z);
+
+// -----------------  SMOOTHING  -----------------------------------------
+
 void basic_exponential_smoothing(long double x, long double *s, long double alpha);
 void double_exponential_smoothing(long double x, long double *s, long double *b, long double alpha, long double beta, bool init);
+
+// -----------------  MOVING AVERAGE  ------------------------------------
+
+typedef struct {
+    int64_t max_values;
+    long double sum;
+    int64_t count;
+    long double current;
+    long double values[0];
+} ma_t;
+long double moving_average(long double val, ma_t *ma);
+long double moving_average_query(ma_t *ma);
+ma_t * moving_average_alloc(int32_t max_values);
+void moving_average_free(ma_t * ma) ;
+void moving_average_reset(ma_t * ma);
+
+typedef struct {
+    long double time_span;
+    int64_t max_bins;
+    ma_t * ma;
+    bool first_call;
+    int64_t last_idx;
+    long double sum;
+    int64_t count;
+    long double current;
+} tma_t;
+long double timed_moving_average(long double val, long double time_arg, tma_t *tma);
+long double timed_moving_average_query(tma_t *tma);
+tma_t * timed_moving_average_alloc(long double time_span, int64_t max_bins);
+void timed_moving_average_free(tma_t * tma);
+void timed_moving_average_reset(tma_t * tma);
 
 #endif
