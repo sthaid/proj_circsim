@@ -1,8 +1,4 @@
 model
-mt
-mt1
-gen_resistor_grid
 *.d
 *.o
 *.swp
-do_*
