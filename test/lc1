@@ -2,25 +2,28 @@
 # resonant frequency =  -------------------
 #                        2 * PI * sqrt(L*C)
 #
-# f = 1  L = .159 C = .159
+# for example:
+#   f = 1    L = .159 C = .159
+#   f = 100  L = .00159 C = .00159
+#
+# this test uses f=100hz,  period=10ms
 
-clear_schematic
+clear_all
 
-add capacitor  c4   d4   .1591549F
-add inductor   c5   d5   .1591549H,1A
+add capacitor  c4   d4   .001591549F
+add inductor   c5   d5   .001591549H,1A   # precharge inductor to 1A
 add wire       c4   c5   
 add wire       d4   d5   
 
 ground d4
 
-set center  d5,94,143
+set center  c4,500,500
 set scale   354
 
-set scope_t 5s
-set scope_a voltage,-1,1,c4
-set scope_b current,-1,1,c5,d5
+set scope_a voltage,-1v,1v,c4,d4,CAPACITOR-TITLE
+set scope_b current,-1a,1a,c5,d5,INDUCTOR-TITLE
 set scope_mode continuous
 
 set delta_t 1us
-
-model run 1000000s
+set scope_span_t 20ms
+run 10

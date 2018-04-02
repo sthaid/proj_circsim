@@ -51,3 +51,15 @@ rl2: similar to rl1, but with 2 inductors in parallel; T=10ms
 rl3: 2 series resistors and 2 parallel inductors; T=10ms
 
 rl4: 2 series resistors and 2 series inductors; T=10ms
+
+
+======================
+INDUCTOR CAPACITOR TESTS
+======================
+
+                              1
+resonant frequency =  -------------------
+                       2 * PI * sqrt(L*C)
+
+lc1: simply a capacitor and inductor, the model precharges the inductor with
+     one amp; frequency=100hz
