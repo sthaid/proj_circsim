@@ -1,0 +1,9 @@
+gen_resistor_grid: this program generates the infinitie 1ohm resistor grid in file test/r3
+
+model_test1: this program models a simple R-C-R circuit; lessons learned have been 
+    incorporated in model.c
+
+model_test2: similar to model_test1, but this program models a simple R-R-R circuit
+
+moving_average_test: unit test for moving average utils that are now in util_misc.c
+
