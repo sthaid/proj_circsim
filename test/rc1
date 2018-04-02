@@ -1,19 +1,18 @@
-clear_schematic
+clear_all
 
-add power        b1  c1 5v
-add wire         b1  b2 
-add resistor     b2  c2 1000
-add capacitor    d2  c2 1mf
-add wire         d2  d1 
-add wire         d1  c1 
+add power     b1  c1 5v
+add wire      b1  b2 
+add resistor  b2  c2 1000
+add capacitor c2  d2 1mf
+add wire      d2  d1 
+add wire      d1  c1 
 
 ground c1
 
-set center  c2,100,0 
+set center  c2
 set scale   300
 
-set scope_t 1s
-set scope_a voltage,0,5,c2
-set scope_b current,0,.005,c2,d2
+set scope_a voltage,0,5,c2,d2,CAPACITOR
+set scope_b current,0,.005,c2,d2,CAPACITOR
 
-model run 1s
+run 

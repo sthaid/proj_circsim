@@ -12,3 +12,28 @@ r4: unusual combination of 3 series resistors, 100M--1ohm--100M;
     PROBLEM: this takes a long time to stabilize, and a single model step 
              is not adequate when the circuit_is_stable routine's MAX_COUNT
              is set to 1000000
+
+======================
+RESISTOR CAPACITOR TESTS
+======================
+
+The time constant of an RC circuit is T = R*C. Where T is the time that it takes
+for the capacitor to charge to 63.2% of the DC voltage. The 63.2% equals 1 - exp(-1).
+
+rc1: simple RC circuit with T=1
+
+rc2: same T=1 as rc1, however this circuit has 2 series resistors and 2 parallel
+     capacitors
+
+rc3: similar to rc2, but with just one capacitor
+
+rc4: two simple capacitor circuits, both with T=1; testing different combinations
+     of resistor values
+
+rc5: another T=1 circuit, this time with 3 resistors and 2 capacitors in series
+
+rc6: similar to rc5 but with the components in different order
+
+rc7: unusual combination  100Mohm--0.5mf--100Mohm, with T=100000secs;
+     PROBLEM similar to r4, does not stabilize for the first couple seconds;
+             however when run for 100000s the result is correct

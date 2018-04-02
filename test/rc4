@@ -1,4 +1,4 @@
-clear_schematic
+clear_all
 
 add power        b1  c1 5v
 add wire         b1  b2 
@@ -19,8 +19,7 @@ add wire         c4  c1 remote,green
 set center c3,-31,-35
 set scale 225
 
-set scope_t 1
-set scope_a voltage,0,3.16,c2,d2
-set scope_b voltage,0,3.16,c5,d5
+set scope_a voltage,0,3.16,c2,d2,CAPACITOR
+set scope_b voltage,0,3.16,c5,d5,CAPACITOR
 
-model run 1
+run

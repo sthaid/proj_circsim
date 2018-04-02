@@ -1,4 +1,4 @@
-clear_schematic
+clear_all
 
 add power        b1  c1 5v
 add wire         b1  b2 
@@ -12,7 +12,6 @@ ground c1
 set center c2
 set scale 250
 
-set scope_t 1s
 set scope_a voltage,0,3.16,c2,d2
 
-model run 1s
+run

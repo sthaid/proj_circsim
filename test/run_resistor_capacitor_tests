@@ -1,0 +1,10 @@
+#!/bin/bash
+
+../model rc1
+../model rc2
+../model rc3
+../model rc4
+../model rc5
+../model rc6
+../model rc7
+

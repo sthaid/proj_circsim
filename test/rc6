@@ -1,4 +1,4 @@
-clear_schematic
+clear_all
 
 add power      c1   d1   5.00V
 add resistor   c1   c2   3.33
@@ -11,10 +11,13 @@ add wire       d6   d1
 
 ground d1
 
-set center c4,121,-99
+set center c3,441,479
 set scale  240
 
-set scope_t 1s
-set scope_a voltage,0,1.58,c2,c3
+set scope_a voltage,0,5,c1,c2,RESISTOR
+set scope_b voltage,0,5,c2,c3,CAPACITOR
+set scope_c voltage,0,5,c3,c4,CAPACITOR
+set scope_d voltage,0,5,c4,c5,RESISTOR
+set scope_e voltage,0,5,c5,c6,RESISTOR
 
-model run 1s
+run
