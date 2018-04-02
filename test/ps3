@@ -1,0 +1,39 @@
+# 2x voltage multiplier
+clear_all
+
+add power      a1  b1 170v,60hz
+add wire       a1  a2
+add wire       b1  b2 
+ground b1
+
+add capacitor  a2 a3 10mf
+add wire       a3 a4
+add wire       b2 b3 
+add capacitor  b3 b4 10mf
+add diode      b3 a3
+add diode      a4 b4
+
+add capacitor  a4 a5 10mf
+add wire       a5 a6
+add wire       b4 b5 
+add capacitor  b5 b6 10mf
+add diode      b5 a5
+add diode      a6 b6
+
+add resistor   c1 c2 450
+add wire       b1 c1 remote,green
+add wire       b6 c2 remote,red
+
+set center     b4,200,-300
+set scale      200
+
+set scope_span_t 200ms
+set scope_mode continuous
+set scope_a voltage,-200,200,a1,b1,POWER
+set scope_b voltage,0,1000,c2,c1,OUTPUT
+set scope_c current,0,200,b3,a3,DIODE-1
+set scope_d current,0,200,a4,b4,DIODE-2
+
+set component power
+
+run 

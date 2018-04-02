@@ -1,0 +1,7 @@
+#!/bin/bash
+
+../model ps1
+../model ps2
+../model ps3
+../model ps4
+../model ps5

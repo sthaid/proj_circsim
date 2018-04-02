@@ -1,0 +1,31 @@
+clear_all
+
+add power      c2  d2 200,60hz
+add wire       c2 c3
+add diode      c3 c4
+add diode      d3 c3
+add diode      d3 d4
+add diode      d4 c4
+#add resistor   c4 c5 5 
+add wire       c4 c5 
+add wire       c5 c6
+add wire       d6 d5
+add wire       d5 e5
+add wire       e5 e3
+add wire       e3 d3
+add wire       d2 d4 remote,green
+
+add            capacitor c5 d5  1mf
+add            resistor c6 d6  10
+
+ground d2
+
+set center d4
+set scale  266
+
+set scope_span_t 50ms   
+set scope_a voltage,-200,200,c2,d2,POWER
+set scope_b voltage,-200,200,c6,d6,RESISTOR-LOAD
+
+run 50ms
+

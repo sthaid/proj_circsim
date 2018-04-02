@@ -1,0 +1,51 @@
+# 4x voltage multiplier
+clear_all
+
+add power      a1  b1 170v,60hz
+add wire       a1  a2
+add wire       b1  b2 
+ground b1
+
+add capacitor  a2 a3 10mf
+add wire       a3 a4
+add wire       b2 b3 
+add capacitor  b3 b4 10mf
+add diode      b3 a3
+add diode      a4 b4
+
+add capacitor  a4 a5 10mf
+add wire       a5 a6
+add wire       b4 b5 
+add capacitor  b5 b6 10mf
+add diode      b5 a5
+add diode      a6 b6
+
+add capacitor  a6 a7 10mf
+add wire       a7 a8
+add wire       b6 b7 
+add capacitor  b7 b8 10mf
+add diode      b7 a7
+add diode      a8 b8
+
+add capacitor  a8 a9 10mf
+add wire       a9 a10
+add wire       b8 b9 
+add capacitor  b9 b10 10mf
+add diode      b9 a9
+add diode      a10 b10
+
+add resistor   c1 c2 1500
+add wire       b1 c1 remote,green
+add wire       b10 c2 remote,red
+
+set center     b5,800,0     
+set scale      136
+
+set scope_span_t 200ms
+set scope_mode continuous
+set scope_a voltage,-200,200,a1,b1,POWER
+set scope_b voltage,0,1500,c2,c1,OUTPUT
+set scope_c current,0,200,b3,a3,DIODE-1
+set scope_d current,0,200,a4,b4,DIODE-2
+
+run
