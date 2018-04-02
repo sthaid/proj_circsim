@@ -1,6 +1,6 @@
-clear_schematic
+clear_all
 
-add power      b1  c1 20kv,5000hz
+add power      b1  c1 20kv,100khz
 add wire       b1  b2 
 add resistor   b2  c2 100
 add diode      c2  d2 
@@ -9,14 +9,13 @@ add wire       d1  c1
 
 ground c1
 
-set center c1,-151,-29
+set center c1,500,0     
 set scale  322
 
-set scope_t 1ms
-set scope_a voltage,-20kv,20kv,b2,c2
-set scope_b voltage,-20kv,20kv,c2,d2
-set scope_c voltage,-20kv,20kv,b1
+set scope_span_t 100us
+set scope_a voltage,-20kv,20kv,b1,c1,POWER
+set scope_b voltage,-20kv,20kv,b2,c2,RESISTOR
+set scope_c voltage,-20kv,20kv,c2,d2,DIODE
 
-set delta_t 1ns
-model run 1ms
+run 100us
 

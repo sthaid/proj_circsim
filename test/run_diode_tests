@@ -1,0 +1,12 @@
+#!/bin/bash
+
+../model d1
+../model d2
+../model d3
+../model d4
+../model d5
+../model d6
+../model d7
+../model d8
+../model d9
+../model d10

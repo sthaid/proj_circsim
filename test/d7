@@ -1,6 +1,6 @@
-clear_schematic
+clear_all
 
-add power      b1  c1 5v,5hz
+add power      b1  c1 5v,100hz
 add wire       b1  b2 
 add resistor   b2  c2 50
 add diode      c2  d2 
@@ -9,14 +9,14 @@ add resistor   d1  c1 50
 
 ground c1
 
-set center c1,-151,-29
+set center c1,500,0
 set scale  322
 
-set scope_t 1s
+set scope_span_t 20ms
 set scope_a voltage,-5,5,b2,c2,RESISTOR
 set scope_b voltage,-5,5,c2,d2,DIODE
 set scope_c voltage,-5,5,d2,d1,DIODE
 set scope_d voltage,-5,5,d1,c1,RESISTOR
 
-model run 1s
+run 20ms
 

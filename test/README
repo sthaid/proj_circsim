@@ -9,7 +9,7 @@ r2: same as first circuit from r1, except component power is displayed
 r3: almost infinite grid of 1 ohm resistors
 
 r4: unusual combination of 3 series resistors, 100M--1ohm--100M;
-    PROBLEM: this takes a long time to stabilize, and a single model step 
+    PROBLEM: this fails to stabilize; and a single model step 
              is not adequate when the circuit_is_stable routine's MAX_COUNT
              is set to 1000000
 
@@ -63,3 +63,30 @@ resonant frequency =  -------------------
 
 lc1: simply a capacitor and inductor, the model precharges the inductor with
      one amp; frequency=100hz
+
+======================
+DIODE TESTS
+======================
+
+d1: DC power, single resistor and diode
+
+d2: AC power, single resistor and diode
+
+d3: AC power high voltage and high frequency, single resistor and diode
+
+d4: AC power, 2 resistors and a diode
+
+d5: DC power, 3 resistors and a diode
+
+d6: AC power, resistor, and 2 series diodes
+
+d7: AC power, resistor, 2 series diodes, resistor
+
+d8: AC power, diode and capacitor
+
+d9: AC power, diode - capacitor - diode
+    PROBLEM: fails to stabilize
+
+d10: AC power, diode - resistor - diode
+     PROBLEM: fails to stabilize
+
