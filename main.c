@@ -115,7 +115,7 @@ static void help(void)
 
 static void * cli_thread(void * cx)
 {
-    char *cmd_str = NULL, prompt_str[100];
+    char *cmd_str = NULL, prompt_str[200];
     sdl_event_t event;
     char *filename = cx;
 
@@ -131,7 +131,10 @@ static void * cli_thread(void * cx)
     // call process_cmd to process them
     while (true) {
         free(cmd_str);
-        sprintf(prompt_str, "%s> ", MODEL_STATE_STR(model_state));
+        sprintf(prompt_str, "%s%s%s> ", 
+                last_filename_used,
+                last_filename_used[0] != '\0' ? " " : "",
+                MODEL_STATE_STR(model_state));
         if ((cmd_str = readline(prompt_str)) == NULL) {
             break;
         }
@@ -1100,10 +1103,10 @@ char * val_to_str(long double val, int32_t units, char *s, bool shorten)
     assert(tbl);
 
     // if volts or amps are close to zero then set to zero
-    if (units == UNITS_VOLTS && absval < 1e-6) {
+    if (units == UNITS_VOLTS && absval < 1e-3) {
         val = absval = 0;
     }
-    if (units == UNITS_AMPS && absval < 1e-6) {
+    if (units == UNITS_AMPS && absval < 1e-3) {
         val = absval = 0;
     }
     
@@ -1170,7 +1173,7 @@ static void param_init(void)
     int32_t i;
 
     PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
-    PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "1ms"      );  // XXX 100ns
+    PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "0s"       );
     PARAM_CREATE(PARAM_STEP_COUNT,    "step_count",    "1"        );
     PARAM_CREATE(PARAM_DCPWR_RAMP,    "dcpwr_ramp",    "off"      );   // XXX maybe delte
 
@@ -1204,16 +1207,19 @@ int32_t param_set(int32_t id, char *str_val)
     assert(param[id].name[0] != '\0');
 
     // check for params that have numeric values in UNITS_SECONDS
-    if ((id == PARAM_RUN_T ||
-         id == PARAM_DELTA_T ||
-         id == PARAM_SCOPE_SPAN_T) &&
-        ((str_to_val(str_val, UNITS_SECONDS, &num_val) == -1) ||
-         (num_val <= 0)))
+    if (id == PARAM_RUN_T ||
+        id == PARAM_DELTA_T ||
+        id == PARAM_SCOPE_SPAN_T)
     {
-        ERROR("failed to set '%s', invalid time value\n", param_name(id));
-        return -1;
+        if ((str_to_val(str_val, UNITS_SECONDS, &num_val) == -1) ||
+            ((id == PARAM_RUN_T || id == PARAM_SCOPE_SPAN_T) && num_val <= 0) ||
+            ((id == PARAM_DELTA_T) && num_val < 0))
+        {
+            ERROR("failed to set '%s', invalid time value\n", param_name(id));
+            return -1;
+        }
     }
-
+    
     // check for params that have simple numeric values
     if ((id == PARAM_SCALE ||
          id == PARAM_SCOPE_TRIGGER ||

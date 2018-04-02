@@ -700,11 +700,11 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
                           val_to_str(stop_t, UNITS_SECONDS, s, false));
 
         // delta_t time
+        //XXX not if 0
         sdl_render_printf(pane, 0, ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 
                           "%-8s %s", 
                           "DELTA_T", 
                           val_to_str(delta_t, UNITS_SECONDS, s, false));
-                           
 
         // register for mouse click events to control the model from the display
         sdl_render_text_and_register_event(

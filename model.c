@@ -25,6 +25,7 @@
 
 static int32_t     model_state_req;
 static int32_t     model_step_count;
+static long double auto_delta_t;
 
 static int32_t largest_stable_count;  // xxx temp
 
@@ -71,7 +72,8 @@ int32_t model_reset(void)
 
 int32_t model_run(void)
 {
-    int32_t rc;
+    int32_t rc, i;
+    long double largest_hz;
 
     // reset the model
     reset();
@@ -83,6 +85,22 @@ int32_t model_run(void)
         reset();
         return -1;
     }
+
+    // set auto_delta_t  xxx comment
+    largest_hz = -1;
+    for (i = 0; i < max_component; i++) {
+        component_t * c = &component[i];
+        if (c->type != COMP_POWER) {
+            continue;
+        }
+        if (c->power.hz > largest_hz) {
+            largest_hz = c->power.hz;
+        }
+    }
+    auto_delta_t = (largest_hz == -1 ? 0    :
+                    largest_hz == 0  ? 1e-3 :
+                                       1 / largest_hz * .0001);
+    INFO("XXX AUTO_DELTA_T %Lf\n", auto_delta_t);
 
     // set model stop time
     stop_t = param_num_val(PARAM_RUN_T);
@@ -315,7 +333,7 @@ static void debug_print_nodes(void)
     char s[MAX_DEBUG_STR], *p;
     int32_t i, j;
 
-    //return;
+    return;
  
     INFO("max_node = %d\n", max_node);
     for (i = 0; i < max_node; i++) {
@@ -386,6 +404,7 @@ static void reset(void)
     model_t = 0;
     history_t = 0;
     stop_t = 0;
+    delta_t = 0;
     max_history = 0;
     max_node = 0;
     largest_stable_count = 0; // xxx temp
@@ -445,8 +464,16 @@ static void * model_thread(void * cx)
             continue;
         }
 
-        // determine delta_t value, using small delta_t when the model is starting
+        // determine delta_t value
         delta_t = param_num_val(PARAM_DELTA_T);
+        if (delta_t == 0) {
+            delta_t = auto_delta_t;
+            if (delta_t == 0) {
+                ERROR("param delta_t must be specified\n");
+                model_state_req = MODEL_STATE_STOPPED;   
+                continue;
+            }
+        }
 
         // evaluate the circuit to determine the circuit values after
         // the circuit evolves for delta_t interval
@@ -722,7 +749,11 @@ static bool circuit_is_stable(int32_t count)
                         sum_abs_i < .050  ? .005 :
                                             .001);
 #else
-        max_fraction = .001;
+        if (sum_abs_i < 0.000010) {
+            max_fraction = .01;
+        } else {
+            max_fraction = .001;
+        }
 #endif
 
         if (fraction > max_fraction) {
