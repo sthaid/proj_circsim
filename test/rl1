@@ -1,11 +1,12 @@
-# time_constant = L / R
+# T = L / R
+# T = .1 / 10 = .01sec = 10ms
 
-clear_schematic
+clear_all
 
 add power      b1   c1   5.00V
 add wire       b1   b2   
 add resistor   b2   c2   10
-add inductor   c2   d2   10H
+add inductor   c2   d2   .1H
 add wire       d2   d1   
 add wire       d1   c1   
 
@@ -14,9 +15,8 @@ ground c1
 set center c2,-29,-25
 set scale  293
 
-set scope_t 1
-set scope_a voltage,0,5,c2,d2
-set scope_b current,0,.5,c2,d2
+set scope_a voltage,0,5,c2,d2,INDUCTOR
+set scope_b current,0,.5,c2,d2,INDUCTOR
 
-model run 1
-
+set scope_span_t 10ms
+run 10ms

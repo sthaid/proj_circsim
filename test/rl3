@@ -1,10 +1,10 @@
-clear_schematic
+clear_all
 
 add power      b1   c1   5.00V
 add wire       b1   b2   
 add resistor   b2   c2   5 
-add inductor   c2   d2   20H
-add inductor   c3   d3   20H
+add inductor   c2   d2   .2H
+add inductor   c3   d3   .2H
 add wire       c2   c3
 add wire       d2   d3
 add resistor   d2   d1   5
@@ -15,7 +15,9 @@ ground c1
 set center       c2,-29,-25
 set scale        293
 
-set scope_t 1
-set scope_a voltage,0,5,c2,d2
+set scope_a voltage,0,5,b2,c2,RESISTOR
+set scope_b voltage,0,5,c2,d2,INDUCTOR
+set scope_c voltage,0,5,d2,d1,RESISTOR
 
-model run 1
+set scope_span_t 10ms
+run 10ms

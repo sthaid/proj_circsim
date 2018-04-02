@@ -37,3 +37,17 @@ rc6: similar to rc5 but with the components in different order
 rc7: unusual combination  100Mohm--0.5mf--100Mohm, with T=100000secs;
      PROBLEM similar to r4, does not stabilize for the first couple seconds;
              however when run for 100000s the result is correct
+
+======================
+RESISTOR INDUCTOR TESTS
+======================
+
+Time constant = L / R
+
+rl1: simple resistor inductor circuit with T=10ms
+
+rl2: similar to rl1, but with 2 inductors in parallel; T=10ms
+
+rl3: 2 series resistors and 2 parallel inductors; T=10ms
+
+rl4: 2 series resistors and 2 series inductors; T=10ms
