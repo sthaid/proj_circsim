@@ -1,4 +1,4 @@
-clear_schematic
+clear_all
 
 add power      b1  c1 5v
 add resistor   b2  b1 100
@@ -22,5 +22,5 @@ add wire       c4  c1 remote,green
 set center c4
 set scale 200
 
-model run 1s
+step
 

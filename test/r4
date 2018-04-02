@@ -1,0 +1,16 @@
+clear_all
+
+add power        b1  c1 1000v
+add wire         b1  b2 
+add resistor     b2  c2 100M
+add resistor     c2  d2 1
+add resistor     d2  d1 100M
+add wire         d1  c1 
+
+ground c1
+
+set center  c2,100,0 
+set scale   300
+
+step
+

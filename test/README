@@ -1,0 +1,14 @@
+======================
+RESISTOR TESTS
+======================
+
+r1: two circuits, each with own DC power; first circuit is series, second is series parallel
+
+r2: same as first circuit from r1, except component power is displayed
+
+r3: almost infinite grid of 1 ohm resistors
+
+r4: unusual combination of 3 series resistors, 100M--1ohm--100M;
+    PROBLEM: this takes a long time to stabilize, and a single model step 
+             is not adequate when the circuit_is_stable routine's MAX_COUNT
+             is set to 1000000

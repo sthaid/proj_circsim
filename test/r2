@@ -1,0 +1,17 @@
+clear_all
+
+add power      b1  c1 5v
+add resistor   b2  b1 100
+add resistor   b2  c2 100
+add resistor   d2  c2 100
+add resistor   d2  d1 100
+add resistor   d1  c1 100
+ground c1
+
+set center c2,100,100
+set scale 250 
+
+set component power
+
+step
+

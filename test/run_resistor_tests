@@ -1,0 +1,6 @@
+#!/bin/bash
+
+../model r1
+../model r2
+../model r3
+../model r4
