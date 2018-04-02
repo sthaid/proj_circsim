@@ -1,39 +1,28 @@
 ====================  NEXT  =================================================
 
-delta_t 0 means auto detect
-  - try 1 ms for DC circuits
-  - 1/freq / 10000 for AC circuits;  choose smallest delta_t if multiple power
-evaluate some of the tests with the above conditions
+clear all is not clearing scope select
 
 redesign control pane, maybe don't need delta_t, and could put controls on top
 
-default DCRAMP to off, and maybe delete it again
+display filename in SDL
+
+regression test 
+- all
+- problems
+
+problem with history graphs when the graph span is short in comparison to delta_t
+
+some circuits are too slow or don't converge
+- try auto_delta_t x.001 instead of x.0001
+- examine conditions under which it doesn;t stabilize
+  and adjust the stability limits
+- update test/README when problems are fixed
+- check for model stabilized, how to support the small currents such as in test rc7?
+- test rc7 using only resistors should converge quickly
+- test rc7 converge with 1mf cap 
+- IDEA - if model is slow to converge just advance the nodes by 100x their rate
 
 work the xxx issues in model.c
-
-regression test scripts in test dir
-  run_diode_test
-  run_resistor_tests
-    ...
-  run_all_tests
-
-clean up all circuits
-
-move file to unit_test dir and add README
-
-resolve dcpwr_ramp and delta_t params
-- when should dcpwr ramp be enabled or disabled
-- try to minimize the amount of times these params are specified in a model file
-
-check for model stabilized, how to support the small currents such as in test rc7?
-
-XXX issues in main and display
-- validate scope params in main.c
-- etc
-
---------------------------------------
-
-clean up all of the test scripts, again
 
 optimize model computations
   - and check with profiling
@@ -41,12 +30,14 @@ optimize model computations
   - optimization, and multi threads, change O0 to O2
   - factor common operations
 
-test rc7 using only resistors should converge quickly
-test rc7 converge with 1mf cap 
-- perhaps change to 10M
-- go back to unit test
-IDEA - if model is slow to converge just advance the nodes by 100x their rate
+lc1 test should test with a power source or some better method than
+precharging
 
+maybe delete DCRAMP
+
+XXX issues in main and display
+- validate scope params in main.c
+- etc
 
 ====================  LOWER  ================================================
 
@@ -59,28 +50,9 @@ add capability to adjust component values while model is running
 
 add copyright
 
-What is best diode smoothing?
-- Tests Not Working  (using .7)  
-    d1, d2, ...
-- Tests Not Working  (using .01)
-    d10, d12   oscillations
-    ps1        currents
-    ps1x       fluctiations
-
 ps1: #add wire       c4 c5   # XXX used to be c4 to c6 and got no warning
 
 update DOCUMENTATION
-
-model cont display button should allow model to continue after stop_t reached
-- May already be fixed
-
-should model worry about summing the current on the ground node and/or 
-current return to the power supply
-
-verify model is stable
-
-LC circuit decay
-- try smaller delta_t;  this helps with LC problem
 
 use of assert vs FATAL, could make my ASSERT
 
@@ -88,28 +60,13 @@ use of assert vs FATAL, could make my ASSERT
 
 set params on the command line
 
+should model worry about summing the current on the ground node and/or 
+current return to the power supply
 
 debug param to enable prints
 
 init prior voltage on power up, delta_t==0
   this could be done first call to get_comp_power following model_reset
-
-====================  TESTING  ==============================================
-
-eval
-d1 okay
-d2 okay
-d3 not tested
-d4 ok
-d5 ok
-d6 ok
-d7 ok
-d8 ok
-d9 ok
-d10 ok
-d11 ok
-d12 okay
-d13 okay
 
 ====================  INFO  =================================================
 
@@ -263,3 +220,63 @@ more graphs and scroll them up down
 other component stuff to track
   - power
   - energy   NOT DOING ENERGY
+
+Info used to fix readline pgm exit problem
+    http://www.delorie.com/gnu/docs/readline/rlman_43.html
+      
+    Function: void rl_cleanup_after_signal (void)
+    This function will reset the state of the terminal to what it was before readline() was called, and remove the Readline signal handlers for all signals, depending on the values of rl_catch_signals and rl_catch_sigwinch.
+
+    Function: void rl_prep_terminal (int meta_flag)
+    Modify the terminal settings for Readline's use, so readline() can read a single character at a time from the keyboard. The meta_flag argument should be non-zero if Readline should read eight-bit input.
+
+    Function: void rl_deprep_terminal (void)
+    Undo the effects of rl_prep_terminal(), leaving the terminal in the state in which it was before the most recent call to rl_prep_terminal().
+
+    Function: void rl_tty_set_default_bindings (Keymap kmap)
+    Read the operating system's terminal editing characters (as would be displayed by stty) to their Readline equivalents. The bindings are performed in kmap.
+
+    Function: int rl_reset_terminal (const char *terminal_name)
+    Reinitialize Readline's idea of the terminal settings using terminal_name as the terminal type (e.g., vt100). If terminal_name is NULL, the value of the TERM environment variable is used.
+
+misc2 test shows no power supply power
+
+regression test scripts in test dir
+  run_diode_test
+  run_resistor_tests
+    ...
+  run_all_tests
+clean up all circuits
+
+move file to unit_test dir and add README
+- add the gen_resistor_grid pgms
+
+program console needs to be reset when exitting form SDL app
+
+delta_t 0 means auto detect
+  - try 1 ms for DC circuits
+  - 1/freq / 10000 for AC circuits;  choose smallest delta_t if multiple power
+evaluate some of the tests with the above conditions
+
+default DCRAMP to off
+
+clean up all of the test scripts, again
+
+resolve dcpwr_ramp and delta_t params
+- when should dcpwr ramp be enabled or disabled
+- try to minimize the amount of times these params are specified in a model file
+
+What is best diode smoothing?
+- Tests Not Working  (using .7)  
+    d1, d2, ...
+- Tests Not Working  (using .01)
+    d10, d12   oscillations
+    ps1        currents
+    ps1x       fluctiations
+
+model cont display button should allow model to continue after stop_t reached
+- May already be fixed
+
+LC circuit decay
+- try smaller delta_t;  this helps with LC problem
+
