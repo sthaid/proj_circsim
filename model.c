@@ -100,6 +100,10 @@ int32_t model_run(void)
     auto_delta_t = (largest_hz == -1 ? 0    :
                     largest_hz == 0  ? 1e-3 :
                                        1 / largest_hz * .0001);
+    // xxx 
+    if (auto_delta_t && auto_delta_t > param_num_val(PARAM_SCOPE_SPAN_T) / 1000) {
+        auto_delta_t = param_num_val(PARAM_SCOPE_SPAN_T) / 1000;
+    }
     INFO("XXX AUTO_DELTA_T %Lf\n", auto_delta_t);
 
     // set model stop time
@@ -573,8 +577,6 @@ static void eval_circuit_for_delta_t(void)
                     }
                 }
                 n->v_next = sum_num / sum_denom;
-                //INFO("count %ld  node %ld sum_num %Le sum_denom %Le  voltage %Le\n",
-                     //count, i, sum_num, sum_denom, n->v_next);
             }
         }
 
@@ -597,16 +599,8 @@ static void eval_circuit_for_delta_t(void)
                 c->i_next = c->i_now + (delta_t / c->inductor.henrys) * dv;
                 break; }
             case COMP_DIODE: {
-#if 0
-                // xxx cleanup, remove this ifdefed out code
-                long double v0 = (n0->v_next + n0->v_now) / 2.;
-                long double v1 = (n1->v_next + n1->v_now) / 2.;
-                long double dv = (v0 - v1);
-                long double ohms;
-#else
                 long double dv = n0->v_next - n1->v_next;
                 long double ohms;
-#endif
                 ohms = expl(50.L * (.7L - dv));
                 if (ohms > 1e8) ohms = 1e8;
                 if (ohms < .10) ohms = .10;
@@ -642,27 +636,12 @@ static void eval_circuit_for_delta_t(void)
             n->dv_dt = (n->v_next - n->v_now) / delta_t;
         }
 
-#if 0
-        // XXX check if stable
-        // rgrid        50000
-        // ps1          10000
-        // RC7          >100000000   100M-1ohm-100M 
-        // most diodes  1000
-        // lc1          100
-        // rc1          10
-        // rc5          100  unstable at begining
-        count++;
-        if (count == 500000) {
-            break;
-        }
-#else
         // if the circuit is stable, meaning that for each node the sum of currents 
         // is close to zero; and if stable break out of the loop 
         count++;
         if (circuit_is_stable(count)) {
             break;
         }
-#endif
     }
 
     // completed evaluating the circuit's progression for the delta_t interval;

@@ -91,6 +91,9 @@ int32_t main(int32_t argc, char ** argv)
     // call display handler
     display_handler();
 
+    // restore terminal attibutes
+    rl_deprep_terminal();
+
     // done
     return 0;
 }
@@ -146,13 +149,10 @@ static void * cli_thread(void * cx)
     }
 
     // exit must come from the util_sdl display_handler; 
-    // so inject the SDL_EVENT_QUIT and pause
+    // so inject the SDL_EVENT_QUIT
     memset(&event,0,sizeof(event));
     event.event_id = SDL_EVENT_QUIT;
     sdl_push_event(&event);
-    while (true) {
-        pause();
-    }
     return NULL;
 }
 
@@ -357,6 +357,9 @@ static int32_t cmd_clear_all(char *args)
 
     // init params
     param_init();
+
+    //XXX make scope_select a param so it can be cleared here
+    //    values a -- h
 
     // success
     return 0;
@@ -976,8 +979,9 @@ char * component_to_value_str(component_t * c, char *s)
         val_to_str(c->inductor.henrys, UNITS_HENRYS, s, true);
         break;
     case COMP_DIODE:
-        // xxx temp diode print ohms
+#if 0   // xxx temp diode print ohms
         val_to_str(c->diode_ohms, UNITS_OHMS, s, true);
+#endif
         break;
     case COMP_WIRE:
         break;
@@ -1102,11 +1106,14 @@ char * val_to_str(long double val, int32_t units, char *s, bool shorten)
                                      NULL);
     assert(tbl);
 
-    // if volts or amps are close to zero then set to zero
+    // if volts or amps or watts are close to zero then set to zero
     if (units == UNITS_VOLTS && absval < 1e-3) {
         val = absval = 0;
     }
     if (units == UNITS_AMPS && absval < 1e-3) {
+        val = absval = 0;
+    }
+    if (units == UNITS_WATTS && absval < 1e-3) {
         val = absval = 0;
     }
     
@@ -1175,7 +1182,7 @@ static void param_init(void)
     PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
     PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "0s"       );
     PARAM_CREATE(PARAM_STEP_COUNT,    "step_count",    "1"        );
-    PARAM_CREATE(PARAM_DCPWR_RAMP,    "dcpwr_ramp",    "off"      );   // XXX maybe delte
+    PARAM_CREATE(PARAM_DCPWR_RAMP,    "dcpwr_ramp",    "off"      );   // xxx maybe delte
 
     PARAM_CREATE(PARAM_GRID,          "grid",          "off"      );
     PARAM_CREATE(PARAM_CURRENT,       "current",       "on"       );
