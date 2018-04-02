@@ -1,8 +1,0 @@
-#!/bin/bash
-gcc -o mt1 -Wall -O0 -g mt1.c -lreadline
-if [ $? -ne 0 ]; then
-  echo ERROR
-  exit
-fi
-
-./mt1
