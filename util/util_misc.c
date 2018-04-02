@@ -475,8 +475,8 @@ long double timed_moving_average(long double val, long double time_arg, tma_t *t
             }
             moving_average(v,tma->ma);
         }
-        tma->sum = 0;
-        tma->count = 0;
+        tma->sum = val;
+        tma->count = 1;
         tma->last_idx = idx;
     } else {
         // time can't go backwards
