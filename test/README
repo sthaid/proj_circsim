@@ -106,3 +106,11 @@ ps4: 3x voltage multiplier
 
 ps5: 4x voltage multiplier
      PROBLEM: slower than I'd like it to be
+
+======================
+MISC TESTS
+======================
+
+misc1: AC power and capacitor
+
+misc2: DC power and inductor

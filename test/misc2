@@ -1,0 +1,18 @@
+clear_all
+
+add power      b2   c2   10V
+add wire       b2   b3   
+add inductor   b3   c3   1H
+add wire       c3   c2   
+
+ground c2
+
+set center b2,500,500
+set scale  322
+
+set scope_span_t 10
+set scope_a current,0,100,b3,c3,INDUCTOR
+
+set component power
+
+run 10

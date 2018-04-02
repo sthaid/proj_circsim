@@ -1,0 +1,20 @@
+clear_all
+
+add power      c3   d3   1.00V,1000Hz
+add capacitor  c4   d4   1.00mf
+add wire       c3   c4   
+add wire       d3   d4   
+
+ground d3
+
+set center c3,500,500
+set scale  354
+
+set scope_span_t 5ms
+set scope_a voltage,-1,1,c3,d4,CAPACITOR
+set scope_b current,-6.28,6.28,c4,d4,CAPACITOR
+
+set component power
+
+run 2  
+
