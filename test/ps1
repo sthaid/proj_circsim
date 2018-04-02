@@ -1,42 +1,22 @@
-clear_schematic
+clear_all
 
-add power      c2  d2 200,100hz
-add wire       c2 c3
-add diode      c3 c4
-add diode      d3 c3
-add diode      d3 d4
-add diode      d4 c4
-add resistor   c4 c5 10
-#add wire       c4 c5 
-add wire       c5 c6
-add wire       d6 d5
-add wire       d5 e5
-add wire       e5 e3
-add wire       e3 d3
-add wire       d2 d4 remote,green
+add power      b1  c1 5v,100hz
+add diode      b1  b2 
+add capacitor  b2  c2 1mf
+add wire       c2  c1
+add wire       b2  b3
+add resistor   b3  c3 10
+add wire       c3 c2
 
-add            resistor c6 d6  50
-add            capacitor c5 d5  1mf
+ground c1
 
-ground d2
+set center b2,0,500
+set scale  322
 
-set center d4,-4,-19
-set scale  266
+set scope_span_t 20ms
+set scope_a voltage,-10,10,b1,c1,POWER
+set scope_b voltage,-10,10,b1,b2,DIODE
+set scope_c voltage,-10,10,b3,c3,RESISTOR
 
-set scope_t 20ms   
-set scope_a voltage,-500,500,c6,d6  RESISTOR
-set scope_b current,-2,2,c6,d6  RESISTOR
-set scope_c voltage,-2,2,d5  RETURN
-set scope_d voltage,-200,200,c2  POWER
-
-#set scope_mode continuous
-
-set delta_t 100ps
-
-#model run .010345 
-#model run .005062 
-#model run .004538 
-#model run .005009 
-#model run .005000 
-model run .006000 
+run 20ms
 
