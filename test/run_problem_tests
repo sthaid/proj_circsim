@@ -1,0 +1,8 @@
+#!/bin/bash
+
+../model r4
+../model rc7
+../model d9
+../model d10
+../model ps2
+../model ps5

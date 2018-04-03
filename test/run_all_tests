@@ -1,0 +1,9 @@
+#!/bin/bash
+
+run_resistor_tests
+run_resistor_capacitor_tests
+run_resistor_inductor_tests
+run_inductor_capacitor_tests
+run_diode_tests
+run_power_supply_tests
+run_misc_tests
