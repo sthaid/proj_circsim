@@ -1051,9 +1051,9 @@ no_scope:   // scope is now off or improperly defined
         }
 
         // display header line
-        rect_t loc = {0, 0, pane->w, sdl_font_char_height(FPSZ_SMALL)};
+        rect_t loc = {0, 0, pane->w, sdl_font_char_height(FPSZ_MEDIUM)};
         sdl_render_fill_rect(pane, &loc, WHITE);
-        sdl_render_printf(pane, 0, 0, FPSZ_SMALL, BLACK, WHITE, 
+        sdl_render_printf(pane, 0, 0, FPSZ_MEDIUM, BLACK, WHITE, 
                           "%s  SPAN=%s",
                           val_to_str(history_t, UNITS_SECONDS, s1, true),
                           val_to_str(param_num_val(PARAM_SCOPE_SPAN_T), UNITS_SECONDS, s2, true));
@@ -1061,15 +1061,15 @@ no_scope:   // scope is now off or improperly defined
         // scope trigger control
         // - display MODE button
         sdl_render_text_and_register_event(
-            pane, pane->w-COL2X(9,FPSZ_SMALL), 0, FPSZ_SMALL, "MODE", LIGHT_BLUE, WHITE,
+            pane, pane->w-COL2X(9,FPSZ_MEDIUM), 0, FPSZ_MEDIUM, "MODE", LIGHT_BLUE, WHITE,
             SDL_EVENT_SCOPE_MODE, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
         if (strcasecmp(param_str_val(PARAM_SCOPE_MODE), "continuous") == 0) {
             sdl_render_printf(
-               pane, pane->w-COL2X(4,FPSZ_SMALL), 0, 
-               FPSZ_SMALL, BLACK, WHITE, "CONT");
+               pane, pane->w-COL2X(4,FPSZ_MEDIUM), 0, 
+               FPSZ_MEDIUM, BLACK, WHITE, "CONT");
         } else {
             sdl_render_text_and_register_event(
-                pane, pane->w-COL2X(4,FPSZ_SMALL), 0, FPSZ_SMALL, "TRIG", LIGHT_BLUE, WHITE,
+                pane, pane->w-COL2X(4,FPSZ_MEDIUM), 0, FPSZ_MEDIUM, "TRIG", LIGHT_BLUE, WHITE,
                 SDL_EVENT_SCOPE_TRIG, SDL_EVENT_TYPE_MOUSE_CLICK, pane_cx);
         }
 
