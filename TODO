@@ -1,19 +1,36 @@
 ====================  NEXT  =================================================
 
-glitch in the graph of test/rl1
-
-try min max history changes with test/rc7
-
-problem with history graphs when the graph span is short in comparison to delta_t
+there might be a wary to fix r4 and rc7
 
 clear all is not clearing scope select
 - use a param
 
-regression test 
+optimize model computations
+  - and check with profiling
+  - if there are performance issues use profiling;
+  - optimization, and multi threads, change O0 to O2
+  - factor common operations
+
+work the xxx issues in *.c
+
+documentation
+- readme.md and design files
+- add copyright notices
+
+lc1 test should test with a power source or some better method than
+precharging;  I saw this on website, find that again
+
+start taking notes for fusor power supply, and check those in too
+
+glitch in the graph of test/rl1   PROBABLY DONE
+try min max history changes with test/rc7
+problem with history graphs when the graph span is short in comparison to delta_t
+
+regression test    PROBABLY-DONE
 - all
 - problems
 
-some circuits are too slow or don't converge
+some circuits are too slow or don't converge   PROBABLY-DONE
 - try auto_delta_t x.001 instead of x.0001
 - examine conditions under which it doesn;t stabilize
   and adjust the stability limits
@@ -23,18 +40,7 @@ some circuits are too slow or don't converge
 - test rc7 converge with 1mf cap 
 - IDEA - if model is slow to converge just advance the nodes by 100x their rate
 
-work the xxx issues in *.c
-
-optimize model computations
-  - and check with profiling
-  - if there are performance issues use profiling;
-  - optimization, and multi threads, change O0 to O2
-  - factor common operations
-
-lc1 test should test with a power source or some better method than
-precharging
-
-====================  LOWER  ================================================
+====================  LOWER, OR NOT SURE IF THIS IS NEEDED  ==================
 
 add capability to adjust component values while model is running
 - structure have current and target fields, and steps
@@ -43,29 +49,29 @@ add capability to adjust component values while model is running
 - chnage dt while adjusting
 - be nice to implement a switch for the LC circuit
 
-add copyright
-
 ps1: #add wire       c4 c5   # XXX used to be c4 to c6 and got no warning
-
-update DOCUMENTATION
 
 use of assert vs FATAL, could make my ASSERT
 
-====================  FOR CONSIDERATION  ====================================
+debug param to enable prints
+
+maybe delete DCPWR_RAMP
+
+====================  REJECTED IDEAS  =======================================
+
+consider reversing the gridloc A3  ->  3A
+  - algebraic chess is    a b c d e f g h
+                        8      etc
+  - theater seating is a 1 2 3 4 5 6 7 9
+                       b
+                       c
 
 set params on the command line
 
 should model worry about summing the current on the ground node and/or 
 current return to the power supply
 
-debug param to enable prints
-
-init prior voltage on power up, delta_t==0
-  this could be done first call to get_comp_power following model_reset
-
 redesign control pane, maybe don't need delta_t, and could put controls on top
-
-maybe delete DCPWR_RAMP
 
 ====================  INFO  =================================================
 
@@ -78,17 +84,8 @@ https://electronics.stackexchange.com/questions/353826/how-to-make-an-ideal-diod
 exponential smoothing
 https://en.wikipedia.org/wiki/Exponential_smoothing
 
-rectivier
+rectifier
 https://en.wikipedia.org/wiki/Rectifier
-
-====================  WONT DO THIS  =========================================
-
-consider reversing the gridloc A3  ->  3A
-  - algebraic chess is    a b c d e f g h
-                        8      etc
-  - theater seating is a 1 2 3 4 5 6 7 9
-                       b
-                       c
 
 ====================  DONE  =================================================
 

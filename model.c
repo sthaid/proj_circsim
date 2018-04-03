@@ -424,7 +424,11 @@ static void * model_thread(void * cx)
 {
     #define SET_HISTORY(h,v) \
         do { \
-            if (idx == max_history) { \
+            int32_t i; \
+            if (idx >= max_history) { \
+                for (i = max_history; i < idx; i++) { \
+                    h[i].min = h[i].max = NAN; \
+                } \
                 h[idx].min = h[idx].max = v; \
             } else { \
                 if (v > h[idx].max) h[idx].max = v; \

@@ -998,18 +998,45 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             // create array of points 
             count = 0;
             for (j = 0; j < max_history; j++) {
-                float v;
+                float va=0, vb=0;
                 int32_t ya,yb;
 
-                // xxx not sure if I have this min/max correct here
-                v = sign * (history0[j].max - (history1 ? history1[j].max : 0));
-                if (v > ymax) v = ymax; else if (v < ymin) v = ymin;
-                ya = y_top + (ymax - v) / (ymax - ymin) * GRAPH_YSPAN;
+                // if history1 is NULL then
+                //   we are displaying current data, set va and vb to the range of current values
+                // else
+                //   we are displaying voltage data between two nodes; set va and vb to 
+                //    represent the maximum range of difference between the two nodes
+                // endif
+                if (history1 == NULL) {
+                    va = sign * history0[j].max;
+                    vb = sign * history0[j].min;
+                } else {
+#if 1
+                    va = sign * (history0[j].max - history1[j].min);
+                    vb = sign * (history0[j].min - history1[j].max);
+#else               // xxx delete
+                    va = sign * (history0[j].max - history1[j].max);
+                    vb = sign * (history0[j].min - history1[j].min);
+#endif
+                }
 
-                v = sign * (history0[j].min - (history1 ? history1[j].min : 0));
-                if (v > ymax) v = ymax; else if (v < ymin) v = ymin;
-                yb = y_top + (ymax - v) / (ymax - ymin) * GRAPH_YSPAN;
+                // if either va or vb is not-a-number that means there is no value to be
+                // displayed for this scope 'x' coordinate; so continue
+                if (isnan(va) || isnan(vb)) {
+                    continue;
+                }
 
+                // limit the value range (va..vb) to be displayed at this x coord to
+                // the scope value range, ymin..ymax
+                if (va > ymax) va = ymax; else if (va < ymin) va = ymin;
+                if (vb > ymax) vb = ymax; else if (vb < ymin) vb = ymin;
+
+                // convert the value range (va..vb) to y coord range (ya..yb)
+                ya = y_top + (ymax - va) / (ymax - ymin) * GRAPH_YSPAN;
+                yb = y_top + (ymax - vb) / (ymax - ymin) * GRAPH_YSPAN;
+
+                // add the j,ya and j,yb points to the array of points that
+                // will be rendered as a line by code following this loop
                 points[count].x = x_left + j;
                 points[count].y = ya;
                 count++;
