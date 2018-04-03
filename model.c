@@ -27,8 +27,6 @@ static int32_t     model_state_req;
 static int32_t     model_step_count;
 static long double auto_delta_t;
 
-static int32_t largest_stable_count;  // xxx temp
-
 //
 // prototypes
 //
@@ -99,12 +97,10 @@ int32_t model_run(void)
     }
     auto_delta_t = (largest_hz == -1 ? 0    :
                     largest_hz == 0  ? 1e-3 :
-                                       1 / largest_hz * .0001);
-    // xxx 
-    if (auto_delta_t && auto_delta_t > param_num_val(PARAM_SCOPE_SPAN_T) / 1000) {
-        auto_delta_t = param_num_val(PARAM_SCOPE_SPAN_T) / 1000;
+                                       1 / largest_hz * .001);
+    if (auto_delta_t && auto_delta_t > param_num_val(PARAM_SCOPE_SPAN_T) / 500) {
+        auto_delta_t = param_num_val(PARAM_SCOPE_SPAN_T) / 500;
     }
-    INFO("XXX AUTO_DELTA_T %Lf\n", auto_delta_t);
 
     // set model stop time
     stop_t = param_num_val(PARAM_RUN_T);
@@ -411,7 +407,7 @@ static void reset(void)
     delta_t = 0;
     max_history = 0;
     max_node = 0;
-    largest_stable_count = 0; // xxx temp
+    failed_to_stabilize_count = 0;
 
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
@@ -539,7 +535,6 @@ static void eval_circuit_for_delta_t(void)
                 n->v_next = 0;
             } else if (n->power) {
                 n->v_next = get_comp_power_voltage(n->power->component);
-                // xxx n->v_now = n->v_next;
             } else {
                 long double sum_num=0, sum_denom=0;
 
@@ -680,23 +675,14 @@ static void eval_circuit_for_delta_t(void)
     }
 }
 
-// xxx might not want to pass count in
 static bool circuit_is_stable(int32_t count)
 {
-    #define MAX_COUNT 1000000
+    #define MAX_COUNT 100000
 
     int32_t i, j;
     long double sum_i, sum_abs_i, i_term, fraction, max_fraction;
-    char s1[100];
 
-#if 1
-    // xxx is this needed
-    if (count < 10) {
-        //INFO("returning because count too small, %d\n", count);
-        return false;
-    }
-#endif
-
+    // xxx comments
     for (i = 0; i < max_node; i++) {
         node_t * n = &node[i];
 
@@ -718,37 +704,28 @@ static bool circuit_is_stable(int32_t count)
 
         fraction = sum_i / sum_abs_i;
 
-        // xxx make an equation
-        // xxx not working well:
-        //   - rc5
-#if 0
-        max_fraction = (sum_abs_i < .0001 ? .30  :
-                        sum_abs_i < .001  ? .15  :
-                        sum_abs_i < .010  ? .01  :
-                        sum_abs_i < .050  ? .005 :
-                                            .001);
-#else
-        if (sum_abs_i < 0.000010) {
+        if (sum_abs_i < 0.00001) {
+            max_fraction = .10;
+        } else if (sum_abs_i < 0.0001) {
             max_fraction = .01;
         } else {
             max_fraction = .001;
         }
-#endif
 
         if (fraction > max_fraction) {
             if (count == MAX_COUNT) {
-                ERROR("failed to stabilize: count=%d gl=%s voltage=%Lf sum_i=%Lf sum_abs_i=%Lf frac=%Lf max_frac=%Lf\n",
-                      count, gridloc_to_str(&n->gridloc[0],s1), n->v_next, sum_i, sum_abs_i, fraction, max_fraction);
+#ifdef ENABLE_LOGGING_AT_DEBUG_LEVEL
+                char s1[100];
+                DEBUG("failed to stabilize: count=%d gl=%s voltage=%Lf sum_i=%Lf "
+                      "sum_abs_i=%.12Lf frac=%Lf max_frac=%Lf\n",
+                      count, gridloc_to_str(&n->gridloc[0],s1), n->v_next, sum_i, 
+                      sum_abs_i, fraction, max_fraction);
+#endif
+                failed_to_stabilize_count++;
                 return true;
             }
             return false;
         }
-    }
-
-    if (count > largest_stable_count) {
-        INFO("largest_stable_count %d\n", count);
-        // xxx also print avg stable count, and maybe work that back into the max_fraction
-        largest_stable_count = count;
     }
 
     return true;
@@ -761,7 +738,7 @@ static long double get_comp_power_voltage(component_t * c)
     if (c->power.hz == 0) {
         // dc 
         if (strcasecmp(param_str_val(PARAM_DCPWR_RAMP), "on") == 0) {
-            if (model_t >= DCPWR_RAMP_T) {
+            if (model_t >= DCPWR_RAMP_T) {  // xxx delete DCPWR_RAMP
                 v = c->power.volts;
             } else {
                 v = c->power.volts * model_t / DCPWR_RAMP_T;

@@ -18,5 +18,7 @@ set scope_a voltage,-10,10,b1,c1,POWER
 set scope_b voltage,-10,10,b1,b2,DIODE
 set scope_c voltage,-10,10,b3,c3,RESISTOR
 
+set component power
+
 run 20ms
 

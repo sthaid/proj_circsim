@@ -1,5 +1,9 @@
 ====================  NEXT  =================================================
 
+glitch in the graph of test/rl1
+
+try min max history changes with test/rc7
+
 problem with history graphs when the graph span is short in comparison to delta_t
 
 clear all is not clearing scope select

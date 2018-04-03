@@ -27,5 +27,7 @@ set scope_span_t 50ms
 set scope_a voltage,-200,200,c2,d2,POWER
 set scope_b voltage,-200,200,c6,d6,RESISTOR-LOAD
 
+set component power
+
 run 50ms
 

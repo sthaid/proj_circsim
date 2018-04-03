@@ -207,6 +207,7 @@ int32_t     model_state;
 long double model_t;
 long double delta_t;
 long double stop_t;
+int32_t     failed_to_stabilize_count;
 
 long double history_t;
 int32_t     max_history;

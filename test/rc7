@@ -18,9 +18,9 @@ set scope_c voltage,0,1000,c2,d2,CAPACITOR
 set scope_d voltage,0,1000,d2,d1,RESISTOR
 
 # to observe the problem run for 1s
-run 1s
+#run 1s
 
-# for correct behavior in a long run, try this
-#set scope_span_t 100000
-#run 100000
+# for correct behavior in a long run, try this 1 time-constant run
+set scope_span_t 100000
+run 100000
 

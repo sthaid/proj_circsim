@@ -715,6 +715,13 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
                           "DELTA_T", 
                           val_to_str(delta_t, UNITS_SECONDS, s, false));
 
+        // failed_to_stabilize_count, only display if greater than 0
+        if (failed_to_stabilize_count > 0) {
+            // xxx debug why the '-2' is needed below
+            sdl_render_printf(pane, pane->w-COL2X(9,FPSZ_MEDIUM)-2, ROW2Y(3,FPSZ_MEDIUM), FPSZ_MEDIUM, RED, WHITE, 
+                              "%9d", failed_to_stabilize_count);
+        }
+
         // register for mouse click events to control the model from the display
         sdl_render_text_and_register_event(
             pane, COL2X(0,FPSZ_MEDIUM), ROW2Y(3,FPSZ_MEDIUM), FPSZ_MEDIUM, "RESET", LIGHT_BLUE, WHITE,

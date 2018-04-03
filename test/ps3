@@ -36,4 +36,4 @@ set scope_d current,0,200,a4,b4,DIODE-2
 
 set component power
 
-run 
+run 3

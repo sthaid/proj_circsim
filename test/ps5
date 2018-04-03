@@ -48,4 +48,6 @@ set scope_b voltage,0,1500,c2,c1,OUTPUT
 set scope_c current,0,200,b3,a3,DIODE-1
 set scope_d current,0,200,a4,b4,DIODE-2
 
-run
+set component power
+
+run 3
