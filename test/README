@@ -97,15 +97,12 @@ POWER SUPPLY TESTS
 ps1: single wave rectifier power supply with capacitor smoothing
 
 ps2: full wave power supply
-    PROBLEM: fails to stabilize
 
 ps3: 2x voltage multiplier
 
 ps4: 3x voltage multiplier
-     PROBLEM: very slow
 
 ps5: 4x voltage multiplier
-     PROBLEM: slower than I'd like it to be
 
 ======================
 MISC TESTS
