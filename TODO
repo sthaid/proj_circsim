@@ -1,16 +1,13 @@
 ====================  NEXT  =================================================
 
+problem with history graphs when the graph span is short in comparison to delta_t
+
 clear all is not clearing scope select
-
-redesign control pane, maybe don't need delta_t, and could put controls on top
-
-display filename in SDL
+- use a param
 
 regression test 
 - all
 - problems
-
-problem with history graphs when the graph span is short in comparison to delta_t
 
 some circuits are too slow or don't converge
 - try auto_delta_t x.001 instead of x.0001
@@ -22,7 +19,7 @@ some circuits are too slow or don't converge
 - test rc7 converge with 1mf cap 
 - IDEA - if model is slow to converge just advance the nodes by 100x their rate
 
-work the xxx issues in model.c
+work the xxx issues in *.c
 
 optimize model computations
   - and check with profiling
@@ -32,12 +29,6 @@ optimize model computations
 
 lc1 test should test with a power source or some better method than
 precharging
-
-maybe delete DCRAMP
-
-XXX issues in main and display
-- validate scope params in main.c
-- etc
 
 ====================  LOWER  ================================================
 
@@ -67,6 +58,10 @@ debug param to enable prints
 
 init prior voltage on power up, delta_t==0
   this could be done first call to get_comp_power following model_reset
+
+redesign control pane, maybe don't need delta_t, and could put controls on top
+
+maybe delete DCPWR_RAMP
 
 ====================  INFO  =================================================
 
@@ -280,3 +275,4 @@ model cont display button should allow model to continue after stop_t reached
 LC circuit decay
 - try smaller delta_t;  this helps with LC problem
 
+display filename in SDL, use param 

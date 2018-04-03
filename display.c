@@ -22,6 +22,10 @@
 #define PH_SCOPE_W         525  
 #define PH_SCOPE_H         870
 
+#define FPSZ_MEDIUM        30
+#define FPSZ_SMALL         24
+#define FPSZ_SMALLER       16
+
 //
 // typedefs
 //
@@ -566,6 +570,14 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             }
         } }
 
+        // if there is a filename then display it, top center
+        { char *filename;
+        filename = param_str_val(PARAM_FILENAME);
+        if (strcasecmp(filename, "noname") != 0) {
+            int32_t x = pane->w/2 - sdl_font_char_width(FPSZ_MEDIUM)/2;
+            if (x < 0) x = 0;
+            sdl_render_printf(pane, x, 0, FPSZ_MEDIUM, BLACK, WHITE, "%s", filename);
+        } }
 
         // register for mouse motion and mouse wheel events
         // - mouse motion used to pan 
@@ -658,8 +670,6 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
 
 static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * init, sdl_event_t * event) 
 {
-    #define FPSZ_MEDIUM 30
-
     #define SDL_EVENT_MODEL_RESET  (SDL_EVENT_USER_DEFINED + 10)
     #define SDL_EVENT_MODEL_RUN    (SDL_EVENT_USER_DEFINED + 11)
     #define SDL_EVENT_MODEL_STOP   (SDL_EVENT_USER_DEFINED + 12)
@@ -700,7 +710,6 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
                           val_to_str(stop_t, UNITS_SECONDS, s, false));
 
         // delta_t time
-        //XXX not if 0
         sdl_render_printf(pane, 0, ROW2Y(2,FPSZ_MEDIUM), FPSZ_MEDIUM, BLACK, WHITE, 
                           "%-8s %s", 
                           "DELTA_T", 
@@ -820,8 +829,6 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
         #define GRAPH_YSPAN   170
         #define GRAPH_YSPACE  30
         #define GRAPH_XSPAN   500
-        #define FPSZ_SMALL    24
-        #define FPSZ_SMALLER  16
 
         // the graph xspan must equal MAX_HISTORY, because there
         // is currently no x-scaling done for the graphs

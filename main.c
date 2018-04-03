@@ -21,7 +21,6 @@ typedef struct {
 // variables
 //
 
-static char    last_filename_used[200];
 static param_t param[MAX_PARAM];
 
 //
@@ -134,10 +133,16 @@ static void * cli_thread(void * cx)
     // call process_cmd to process them
     while (true) {
         free(cmd_str);
-        sprintf(prompt_str, "%s%s%s> ", 
-                last_filename_used,
-                last_filename_used[0] != '\0' ? " " : "",
-                MODEL_STATE_STR(model_state));
+
+        filename = param_str_val(PARAM_FILENAME);
+        if (strcasecmp(filename, "noname") != 0) {
+            sprintf(prompt_str, "%s %s> ", 
+                    filename, MODEL_STATE_STR(model_state));
+        } else {
+            sprintf(prompt_str, "%s> ", 
+                    MODEL_STATE_STR(model_state));
+        }
+
         if ((cmd_str = readline(prompt_str)) == NULL) {
             break;
         }
@@ -358,8 +363,8 @@ static int32_t cmd_clear_all(char *args)
     // init params
     param_init();
 
-    //XXX make scope_select a param so it can be cleared here
-    //    values a -- h
+    // xxx make scope_select a param so it can be cleared here
+    //     values a -- h
 
     // success
     return 0;
@@ -385,10 +390,6 @@ static int32_t cmd_read(char *args)
         return -1;
     }
 
-    // keep track of the last_filename_used, so if the write command
-    // is issued without a filenmae arg it will use the last_filename_used
-    strcpy(last_filename_used, filename);
-
     // read cmd lines from file, and call process_cmd 
     while (fgets(s, sizeof(s), fp) != NULL) {
         fileline++;
@@ -402,6 +403,12 @@ static int32_t cmd_read(char *args)
 
     // close, and return success
     fclose(fp);
+
+    // keep track of the filename, so if the write command
+    // is issued without a filenmae arg it will use this filename
+    param_set(PARAM_FILENAME, filename);
+
+    // success
     return 0;
 }
 
@@ -416,8 +423,8 @@ static int32_t cmd_write(char *args)
     // get the filename to be written
     filename = strtok(args, " ");
     if (filename == NULL) {
-        filename = last_filename_used;
-        if (filename[0] == '\0') {
+        filename = param_str_val(PARAM_FILENAME);
+        if (strcasecmp(filename, "noname") == 0) {
             ERROR("no filename\n");
             return -1;
         }
@@ -445,11 +452,9 @@ static int32_t cmd_write(char *args)
         return -1;
     }
 
-    // keep track of the last_filename_used, so that a subsequent write
+    // keep track of the filename, so that a subsequent write
     // will use the same filename by default
-    if (filename != last_filename_used) {
-        strcpy(last_filename_used, filename);
-    }
+    param_set(PARAM_FILENAME, filename);
 
     // print the commands to the file
     fprintf(fp, "clear_all\n");
@@ -1182,7 +1187,7 @@ static void param_init(void)
     PARAM_CREATE(PARAM_RUN_T,         "run_t",         "1s"       );
     PARAM_CREATE(PARAM_DELTA_T,       "delta_t",       "0s"       );
     PARAM_CREATE(PARAM_STEP_COUNT,    "step_count",    "1"        );
-    PARAM_CREATE(PARAM_DCPWR_RAMP,    "dcpwr_ramp",    "off"      );   // xxx maybe delte
+    PARAM_CREATE(PARAM_DCPWR_RAMP,    "dcpwr_ramp",    "off"      );
 
     PARAM_CREATE(PARAM_GRID,          "grid",          "off"      );
     PARAM_CREATE(PARAM_CURRENT,       "current",       "on"       );
@@ -1193,10 +1198,11 @@ static void param_init(void)
     PARAM_CREATE(PARAM_CENTER,        "center",        "c3"       );
     PARAM_CREATE(PARAM_SCALE,         "scale",         "200"      );
 
+    PARAM_CREATE(PARAM_FILENAME,      "filename",      "noname"   );
+
     PARAM_CREATE(PARAM_SCOPE_MODE,    "scope_mode",    "trigger"  );
     PARAM_CREATE(PARAM_SCOPE_TRIGGER, "scope_trigger", "0"        );
     PARAM_CREATE(PARAM_SCOPE_SPAN_T,  "scope_span_t",  "1s"       );
-
     for (i = 0; i < MAX_SCOPE; i++) {
         static char scope_name[MAX_SCOPE][10];
         sprintf(scope_name[i], "scope_%c", 'a'+i);
@@ -1212,6 +1218,7 @@ int32_t param_set(int32_t id, char *str_val)
     gridloc_t gl;
 
     assert(param[id].name[0] != '\0');
+    assert(str_val != NULL);
 
     // check for params that have numeric values in UNITS_SECONDS
     if (id == PARAM_RUN_T ||
@@ -1282,8 +1289,8 @@ int32_t param_set(int32_t id, char *str_val)
         return -1;
     }
 
-    // check PARAM_SCOPE_A,B,C,D,....
-    // xxx tbd - check PARAM_SCOPE
+    // xxx tbd - check PARAM_SCOPE_A, ...
+    // xxx tbd - check PARAM_FILENAME
 
     // checks have passed, commit the new param value
     strcpy(param[id].str_val, str_val);

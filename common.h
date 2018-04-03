@@ -81,10 +81,11 @@
 #define PARAM_INTERMEDIATE    8
 #define PARAM_CENTER          9
 #define PARAM_SCALE           10
-#define PARAM_SCOPE_MODE      11
-#define PARAM_SCOPE_TRIGGER   12
-#define PARAM_SCOPE_SPAN_T    13  
-#define PARAM_SCOPE_A         14  // for len MAX_SCOPE
+#define PARAM_FILENAME        11
+#define PARAM_SCOPE_MODE      12
+#define PARAM_SCOPE_TRIGGER   13
+#define PARAM_SCOPE_SPAN_T    14  
+#define PARAM_SCOPE_A         15  // for len MAX_SCOPE
 
 #define param_has_changed(id) \
     ({ static int32_t last_update_count=-1; \
