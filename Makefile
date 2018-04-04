@@ -1,5 +1,8 @@
 TARGETS = model
 
+# to read profiling outut file gmon.out:
+#   gprof model gmon.out
+
 CC = gcc
 OUTPUT_OPTION=-MMD -MP -o $@
 # CFLAGS_PROFILING = -pg

@@ -1,15 +1,13 @@
 ====================  NEXT  =================================================
 
-there might be a wary to fix r4 and rc7
-
-clear all is not clearing scope select
-- use a param
-
 optimize model computations
-  - and check with profiling
+  - and check with profiling   DONE
   - if there are performance issues use profiling;
   - optimization, and multi threads, change O0 to O2
   - factor common operations
+
+clear all is not clearing scope select
+- use a param
 
 work the xxx issues in *.c
 
