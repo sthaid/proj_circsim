@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd $HOME/proj_circsim
+
 savedir=$1
 if [ "$savedir" = "" ]; then
   echo "saveN expected"

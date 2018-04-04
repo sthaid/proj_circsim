@@ -9,3 +9,7 @@ moving_average_test: unit test for moving average utils that are now in util_mis
 
 diode_ohms.jpg: graph of the equation used in model.c to simulate diode resistance
     y = exp(50*(.7-x))
+
+TODO: used to keep track of the development
+
+do_backup: backup the circsim files

@@ -1,7 +1,8 @@
-====================  NEXT  =================================================
+====================  TODO NEXT  ============================================
 
-move TODO to devel dir
 work the xxx issues in *.c
+
+merge all doc into 
 
 documentation
 - readme.md and design files
@@ -11,13 +12,11 @@ regression test
 
 start taking notes for fusor power supply, and check those in too
 
+====================  TODO LOWER PRIORITY  ===================================
 
-====================  LOWER, OR NOT SURE IF THIS IS NEEDED  ==================
+lc1 test should test with a power source or some better method than software precharge
 
-lc1 test should test with a power source or some better method than
-precharging;  I saw this on website, find that again
-
-====================  REJECTED IDEAS  =======================================
+====================  SOME REJECTED IDEAS  ===================================
 
 consider reversing the gridloc A3  ->  3A
   - algebraic chess is    a b c d e f g h
@@ -37,9 +36,9 @@ add capability to adjust component values while model is running
 
 debug param to enable prints
 
-maybe delete DCPWR_RAMP
+delete DCPWR_RAMP
 
-use of assert vs FATAL, could make my ASSERT
+evaluate use of assert vs FATAL, could make my ASSERT
     #define ASSERT(cond) \
         do { \
             if ((cond) == false) { \
@@ -62,210 +61,3 @@ https://en.wikipedia.org/wiki/Exponential_smoothing
 rectifier
 https://en.wikipedia.org/wiki/Rectifier
 
-====================  DONE  =================================================
-
-display the time in xxx.xxxxxxs
-also display the stop_t
-   RUNNING    123.456789s
-   STOP_T     xxx.xxxxxxs
-   RESET      CONT      STEP
-model run xxxx.xxxx
-model cont x.xxx  OR 1ms
-    don't use plus, it is always a delta
-val_to_str for secs does xxx.xxxxxxs
-
-way to init inductor with current
-
-reverse colors, so scren can be printed
-
-draw double wide x/y axis
-1G
-aliasing problem, draw min and max
-
-scope ...
-- graph current
-- more options on the set scope_a cmd
-   - scope_a,b,c,d   current|voltage,ymin,ymax,gl,gl    (or gl,gnd    or gnd,gl   or just gl)
-
-ac simple circuit
-   power / capacitor
-   verify current is 90 dgrees
-
-delta_t ramp up
-- finish coding this
-- how many steps is it currently doing
-
-clean up the test scripts
-
-try a single test with 2 or 3 circurits,  LC, RC, RL
-and with 3 graphs
-
-try a full wave rectifier and filter power supply
-
-should allow setting delta_t whne model is stopped ?
-
-add diode
-
-- check time params for > 0
-
-scope trigger
-- scope_mode param
-    continuous
-    trigger
-- scope trigger param
-    set scope_trigger 1 or 0
-auto retrigger scope
-trigger button for scope
-
-automatically set delta_t when running the model
-  if delta_t param is AUTO
-    loop over all components
-      count dc and ac power
-      keep track of highest ac hz
-    endloop
-    freq = dcpower and notacpwr   ? 250
-           notdcpower and acpwr   ?  maxacfreq
-           dcpower and acpwr      ?  max(250,maxacfreq)
-                                  :  error
-     if freq == 0 error
-     delta_t = xxxx
-  else
-    use fixed delta_t from the param
-  endif
-
-more diode circuits
-
-TRY two caps in series
-
--- DONE
-run,step,reset,cont cmds
-
-str_to_val for time                               DONE
-redo header line                                  DONE
-make them smaller so they all fit                 DONE
-display y units                                   DONE
-val_to_str, remove trailing 0 and .               DONE
-adjust position of title line                    DONE
-set scope_a v,0,5mv,a1,a2,the title str           DONE
-str_to_val for scope values                       DONE
-click to hightlight graph and points/component    DONE
-scope ...
-- scope headings should be english - add title
-- identify scope points on display
-- hover or click to highlight the component, or the gridlocs
-
-LC / inductor stablize
-- update Inductor to use v_next, and retest inductor circuits, and LC circuit
-- LC circuit
-
-in model.c break model_thread up into 2 routines
-
-advance model time after data is ready
-- model reset  ->  model cont 1ms    advances time extra us
-
-rgrid support
-- be nice to see rgrid values update
-
-make it a tripler
-
-make voltage quadroupler
-
-make the dots bigger
-
-why is the small resistor needed
-
-// XXX display power for all devices, and use the same equation as for resistor below;
-//      - the display.c file can be used to not display for some of them
-//       - try the LC circuit with power
-
-// clear schematic should also clear scopes
-//   and reset params back to default
-//     perhaps can call this something else like reset_all, or clear_all 
-
-display avg power used at power supply and a component
-
-add support for more scopes
-
-more graphs and scroll them up down
-
-other component stuff to track
-  - power
-  - energy   NOT DOING ENERGY
-
-Info used to fix readline pgm exit problem
-    http://www.delorie.com/gnu/docs/readline/rlman_43.html
-      
-    Function: void rl_cleanup_after_signal (void)
-    This function will reset the state of the terminal to what it was before readline() was called, and remove the Readline signal handlers for all signals, depending on the values of rl_catch_signals and rl_catch_sigwinch.
-
-    Function: void rl_prep_terminal (int meta_flag)
-    Modify the terminal settings for Readline's use, so readline() can read a single character at a time from the keyboard. The meta_flag argument should be non-zero if Readline should read eight-bit input.
-
-    Function: void rl_deprep_terminal (void)
-    Undo the effects of rl_prep_terminal(), leaving the terminal in the state in which it was before the most recent call to rl_prep_terminal().
-
-    Function: void rl_tty_set_default_bindings (Keymap kmap)
-    Read the operating system's terminal editing characters (as would be displayed by stty) to their Readline equivalents. The bindings are performed in kmap.
-
-    Function: int rl_reset_terminal (const char *terminal_name)
-    Reinitialize Readline's idea of the terminal settings using terminal_name as the terminal type (e.g., vt100). If terminal_name is NULL, the value of the TERM environment variable is used.
-
-misc2 test shows no power supply power
-
-regression test scripts in test dir
-  run_diode_test
-  run_resistor_tests
-    ...
-  run_all_tests
-clean up all circuits
-
-move file to unit_test dir and add README
-- add the gen_resistor_grid pgms
-
-program console needs to be reset when exitting form SDL app
-
-delta_t 0 means auto detect
-  - try 1 ms for DC circuits
-  - 1/freq / 10000 for AC circuits;  choose smallest delta_t if multiple power
-evaluate some of the tests with the above conditions
-
-default DCRAMP to off
-
-clean up all of the test scripts, again
-
-resolve dcpwr_ramp and delta_t params
-- when should dcpwr ramp be enabled or disabled
-- try to minimize the amount of times these params are specified in a model file
-
-What is best diode smoothing?
-- Tests Not Working  (using .7)  
-    d1, d2, ...
-- Tests Not Working  (using .01)
-    d10, d12   oscillations
-    ps1        currents
-    ps1x       fluctiations
-
-model cont display button should allow model to continue after stop_t reached
-- May already be fixed
-
-LC circuit decay
-- try smaller delta_t;  this helps with LC problem
-
-display filename in SDL, use param 
-
-optimize model computations   
- - WAS NOT ABLE TO IMPROVE PERFORMANCE; by replacing divisions with precomputed multiplacations
- - DID NOT TRY MULTI THREADING
- - tried -ffast-math - w/o improvement
-
-glitch in the graph of test/rl1 
-try min max history changes with test/rc7
-problem with history graphs when the graph span is short in comparison to delta_t
-
-some circuits are too slow or don't converge   PROBABLY-DONE
-
-clear all is not clearing scope select
-
-include some screenshots, add a command to take screenshot and tie it to filename
-
-include screen shot of https://www.desmos.com/calculator
