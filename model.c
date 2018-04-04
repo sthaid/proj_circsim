@@ -15,6 +15,10 @@
 
 #define DCPWR_RAMP_T 0.25e-3    // 0.25ms
 
+#define MAX_DIODE_OHMS 1e8L
+#define MIN_DIODE_OHMS .1L
+
+
 //
 // typedefs
 //
@@ -409,7 +413,7 @@ static void reset(void)
 
         c->i_next = 0;
         c->i_now = 0;
-        c->diode_ohms = 1e8;  // XXX #define
+        c->diode_ohms = MAX_DIODE_OHMS;
         memset(c->i_history,0,sizeof(c->i_history));
         timed_moving_average_reset(c->watts);
     }
@@ -546,9 +550,51 @@ static void eval_circuit_for_delta_t(void)
 {
     uint64_t i, j, count=0;
 
-    // XXX comments throughout
+    // This routine will evaluate the circuit for a single time increment (delta_t).
+    // 
+    // The 'next' node voltage values, and 'next' node current values are computes
+    // for each node and component. And then circuit_is_stable is called to evaluate
+    // if each node's current (based on the 'next' current values) is near zero; which
+    // means the circuit is stable. If the circuit is not stable then repeat until 
+    // stability is achieved.
+    //
+    // The reason for this iterative process is that to evaluate a node the state
+    // of the adjacent nodes are used as input. The adjacent nodes are being
+    // evaluated in a similar manner, thus there is a circular dependency. This iterative
+    // process converges for the circuits that I've tested. A problem, however, is that
+    // in some circuits many iterations are needed which cause long execution times.
+
+    // iterate evaluating the circuit until circuit_is_stable returns true
     while (true) {
-        // loop over all nodes, computing the next voltage for that node
+        // loop over all nodes, computing the next voltage for that node,
+        // based on the components attached to the node and the states of 
+        // the nodes on the other side of the components
+        //
+        // Kirchhoff's current law is used, along with ohms law and the 
+        // current-voltage relationships for capacitors and inductors.
+        // XXX diodes
+        //
+        // A simple example is a 2 resistor circuit:
+        //
+        //     5v---R1ohm---Vx---R2ohm---14v
+        //
+        // where we need to solve for Vx based on the current state of the
+        // other 2 nodes (5v and 14v). Using ohms law and Kichoff's current law:
+        //
+        //     Vx - 5     Vx - 14
+        //     ------  +  ------- = 0
+        //       1           2
+        //
+        // Re-arranging to solve for Vx:
+        //             1     1       5     14
+        //      Vx * (--- + ---) - (--- + ----) = 0
+        //             1     2       1     2
+        //
+        //      Vx = 12 / 1.5 = 8
+        // 
+        // BTW this is a nice description of capacitors and inductors.
+        // https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-071j-introduction-to-electronics-signals-and-measurement-spring-2006/lecture-notes/capactr_inductr.pdf
+        //
         for (i = 0; i < max_node; i++) {
             node_t * n = & node[i];
 
@@ -618,8 +664,8 @@ static void eval_circuit_for_delta_t(void)
                 long double dv = n0->v_next - n1->v_next;
                 long double ohms;
                 ohms = expl(50.L * (.7L - dv));
-                if (ohms > 1e8) ohms = 1e8;
-                if (ohms < .10) ohms = .10;
+                if (ohms > MAX_DIODE_OHMS) ohms = MAX_DIODE_OHMS;
+                if (ohms < MIN_DIODE_OHMS) ohms = MIN_DIODE_OHMS;
                 basic_exponential_smoothing(ohms, &c->diode_ohms, 0.01);
                 c->i_next = dv / ohms;
                 break; }
@@ -652,7 +698,7 @@ static void eval_circuit_for_delta_t(void)
             n->dv_dt = (n->v_next - n->v_now) / delta_t;
         }
 
-        // if the circuit is stable, meaning that for each node the sum of currents 
+        // check if the circuit is stable, meaning that for each node the sum of currents 
         // is close to zero; and if stable break out of the loop 
         count++;
         if (circuit_is_stable(count)) {
@@ -660,8 +706,8 @@ static void eval_circuit_for_delta_t(void)
         }
     }
 
-    // completed evaluating the circuit's progression for the delta_t interval;
-    // move next values to now values
+    // completed evaluating the circuit's progression for thise delta_t interval;
+    // move the 'next' values to 'now' values
     for (i = 0; i < max_node; i++) {
         node_t * n = &node[i];
         n->v_now = n->v_next;
@@ -672,8 +718,8 @@ static void eval_circuit_for_delta_t(void)
     }
 
     // compute component power dissipation (watts)
-    // - reverse sign for power supply power, so it is positive too
-    // - used timed_moving_average routine which averages the 'watts' arg value
+    // - reverse the sign for power supply power, so it is positive too
+    // - use timed_moving_average routine which averages the 'watts' arg value
     //   over a 1 second interval
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
@@ -703,14 +749,19 @@ static bool circuit_is_stable(int32_t count)
     int32_t i, j;
     long double sum_i, sum_abs_i, i_term, fraction, max_fraction;
 
-    // XXX comments
+    // loop over all nodes and for each node check that the sum of 
+    // the currents is close to zero; if all nodes have currents sums
+    // close to zero then the circuit is stable
     for (i = 0; i < max_node; i++) {
         node_t * n = &node[i];
 
+        // don't check the power and ground nodes
         if (n->power || n->ground) {
             continue;
         }
 
+        // create sum of current and abs(current); summing the current from
+        // each of the node's terminals
         sum_i = sum_abs_i = 0;
         for (j = 0; j < n->max_term; j++) {
             if (n->term[j]->termid == 0) {
@@ -723,8 +774,16 @@ static bool circuit_is_stable(int32_t count)
         }
         sum_i = fabsl(sum_i);
 
+        // the fraction of the sum of currents divided by the sum of abs(current) 
+        // is used to check if the node's current is close to 0; for example suppose
+        // there are 3 terminals with currents of 1A, 2A, and -2.999 then
+        //   sum_i = .001
+        //   sum_abs_i = 5.999
+        //   fraction = .001/5.999 = .000166
         fraction = sum_i / sum_abs_i;
 
+        // determine max_fraction; if the node's fraction value is above 
+        // max_fraction the circuit is considered not-stable
         if (sum_abs_i < 0.00001) {
             max_fraction = .10;
         } else if (sum_abs_i < 0.0001) {
@@ -733,6 +792,17 @@ static bool circuit_is_stable(int32_t count)
             max_fraction = .001;
         }
 
+        // check if this node has near to zero current, if not then return false;
+        //
+        // If too many attempts have been made then increment the failed_to_stabilize_count
+        // and return true. The failed_to_stabilize_count is displayed in red on the 
+        // display status pane if it is non zero. When failed to stabilize occurs this means
+        // the model's results are in doubt; the results may be okay, partially okay, or
+        // totally wrong. Some things that can be done to correct;
+        // - verify the circuit is properly entered and is a reasonable circuit
+        // - increase MAX_COUNT
+        // - set the delta_t param to a smaller value than the auto_delta_t 
+        //   that was used
         if (fraction > max_fraction) {
             if (count == MAX_COUNT) {
 #ifdef ENABLE_LOGGING_AT_DEBUG_LEVEL
@@ -749,6 +819,7 @@ static bool circuit_is_stable(int32_t count)
         }
     }
 
+    // the circuit is stable
     return true;
 }
 

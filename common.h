@@ -212,6 +212,7 @@ long double history_t;
 int32_t     max_history;
 
 char        current_filename[200];
+int32_t     scope_select_idx;
 
 //
 // prototypes

@@ -798,7 +798,6 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
     #define SDL_EVENT_SCOPE_SELECT_A  (SDL_EVENT_USER_DEFINED + 24)  // for length MAX_SCOPE
 
     struct {
-        int32_t scope_select_idx;
         int32_t y_scroll;
     } * vars = pane_cx->vars;
     rect_t * pane = &pane_cx->pane;
@@ -809,7 +808,6 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
 
     if (request == PANE_HANDLER_REQ_INITIALIZE) {
         vars = pane_cx->vars = calloc(1,sizeof(*vars));
-        vars->scope_select_idx = -1;
         vars->y_scroll = 0;
         return PANE_HANDLER_RET_NO_ACTION;
     }
@@ -948,7 +946,8 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             // else
             //   display the scope in BLACK
             // endif
-            if (i == vars->scope_select_idx) {
+            // note that scope_select_idx==0 means not defined, 1==scope_a, etc
+            if (i == scope_select_idx-1) {
                 color = BLUE;
                 scope_select.gl0 = gl0;
                 scope_select.gl1 = gl1;
@@ -1079,8 +1078,8 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
             continue;
 
 no_scope:   // scope is now off or improperly defined
-            if (i == vars->scope_select_idx) {
-                vars->scope_select_idx = -1;
+            if (i == scope_select_idx-1) {
+                scope_select_idx = 0;
             }
         }
 
@@ -1124,8 +1123,8 @@ no_scope:   // scope is now off or improperly defined
             param_set(PARAM_SCOPE_TRIGGER, "1");
             break;
         case SDL_EVENT_SCOPE_SELECT_A...SDL_EVENT_SCOPE_SELECT_A+MAX_SCOPE-1: {
-            int32_t i = event->event_id - SDL_EVENT_SCOPE_SELECT_A;
-            vars->scope_select_idx = (i == vars->scope_select_idx ? -1 : i);
+            int32_t i = event->event_id - SDL_EVENT_SCOPE_SELECT_A + 1;
+            scope_select_idx = (i == scope_select_idx ? 0 : i);
             break; }
         case SDL_EVENT_MOUSE_WHEEL2:
             vars->y_scroll -= event->mouse_wheel.delta_y * 20;

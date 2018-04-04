@@ -363,11 +363,10 @@ static int32_t cmd_clear_all(char *args)
     // init params
     param_init();
 
-    // clear current_filename
+    // clear current_filename, and
+    // scope_select_idx
     current_filename[0] = '\0';
-
-    // XXX make scope_select a param so it can be cleared here
-    //     values a -- h
+    scope_select_idx = 0;
 
     // success
     return 0;
@@ -1297,7 +1296,53 @@ int32_t param_set(int32_t id, char *str_val)
         return -1;
     }
 
-    // XXX tbd - check PARAM_SCOPE_A, ...
+    // check PARAM_SCOPE_A, ...
+    if (id >= PARAM_SCOPE_A && id < PARAM_SCOPE_A+MAX_SCOPE) do {
+        char p[200];
+        char *select_str, *ymin_str, *ymax_str, *gl0_str, *gl1_str, *title_str;
+        gridloc_t gl0, gl1;
+        int32_t units;
+        long double ymin,ymax;
+
+        strcpy(p, str_val);
+        select_str = strtok(p, ",");
+        ymin_str = strtok(NULL, ",");
+        ymax_str = strtok(NULL, ",");
+        gl0_str = strtok(NULL, ",");
+        gl1_str = strtok(NULL, ",");
+        title_str = strtok(NULL, "");
+
+        if (strcasecmp(select_str, "off") == 0) {
+            break;
+        }
+
+        if (title_str == NULL) {
+            ERROR("failed to set '%s', expected title\n", param_name(id));
+            return -1;
+        }
+
+        if (strcasecmp(select_str,"voltage") != 0 &&
+            strcasecmp(select_str,"current") != 0)
+        {
+            ERROR("failed to set '%s', expected 'voltage' or 'current'\n", param_name(id));
+            return -1;
+        }
+
+        units = (strcasecmp(select_str,"voltage") == 0) ? UNITS_VOLTS : UNITS_AMPS;
+        if ((str_to_val(ymin_str, units, &ymin) < 0) ||
+            (str_to_val(ymax_str, units, &ymax) < 0)) 
+        {
+            ERROR("failed to set '%s', expected ymin and ymax\n", param_name(id));
+            return -1;
+        }
+
+        if ((str_to_gridloc(gl0_str, &gl0) < 0) ||
+            (str_to_gridloc(gl1_str, &gl1) < 0))
+        {
+            ERROR("failed to set '%s', expected gridloc0 and gridloc1\n", param_name(id));
+            return -1;       
+        }
+    } while (0);
 
     // checks have passed, commit the new param value
     strcpy(param[id].str_val, str_val);
