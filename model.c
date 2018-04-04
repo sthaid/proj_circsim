@@ -84,7 +84,22 @@ int32_t model_run(void)
         return -1;
     }
 
-    // set auto_delta_t  xxx comment
+    // auto_delta_t will be used by the circuit sim model if the delta_t param is 
+    // set to 0;  the following code calculates auto_delta_t by taking
+    // into account the frequency of AC power supplies, and the scope_span_t
+    //
+    // - if there are no power supplies then auto_delta_t is set to 0;
+    //   this means that the user must set the delta_t param
+    // - if all power supplies are DC then auto_delta_t is set to 1ms
+    // - otherwise the highest frequency power supply is used to determine
+    //   auto_delta_t by multiplying the period by .001; for example if the
+    //   highest frequency power supply is 60HZ then the period is .017ms and
+    //   the auto_delta_t will be set to .000017ms
+    //
+    // - a final check is made to compare the calculated auto_delta_t with
+    //   the scope_interval (the scope interval equalling scope_span_t/MAX_HISTORY);
+    //   if auto_delta_t is greater than scope_interval then auto_delta_t is
+    //   set equal to scope_interval
     largest_hz = -1;
     for (i = 0; i < max_component; i++) {
         component_t * c = &component[i];
@@ -98,8 +113,8 @@ int32_t model_run(void)
     auto_delta_t = (largest_hz == -1 ? 0    :
                     largest_hz == 0  ? 1e-3 :
                                        1 / largest_hz * .001);
-    if (auto_delta_t && auto_delta_t > param_num_val(PARAM_SCOPE_SPAN_T) / 500) {
-        auto_delta_t = param_num_val(PARAM_SCOPE_SPAN_T) / 500;
+    if (auto_delta_t && auto_delta_t > param_num_val(PARAM_SCOPE_SPAN_T) / MAX_HISTORY) {
+        auto_delta_t = param_num_val(PARAM_SCOPE_SPAN_T) / MAX_HISTORY;
     }
 
     // set model stop time
@@ -385,12 +400,16 @@ static void reset(void)
 
     for (i = 0; i < max_component; i++) {
         component_t *c = &component[i];
+        if (c->type == COMP_NONE) {
+            continue;
+        }
+
         c->term[0].node = NULL;
         c->term[1].node = NULL;
 
         c->i_next = 0;
         c->i_now = 0;
-        c->diode_ohms = 1e8;  // xxx #define
+        c->diode_ohms = 1e8;  // XXX #define
         memset(c->i_history,0,sizeof(c->i_history));
         timed_moving_average_reset(c->watts);
     }
@@ -485,8 +504,6 @@ static void * model_thread(void * cx)
 
         // keep track of voltage and current history, 
         // these are used for the scope display
-        // xxx if values have been skipped then fill them in somehow, maybe with INVALID
-        // xxx maybe don't need the min and max any more
         idx = (model_t - history_t) / param_num_val(PARAM_SCOPE_SPAN_T) * MAX_HISTORY;
         if (idx < MAX_HISTORY) {
             for (i = 0; i < max_component; i++) {
@@ -529,7 +546,7 @@ static void eval_circuit_for_delta_t(void)
 {
     uint64_t i, j, count=0;
 
-    // xxx comments throughout
+    // XXX comments throughout
     while (true) {
         // loop over all nodes, computing the next voltage for that node
         for (i = 0; i < max_node; i++) {
@@ -686,7 +703,7 @@ static bool circuit_is_stable(int32_t count)
     int32_t i, j;
     long double sum_i, sum_abs_i, i_term, fraction, max_fraction;
 
-    // xxx comments
+    // XXX comments
     for (i = 0; i < max_node; i++) {
         node_t * n = &node[i];
 
@@ -742,7 +759,7 @@ static long double get_comp_power_voltage(component_t * c)
     if (c->power.hz == 0) {
         // dc 
         if (strcasecmp(param_str_val(PARAM_DCPWR_RAMP), "on") == 0) {
-            if (model_t >= DCPWR_RAMP_T) {  // xxx delete DCPWR_RAMP
+            if (model_t >= DCPWR_RAMP_T) {
                 v = c->power.volts;
             } else {
                 v = c->power.volts * model_t / DCPWR_RAMP_T;

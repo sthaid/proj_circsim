@@ -81,11 +81,10 @@
 #define PARAM_INTERMEDIATE    8
 #define PARAM_CENTER          9
 #define PARAM_SCALE           10
-#define PARAM_FILENAME        11
-#define PARAM_SCOPE_MODE      12
-#define PARAM_SCOPE_TRIGGER   13
-#define PARAM_SCOPE_SPAN_T    14  
-#define PARAM_SCOPE_A         15  // for len MAX_SCOPE
+#define PARAM_SCOPE_MODE      11
+#define PARAM_SCOPE_TRIGGER   12
+#define PARAM_SCOPE_SPAN_T    13  
+#define PARAM_SCOPE_A         14  // for len MAX_SCOPE
 
 #define param_has_changed(id) \
     ({ static int32_t last_update_count=-1; \
@@ -212,6 +211,8 @@ int32_t     failed_to_stabilize_count;
 long double history_t;
 int32_t     max_history;
 
+char        current_filename[200];
+
 //
 // prototypes
 //
@@ -227,6 +228,7 @@ int32_t param_set(int32_t id, char *str);
 int32_t param_set_by_name(char *name, char *str);
 const char * param_name(int32_t id);
 char * param_str_val(int32_t id);
+char * param_default_str_val(int32_t id);
 long double param_num_val(int32_t id);
 int32_t param_update_count(int32_t id);
 

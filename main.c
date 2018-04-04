@@ -12,6 +12,7 @@
 
 typedef struct {
     const char *name;
+    char        default_str_val[100];
     char        str_val[100];
     long double num_val;
     int32_t     update_count;
@@ -134,10 +135,9 @@ static void * cli_thread(void * cx)
     while (true) {
         free(cmd_str);
 
-        filename = param_str_val(PARAM_FILENAME);
-        if (strcasecmp(filename, "noname") != 0) {
+        if (current_filename[0] != '\0') {
             sprintf(prompt_str, "%s %s> ", 
-                    filename, MODEL_STATE_STR(model_state));
+                    current_filename, MODEL_STATE_STR(model_state));
         } else {
             sprintf(prompt_str, "%s> ", 
                     MODEL_STATE_STR(model_state));
@@ -363,7 +363,10 @@ static int32_t cmd_clear_all(char *args)
     // init params
     param_init();
 
-    // xxx make scope_select a param so it can be cleared here
+    // clear current_filename
+    current_filename[0] = '\0';
+
+    // XXX make scope_select a param so it can be cleared here
     //     values a -- h
 
     // success
@@ -373,15 +376,19 @@ static int32_t cmd_clear_all(char *args)
 static int32_t cmd_read(char *args)
 {
     FILE * fp;
-    char s[200], *filename;
+    char s[200], *fn, filename[200];
     int32_t rc, fileline=0;
 
-    // tokenize and verify args
-    filename = strtok(args, " ");
-    if (filename == NULL) {
-        ERROR("insufficient args\n");
-        return -1;
+    // get the filename to be read
+    fn = strtok(args, " ");
+    if (fn == NULL) {
+        fn = current_filename;
+        if (fn[0] == '\0') {
+            ERROR("no filename\n");
+            return -1;
+        }
     }
+    strcpy(filename, fn);
 
     // open the file for reading
     fp = fopen(filename, "r");
@@ -404,9 +411,10 @@ static int32_t cmd_read(char *args)
     // close, and return success
     fclose(fp);
 
-    // keep track of the filename, so if the write command
-    // is issued without a filenmae arg it will use this filename
-    param_set(PARAM_FILENAME, filename);
+    // keep track of the current_filename, so if a subsequent read
+    // or write cmd is issued without specied filename arg; then the
+    // current_filename will be used
+    strcpy(current_filename, filename);
 
     // success
     return 0;
@@ -416,19 +424,19 @@ static int32_t cmd_write(char *args)
 {
     FILE * fp;
     int32_t i, rc;
-    char *filename;
-    char s[100];
+    char s[100], *fn, filename[200];
     struct stat buf;
 
     // get the filename to be written
-    filename = strtok(args, " ");
-    if (filename == NULL) {
-        filename = param_str_val(PARAM_FILENAME);
-        if (strcasecmp(filename, "noname") == 0) {
+    fn = strtok(args, " ");
+    if (fn == NULL) {
+        fn = current_filename;
+        if (fn[0] == '\0') {
             ERROR("no filename\n");
             return -1;
         }
     }
+    strcpy(filename, fn);
 
     // confirm overwrite
     rc = stat(filename, &buf);
@@ -452,10 +460,6 @@ static int32_t cmd_write(char *args)
         return -1;
     }
 
-    // keep track of the filename, so that a subsequent write
-    // will use the same filename by default
-    param_set(PARAM_FILENAME, filename);
-
     // print the commands to the file
     fprintf(fp, "clear_all\n");
     fprintf(fp, "\n");
@@ -476,7 +480,7 @@ static int32_t cmd_write(char *args)
     }
 
     for (i = 0; i < MAX_PARAM; i++) {
-        if (param_name(i) != NULL) {
+        if (param_name(i) != NULL && strcasecmp(param_str_val(i), param_default_str_val(i)) != 0) {
             fprintf(fp, "set %-12s %s\n", param_name(i), param_str_val(i));
         }
     }
@@ -484,6 +488,11 @@ static int32_t cmd_write(char *args)
 
     // close the file
     fclose(fp);
+
+    // keep track of the current_filename, so if a subsequent read
+    // or write cmd is issued without specied filename arg; then the
+    // current_filename will be used
+    strcpy(current_filename, filename);
 
     // success
     return 0;
@@ -984,7 +993,7 @@ char * component_to_value_str(component_t * c, char *s)
         val_to_str(c->inductor.henrys, UNITS_HENRYS, s, true);
         break;
     case COMP_DIODE:
-#if 0   // xxx temp diode print ohms
+#if 0   // diode print ohms, this is useful for debug 
         val_to_str(c->diode_ohms, UNITS_OHMS, s, true);
 #endif
         break;
@@ -1178,6 +1187,7 @@ static void param_init(void)
         do { \
             int32_t rc; \
             param[_id].name = (_name); \
+            strcpy(param[_id].default_str_val, (_value)); \
             rc = param_set(_id, _value); \
             assert(rc == 0); \
         } while (0)
@@ -1197,8 +1207,6 @@ static void param_init(void)
 
     PARAM_CREATE(PARAM_CENTER,        "center",        "c3"       );
     PARAM_CREATE(PARAM_SCALE,         "scale",         "200"      );
-
-    PARAM_CREATE(PARAM_FILENAME,      "filename",      "noname"   );
 
     PARAM_CREATE(PARAM_SCOPE_MODE,    "scope_mode",    "trigger"  );
     PARAM_CREATE(PARAM_SCOPE_TRIGGER, "scope_trigger", "0"        );
@@ -1289,8 +1297,7 @@ int32_t param_set(int32_t id, char *str_val)
         return -1;
     }
 
-    // xxx tbd - check PARAM_SCOPE_A, ...
-    // xxx tbd - check PARAM_FILENAME
+    // XXX tbd - check PARAM_SCOPE_A, ...
 
     // checks have passed, commit the new param value
     strcpy(param[id].str_val, str_val);
@@ -1322,6 +1329,12 @@ char * param_str_val(int32_t id)
 {
     assert(param[id].name[0] != '\0');
     return param[id].str_val;
+}
+
+char * param_default_str_val(int32_t id)
+{
+    assert(param[id].name[0] != '\0');
+    return param[id].default_str_val;
 }
 
 long double param_num_val(int32_t id)

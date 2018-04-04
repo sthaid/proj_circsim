@@ -403,7 +403,6 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     continue;
                 }
 
-                // xxx use test/t9 and 'set component id'; long wires are not working
                 if (c->term[1].gridloc.x == c->term[0].gridloc.x + 1) {         // right
                     x += grid_scale / 2 - strlen(s) * sdl_font_char_width(fpsz) / 2;
                     y -= 2 * sdl_font_char_height(fpsz);
@@ -417,9 +416,9 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
                     x += 2 * sdl_font_char_width(fpsz);
                     y -= grid_scale / 2 + sdl_font_char_height(fpsz) / 2;
                 } else {
-                    // this is for remote wire component id
-                    x += 2;
-                    y += 2;
+                    // this should only occure for a long wire or a remote wire; 
+                    // in this case don't display the wire's component id
+                    continue;
                 }
                 sdl_render_printf(pane, x, y, fpsz, BLACK, WHITE, "%s", s);
             }
@@ -570,13 +569,12 @@ static int32_t pane_hndlr_schematic(pane_cx_t * pane_cx, int32_t request, void *
             }
         } }
 
-        // if there is a filename then display it, top center
-        { char *filename;
-        filename = param_str_val(PARAM_FILENAME);
-        if (strcasecmp(filename, "noname") != 0) {
-            int32_t x = pane->w/2 - sdl_font_char_width(FPSZ_MEDIUM)/2;
+        // if there is a current_filename then display it, top center
+        { int32_t len = strlen(current_filename);
+        if (len > 0) {
+            int32_t x = pane->w/2 - len*sdl_font_char_width(FPSZ_MEDIUM)/2;
             if (x < 0) x = 0;
-            sdl_render_printf(pane, x, 0, FPSZ_MEDIUM, BLACK, WHITE, "%s", filename);
+            sdl_render_printf(pane, x, 0, FPSZ_MEDIUM, BLACK, WHITE, "%s", current_filename);
         } }
 
         // register for mouse motion and mouse wheel events
@@ -717,7 +715,7 @@ static int32_t pane_hndlr_status(pane_cx_t * pane_cx, int32_t request, void * in
 
         // failed_to_stabilize_count, only display if greater than 0
         if (failed_to_stabilize_count > 0) {
-            // xxx debug why the '-2' is needed below
+            // XXX debug why the '-2' is needed below
             sdl_render_printf(pane, pane->w-COL2X(9,FPSZ_MEDIUM)-2, ROW2Y(3,FPSZ_MEDIUM), FPSZ_MEDIUM, RED, WHITE, 
                               "%9d", failed_to_stabilize_count);
         }
@@ -1005,16 +1003,18 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
                 //   we are displaying current data, set va and vb to the range of current values
                 // else
                 //   we are displaying voltage data between two nodes; set va and vb to 
-                //    represent the maximum range of difference between the two nodes
+                //    represent the range of difference between the two nodes; as seen below
+                //    there are 2 approaches, I had hoped to use the first approach but the
+                //    2nd produces better graphs in some cases
                 // endif
                 if (history1 == NULL) {
                     va = sign * history0[j].max;
                     vb = sign * history0[j].min;
                 } else {
-#if 1
+#if 0
                     va = sign * (history0[j].max - history1[j].min);
                     vb = sign * (history0[j].min - history1[j].max);
-#else               // xxx delete
+#else
                     va = sign * (history0[j].max - history1[j].max);
                     vb = sign * (history0[j].min - history1[j].min);
 #endif
