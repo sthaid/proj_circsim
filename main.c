@@ -33,7 +33,6 @@ static void help(void);
 
 static void * cli_thread(void * cx);
 static int32_t process_cmd(char * cmdline);
-static int32_t cmd_help(char *args);
 static int32_t cmd_set(char *args);
 static int32_t cmd_show(char *args);
 static int32_t cmd_clear_all(char *args);
@@ -47,6 +46,8 @@ static int32_t cmd_run(char *args);
 static int32_t cmd_stop(char *args);
 static int32_t cmd_cont(char *args);
 static int32_t cmd_step(char *args);
+static int32_t cmd_help(char *args);
+static int32_t cmd_printscreen(char *args);
 
 static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char *value_str);
 static int32_t del_component(char * comp_str);
@@ -166,8 +167,6 @@ static struct {
     int32_t (*proc)(char *args);
     char * usage;
 } cmd_tbl[] = {
-    { "help",            cmd_help,            ""                                 },
-
     { "set",             cmd_set,             "<param_name> <param_value>"       },
     { "show",            cmd_show,            "[<components|params|ground>]"     },
 
@@ -183,6 +182,9 @@ static struct {
     { "stop",            cmd_stop,            ""                                 },
     { "cont",            cmd_cont,            "[<secs>]"                         },
     { "step",            cmd_step,            "[<count>]"                        },
+
+    { "help",            cmd_help,            ""                                 },
+    { "printscreen",     cmd_printscreen,     ""                                 },
                     };
 
 #define MAX_CMD_TBL (sizeof(cmd_tbl) / sizeof(cmd_tbl[0]))
@@ -251,17 +253,6 @@ static int32_t process_cmd(char * cmdline)
 
 // the following cmd routines return
 // -1 for error and 0 for success
-
-static int32_t cmd_help(char *args)
-{
-    int32_t i;
-
-    // print the usage strings
-    for (i = 0; i < MAX_CMD_TBL; i++) {
-        printf("%-16s %s\n", cmd_tbl[i].name, cmd_tbl[i].usage);
-    }
-    return 0;
-}
 
 static int32_t cmd_set(char *args)
 {
@@ -600,6 +591,26 @@ static int32_t cmd_step(char *args)
         return -1;
     }
     return model_step();
+}
+
+static int32_t cmd_help(char *args)
+{
+    int32_t i;
+
+    // print the usage strings
+    for (i = 0; i < MAX_CMD_TBL; i++) {
+        printf("%-16s %s\n", cmd_tbl[i].name, cmd_tbl[i].usage);
+    }
+    return 0;
+}
+
+static int32_t cmd_printscreen(char *args)
+{
+    char filename[200];
+
+    sprintf(filename, "%s.jpg", current_filename);
+    sdl_print_screen(filename, true, NULL);
+    return 0;
 }
 
 // -----------------  ADD & DEL COMPOENTS  --------------------------------

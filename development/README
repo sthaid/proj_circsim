@@ -7,3 +7,5 @@ model_test2: similar to model_test1, but this program models a simple R-R-R circ
 
 moving_average_test: unit test for moving average utils that are now in util_misc.c
 
+diode_ohms.jpg: graph of the equation used in model.c to simulate diode resistance
+    y = exp(50*(.7-x))

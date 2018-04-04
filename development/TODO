@@ -1,30 +1,13 @@
 ====================  NEXT  =================================================
 
-include screen shot of https://www.desmos.com/calculator
-
-
+move TODO to devel dir
 work the xxx issues in *.c
-
-clear all is not clearing scope select
-- use a param ??
 
 documentation
 - readme.md and design files
 - add copyright notices
 
 regression test
-
-include some screenshots, add a command to take screenshot and tie it to filename
-
-use of assert vs FATAL, could make my ASSERT
-    #define ASSERT(cond) \
-        do { \
-            if ((cond) == false) { \
-                ERROR("ASSERTION FAILED %s, func=%s file=%s line=%d\n", #cond, __func__, __FILE__, __LINE__); \
-                exit(1); \
-            } \
-        } while (0)
-
 
 start taking notes for fusor power supply, and check those in too
 
@@ -55,6 +38,15 @@ add capability to adjust component values while model is running
 debug param to enable prints
 
 maybe delete DCPWR_RAMP
+
+use of assert vs FATAL, could make my ASSERT
+    #define ASSERT(cond) \
+        do { \
+            if ((cond) == false) { \
+                ERROR("ASSERTION FAILED %s, func=%s file=%s line=%d\n", #cond, __func__, __FILE__, __LINE__); \
+                exit(1); \
+            } \
+        } while (0)
 
 ====================  INFO  =================================================
 
@@ -271,3 +263,9 @@ try min max history changes with test/rc7
 problem with history graphs when the graph span is short in comparison to delta_t
 
 some circuits are too slow or don't converge   PROBABLY-DONE
+
+clear all is not clearing scope select
+
+include some screenshots, add a command to take screenshot and tie it to filename
+
+include screen shot of https://www.desmos.com/calculator
