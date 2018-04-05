@@ -1,22 +1,10 @@
 ====================  TODO NEXT  ============================================
 
-work the xxx issues in *.c
-
-merge all doc into 
-
-documentation
-- readme.md and design files
-- add copyright notices
-
-regression test
-
-start taking notes for fusor power supply, and check those in too
-
-====================  TODO LOWER PRIORITY  ===================================
+====================  LOWER PRIORITY  =======================================
 
 lc1 test should test with a power source or some better method than software precharge
 
-====================  SOME REJECTED IDEAS  ===================================
+====================  REJECTED IDEAS  =======================================
 
 consider reversing the gridloc A3  ->  3A
   - algebraic chess is    a b c d e f g h
@@ -61,3 +49,5 @@ https://en.wikipedia.org/wiki/Exponential_smoothing
 rectifier
 https://en.wikipedia.org/wiki/Rectifier
 
+capacitors and resistors
+https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-071j-introduction-to-electronics-signals-and-measurement-spring-2006/lecture-notes/capactr_inductr.pdf

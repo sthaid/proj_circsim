@@ -15,9 +15,5 @@ ground d3
 set center d4,-4,-19
 set scale  322
 
-set scope_span_t 1ms
-set scope_a voltage,0,5,d4
-set scope_b voltage,0,5,d5
-
 step
 

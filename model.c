@@ -574,7 +574,7 @@ static void eval_circuit_for_delta_t(void)
 
     // This routine will evaluate the circuit for a single time increment (delta_t).
     // 
-    // The 'next' node voltage values, and 'next' node current values are computes
+    // The 'next' node voltage values, and 'next' node current values are calculated
     // for each node and component. And then circuit_is_stable is called to evaluate
     // if each node's current (based on the 'next' current values) is near zero; which
     // means the circuit is stable. If the circuit is not stable then repeat until 
@@ -583,7 +583,7 @@ static void eval_circuit_for_delta_t(void)
     // The reason for this iterative process is that to evaluate a node the state
     // of the adjacent nodes are used as input. The adjacent nodes are being
     // evaluated in a similar manner, thus there is a circular dependency. This iterative
-    // process converges for the circuits that I've tested. A problem, however, is that
+    // process usually converges for the circuits that I've tested. A problem, however, is that
     // in some circuits many iterations are needed which cause long execution times.
 
     // iterate evaluating the circuit until circuit_is_stable returns true
@@ -594,7 +594,12 @@ static void eval_circuit_for_delta_t(void)
         //
         // Kirchhoff's current law is used, along with ohms law and the 
         // current-voltage relationships for capacitors and inductors.
-        // XXX diodes
+        //
+        // Diodes are treated as resistors, except that the resistance varies
+        // as a function of the voltage across the diode. The model uses this
+        // equation for diode resistance: 
+        //      diode_ohms = exp(50 * (.7 - V))
+        // See development/diode_ohms.png for a graph of this equation.
         //
         // A simple example is a 2 resistor circuit:
         //
