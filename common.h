@@ -59,7 +59,7 @@ SOFTWARE.
 #define MAX_NODE            10000
 #define MAX_GRID_TERM       5
 #define MAX_HISTORY         500
-#define MAX_SCOPE           8
+#define MAX_SCOPE           16
 
 // model state
 #define MODEL_STATE_RESET    0
@@ -119,6 +119,11 @@ SOFTWARE.
 #define MIN_GRID_SCALE     100
 #define MAX_GRID_SCALE     400
 
+// power supply wave form
+#define WAVE_FORM_SINE      0
+#define WAVE_FORM_SQUARE    1
+#define WAVE_FORM_TRIANGLE  2
+
 //
 // typedefs
 //
@@ -157,6 +162,7 @@ typedef struct component_s {
         struct {
             long double volts;
             long double hz;  // 0 = DC
+            int32_t wave_form;
         } power;
         struct {
             long double ohms;

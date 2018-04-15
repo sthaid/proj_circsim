@@ -865,9 +865,32 @@ static long double get_comp_power_voltage(component_t * c)
         } else {
             v = c->power.volts;
         }
-    } else {
-        // ac
+    } else if (c->power.wave_form == WAVE_FORM_SINE) {
         v = c->power.volts * sinl(model_t * c->power.hz * (2. * M_PI));
+    } else if (c->power.wave_form == WAVE_FORM_SQUARE) {
+        long double cycles = model_t * c->power.hz;
+        cycles -= floor(cycles);
+#if 0
+        v = (cycles < 0.5 ? c->power.volts : -c->power.volts);
+#else
+        #define RISE_TIME .01
+        long double slope = 2 * c->power.volts / RISE_TIME;
+
+        if (cycles < RISE_TIME) {
+            v = -c->power.volts + slope * cycles;
+        } else if (cycles < 0.5) {
+            v = c->power.volts;
+        } else if (cycles < 0.5+RISE_TIME) {
+            v = c->power.volts - slope * (cycles - 0.5);
+        } else {
+            v = -c->power.volts;
+        }
+#endif
+    } else if (c->power.wave_form == WAVE_FORM_TRIANGLE) {
+        FATAL("triangle wave form not supported yet\n");
+        v = 0;
+    } else {
+        assert(0);
     }
 
     return v;

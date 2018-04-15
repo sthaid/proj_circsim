@@ -850,9 +850,9 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
         point_t       points[2*MAX_HISTORY];
         float         sign;
 
-        #define YHEADER       50
-        #define GRAPH_YSPAN   170
-        #define GRAPH_YSPACE  30
+        #define YHEADER       60
+        #define GRAPH_YSPAN   160
+        #define GRAPH_YSPACE  40
         #define GRAPH_XSPAN   500
 
         // the graph xspan must equal MAX_HISTORY, because there
@@ -1078,7 +1078,7 @@ static int32_t pane_hndlr_scope(pane_cx_t * pane_cx, int32_t request, void * ini
                     title_str);
             x_title_str = x_left + GRAPH_XSPAN/2 - COL2X(strlen(title_str_ext),FPSZ_SMALL)/2;
             if (x_title_str < x_left) x_title_str = x_left;
-            sdl_render_printf(pane, x_title_str, y_top-FPSZ_SMALL, FPSZ_SMALL, color, WHITE, "%s", title_str_ext);
+            sdl_render_printf(pane, x_title_str, y_top-FPSZ_SMALL-1, FPSZ_SMALL, color, WHITE, "%s", title_str_ext);
 
             // display y axis units
             val_to_str(ymax, units, ymax_str2, true);

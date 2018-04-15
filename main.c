@@ -754,7 +754,7 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
             ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
             return -1;
         }
-        value_str = strtok(NULL, "");
+        value_str = strtok(NULL, ",");
         if (value_str != NULL) {
             rc = str_to_val(value_str, UNITS_HZ, &new_comp.power.hz);
             if (rc == -1) {
@@ -762,6 +762,19 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
                 return -1;
             }
         }
+        value_str = strtok(NULL, "");
+        if (value_str != NULL) {
+            if (strcasecmp(value_str, "sine") == 0) {
+                new_comp.power.wave_form = WAVE_FORM_SINE;
+            } else if (strcasecmp(value_str, "square") == 0) {
+                new_comp.power.wave_form = WAVE_FORM_SQUARE;
+            } else if (strcasecmp(value_str, "triangle") == 0) {
+                new_comp.power.wave_form = WAVE_FORM_TRIANGLE;
+            } else {
+                ERROR("invalid value '%s' for %s\n", value_str, new_comp.type_str);
+                return -1;
+            }
+        }            
         break;
     case COMP_RESISTOR:
         rc = str_to_val(value_str, UNITS_OHMS, &new_comp.resistor.ohms);
@@ -796,8 +809,8 @@ static int32_t add_component(char *type_str, char *gl0_str, char *gl1_str, char 
     case COMP_DIODE:
         break;
     }
-    // - set watts
-    new_comp.watts = timed_moving_average_alloc(1.0, 1000);
+    // - set watts, average over 0.1s interval, using 1000 bins
+    new_comp.watts = timed_moving_average_alloc(0.1, 1000);
 
     // verify terminals are adjacent, except for:
     // - COMP_WIRE - where they just need to be in the same row or column
@@ -1014,6 +1027,7 @@ char * component_to_value_str(component_t * c, char *s)
             strcpy(s+len, ",");
             val_to_str(c->power.hz, UNITS_HZ, s+len+1, true);
         }
+        // XXX alsw wave form
         break;
     case COMP_RESISTOR:
         val_to_str(c->resistor.ohms, UNITS_OHMS, s, true);
