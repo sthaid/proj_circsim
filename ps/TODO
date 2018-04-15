@@ -1,0 +1,421 @@
+XXX checkins
+=================================
+TODO
+=================================
+
+circsum
+- try to model switches, to simulate the mosfets
+- review latest changes for square wave, and check in
+- shorten time that watts is averaged
+- more graphs
+- update vm5x_hf to display more graphs
+- checkin ps directory
+
+study how mosfets work, and transistors
+
+Continue studying inverters
+- find H bridge schematic
+- raspberry pi as signal generator
+  . check photocoupler spec for logic input voltage
+
+Study transformers, how many windings, what type of core, etc.
+
+Take pictures of the work progress
+
+organize papers in folders
+
+=================================
+DESIGN     
+=================================
+
+Watt Meter
+   |
+   v
+Variac
+   | 150VAC RMS
+   | 210VAC Peak
+   | 420VAC Peak-Peak
+   v
+60HZ voltage multiplier - 3x --> BJT Oscillator
+   |                                      |
+   | 1100 VDC @ 1000w                     | 
+   v                                      |
+H Bridge Inverter  <----------------------
+   |
+   | 1100 VAC Peak-Peak Square-Wave   20khz
+   |   - XXX or can it be twice that?
+   v
+HF Transformer, self wound, 
+   |
+   | ??? VAC Peak-Peak
+   v 
+HF Voltage Multiplier  
+   |
+   v
+Fusor
+
+
+1) 60HZ multiplier
+  - compare to model
+  - test with dummy load at 1000W
+
+2) Inverter - create HF square wave
+   - Determine frequency needed for HF Multiplier
+     (need to determine capacitor values)
+   - build low voltage version
+
+3) Connect HF output to transformer
+   - reteset with dummy load configured for the higher voltage
+   - retest at 1000W
+
+4) Connect to HF multiplier
+   - measure output voltage, with meter and a scope
+   - will need 1Gohm resistor for divider
+   - also put a small (10ohm?) resistor in the return path,
+     to be used for current
+   - is a dummy load possible for this voltage?
+
+5) Test on the fusor
+
+=================================
+60HZ VM NOTES 
+=================================
+
+XXX tbd
+
+=================================
+INVERTER / TRANSFORMER NOTES
+=================================
+
+--- H Bridge ---
+
+An H bridge is an electronic circuit that enables a voltage to be applied across a load in 
+opposite direction. These circuits are often used in robotics and other applications to allow 
+DC motors to run forwards or backwards.  Most DC-to-AC converters (power inverters), 
+most AC/AC converters, the DC-to-DC push–pull converter, most motor controllers, and many other 
+kinds of power electronics use H bridges. In particular, a bipolar stepper motor is almost 
+invariably driven by a motor controller containing two H bridges.
+
+1) N and P channel semiconductors
+  A solid-state H bridge is typically constructed using opposite polarity devices, such as 
+  PNP bipolar junction transistors (BJT) or P-channel MOSFETs connected to the high voltage 
+  bus and NPN BJTs or N-channel MOSFETs connected to the low voltage bus
+
+2) N channel-only semiconductors
+  The most efficient MOSFET designs use N-channel MOSFETs on both the high side and low side 
+  because they typically have a third of the ON resistance of P-channel MOSFETs. This requires a 
+  more complex design since the gates of the high side MOSFETs must be driven positive with 
+  respect to the DC supply rail. Many integrated circuit MOSFET gate drivers include a charge 
+  pump within the device to achieve this.
+
+3) Variants
+  A common variation of this circuit uses just the two transistors on one side of the load, 
+  similar to a class AB amplifier. Such a configuration is called a "half bridge". 
+  The half bridge is used in some switched-mode power supplies that use synchronous rectifiers 
+  and in switching amplifiers. The half-H bridge type is commonly abbreviated to "Half-H" to 
+  distinguish it from full ("Full-H") H bridges. Another common variation, adding a third 
+  'leg' to the bridge, creates a three-phase inverter. The three-phase inverter is the core 
+  of any AC motor drive.
+
+Refer TO: Wikipedia External Links   https://en.wikipedia.org/wiki/H_bridge
+
+--- MOSFETS ---
+
+If the MOSFET is an n-channel or nMOS FET, then   
+  the source and drain are n+ regions and the body is a p region. 
+    (xxx I guess this is like NPN BJT)
+
+If the MOSFET is a p-channel or pMOS FET, then 
+  the source and drain are p+ regions and the body is a n region.
+    (xxx I guess this is like PNP BJT)
+
+Drain is connected to the heat sink.
+
+Should fuse protect the inverter circuit.
+
+XXX need to better understand what is a MOSFET
+
+https://www.mouser.com/Semiconductors/Discrete-Semiconductors/Transistors/MOSFET/_/N-ax1sf?P=1z0z63xZ1yw749iZ1yvnbr5Z1yvnbjo
+  for example MOSFET NCH 1500V 9A  - 63-NDUL09N150CG
+
+--- IGBT ---
+
+An insulated-gate bipolar transistor (IGBT) is a three-terminal power semiconductor device primarily 
+used as an electronic switch which, as it was developed, came to combine high efficiency and fast 
+switching. It consists of four alternating layers (P-N-P-N) that are controlled by a metal-oxide-semiconductor 
+(MOS) gate structure without regenerative action. Although the structure of the IGBT is topologically 
+the same as a thyristor with a MOS gate (MOS gate thyristor), the thyristor action is completely 
+suppressed and only the transistor action is permitted in the entire device operation range. 
+It switches electric power in many applications: variable-frequency drives (VFDs), electric cars, 
+trains, variable speed refrigerators, lamp ballasts, air-conditioners and even stereo systems 
+with switching amplifiers.
+
+--- High Voltage Gate Driver ICs ---
+
+BootStrap Circuit / Gate Driver
+https://www.fairchildsemi.com/application-notes/AN/AN-6076.pdf
+https://www.fairchildsemi.com/application-notes/AN/AN-9052.pdf
+http://www.fairchildsemi.com/ds/FA/FAN7390.pdf
+
+https://www.mouser.com/new/Infineon-Technologies/internationalrectifier-hvics/
+https://www.mouser.com/Semiconductors/Power-Management-ICs/Gate-Drivers/_/N-41fcp/
+https://www.mouser.com/new/ixys/ixys-ix2120-driver/     1200v
+https://www.mouser.com/_/?Keyword=IX2120BTR
+
+--- IGBT and MOSFET Gate Driver Photocouplers ---
+
+file:///home/haid/Downloads/TLP358H_datasheet_en_20160418.pdf
+https://toshiba.semicon-storage.com/ap-en/product/opto/photocoupler/detail.TLP358H.html
+https://www.mouser.com/ProductDetail/Toshiba/TLP358HF?qs=br5LzTWxXo7wWaOI0%2Fagow%3D%3D
+   2.74 at Mouser
+
+--- Why NPN transistor is more preferred over PNP? ---
+
+Almost every other answer says NPN transistors are preferred because of faster mobility of 
+electrons. However for circuit designer like me, NPN transistor is preferred because it is 
+most suitable for negative ground system.
+
+--- Mouser Transistors ---
+
+https://www.mouser.com/Semiconductors/Discrete-Semiconductors/Transistors/_/N-ax1rp/
+https://www.mouser.com/Semiconductors/Discrete-Semiconductors/Transistors/IGBT-Transistors/_/N-ax1rq?P=1z0w6i0Z1yyg7lvZ1z0w9brZ1yzn4q5Z1z0w9e1Z1yzufdxZ1yzufhcZ1yzufi4
+Example:  
+- 512-SGF5N150UFTU  IGBT Transistors 1500V / 5A
+
+--- Square Wave Generator For H Bridge ---
+
+Photocoupler Input
+  1.57V at 10ma
+
+RaspberryPi ...
+- GPIO Electrical Specifications
+  http://www.mosaic-industries.com/embedded-systems/microcontroller-projects/raspberry-pi/gpio-pin-electrical-specifications
+- RPi GPIO input voltage and output current limitations. You should keep the following limitations 
+  in mind when using the GPIO pins: These are 3.3 volt logic pins. ... Current sourced by the outputs 
+  is drawn from the 3.3 V supply, which can supply only 50 mA maximum.
+- Each GPIO is max 16ma
+- RPI GPIO benchmark: https://rpiai.com/benchmarking-gpio-pins-of-raspberry-pi-model-b-plus/
+
+--- Another Square Wave Generator ---
+
+icstation.com
+
+https://www.amazon.com/Wave-Pulse-Generator-Adjustable-1Hz-150KHz/dp/B01MA1M7Y9
+
+https://www.youtube.com/watch?v=YyBiZQAi4fY
+Hello again.I got these yesterday and You CAN get antiphase outputs after all.You connect one lead to output 2 and the other lead to the second hole from the top where the micro usb socket is.Also the output transistors are rated O.2 amps...you can use +ve line and the the pwr output to act as a current sink...as otherwise pwr to ground is limited to 30 milliamps .
+
+=================================
+TRANSFORMERs
+=================================
+
+xxx TBD
+- http://www.chirkindustry.com/hvt.htm
+  - has xformer  rated up to 50khz
+- transformer wire
+- HF ferrite core
+- equations
+- how to measure capacity of the core
+
+--- Schematc for Inverter ---
+
+XXX find an full H bridge schemetic
+
+XXX simulate the schematic from chirkinustry
+    - does it half the voltage?
+
+=================================
+HF VOLTAGE MULTIPLIER NOTES
+=================================
+
+The one I purchased from ebay:
+  Capacitors are:
+    CM  660C      <=== CM = Cera Mite??
+    680M  T3M     <=== 680M means 68pf 20%
+    30KV  0303    <=== 0303 is probably manufacture code, because it varies
+  These caps are not good enough.
+
+Make my own
+  - 5x
+  - needs 10 diodes,  at least 10KV rating
+  - need  10 diodes, approx 15000pf each
+    . I found hvstuff.com which has good price 10KV caps 4700pf;
+      using these need three times number of caps - TOTAL = 30
+  - circsim file is vm5x_hf 
+     . input                          :   4kv @ 20kHz         
+     . output into resistor load 1M is: -30kv  30ma  
+
+=================================
+SHOPPING LIST - NOT PURCHASED YET
+=================================
+
+----------------
+--- FIRST VM ---
+----------------
+
+Inline Fuse
+-----------
+XXX
+
+Dummy Load Resistors
+--------------------
+https://www.mouser.com/Passive-Components/Resistors/Wirewound-Resistors/Wirewound-Resistors-Chassis-Mount/_/N-7fx9g?P=1z0wo9pZ1yzmno7
+  Mouser 284-HS100-10KF
+  Mouser 279-TE1000B1K2J   1kW  1.2kohms   $48.77
+https://www.onlinecomponents.com/te-connectivity-cgs-brand-te1000b1k2j.html?p=43747290
+  onlinecomponents.com  TE1000B1K2J    Res Wirewound 1.2K Ohm 5% 1000W 
+
+----------------
+--- INVERTER ---
+----------------
+
+Mosfets
+-------
+https://www.mouser.com/Semiconductors/Discrete-Semiconductors/Transistors/MOSFET/_/N-ax1sf?P=1yvnbjo
+   511-STFW3N170
+
+Gate Drivers
+------------
+breadboards
+power supply (battery)
+power supply switches 
+power supply housing 
+photocoupler
+filter cap   
+
+Signal Generator
+----------------
+RaspberryPi or Arduino
+
+-----------------
+--- SECOND VM ---
+-----------------
+
+TBD 
+
+-------------
+--- MISC  ---
+-------------
+
+Heat Shrink
+
+=================================
+PURCHASED
+=================================
+
+General
+-------
+- Watt Meter
+- Multimeter
+- Capacitance/Inudcatnce Meter
+- Wire Butt Connectors
+- Adjustable DV Bench Power Supply, 50V 3A
+
+Inverter Parts
+--------------
+- Icstation Digital 2 Channal PWM Square Wave Pulse Signal Generator 
+  Adjustable Frequency Duty Cycle 100% 1Hz-150KHz 
+
+First VM
+--------
+- Diodes - General Purpose, Power, Switching 600V 30A FRED Pt TO-247 LL 2L
+     78-VS-E4PH3006L-N3, Surge 240A, $1.99, x6
+- Aluminum Electrolytic Capacitors - Screw Terminal 450volts 2400uF 20% Screw Terminal
+     80-ALS70A242KF450, $28.84, x6
+- Resistors
+  . 1M 2.5W 1%
+  . 10M 1.5W 1%
+  . 10K 3W 1%
+
+Second VM
+---------
+- Diodes
+   . PRHVP2A-20 Single Phase High Voltage Rectifier Diode 20000V 20KV 2A J [10Pcs]  
+     Total for all 10 is $16.72
+- Capacitors - need at least 30 4700pf
+   . http://hvstuff.com/high-voltage-capacitors/ceramic/disc?capacitance=49&rated_voltage=170
+   . High voltage ceramic disc capacitors operated at half near rated voltage in open air. Rated 
+     for full voltage when operated under oil, inert gas or encapsulated by expoxy.
+   . $0.95 each qty=36 : $34.20 +  $28 S&H = $62.20
+   . Your order # is: 100001185.
+
+=================================
+TRANSISTORS, DIODES, MOSFETS
+=================================
+
+http://www.explainthatstuff.com/howtransistorswork.html    TRANSISTORS / FETS
+  nice diagrams here
+
+https://en.wikipedia.org/wiki/Transistor#Simplified_operation      TRANSISTORS / FETS
+  The field-effect transistor, sometimes called a unipolar transistor, uses either electrons 
+  (in n-channel FET) or holes (in p-channel FET) for conduction. The four terminals of the FET 
+  are named source, gate, drain, and body (substrate). On most FETs, the body is connected to 
+  the source inside the package, and this will be assumed for the following description.
+
+  In a FET, the drain-to-source current flows via a conducting channel that connects the 
+  source region to the drain region. The conductivity is varied by the electric field that 
+  is produced when a voltage is applied between the gate and source terminals; hence the 
+  current flowing between the drain and source is controlled by the voltage applied between 
+  the gate and source.
+
+https://en.wikipedia.org/wiki/MOSFET         MOSFETS
+  In field effect transistors (FETs), depletion mode and enhancement mode are two major 
+  transistor types, corresponding to whether the transistor is in an ON state or an OFF 
+  state at zero gate–source voltage.
+
+  Enhancement-mode MOSFETs are the common switching elements in most MOS. These devices 
+  are off at zero gate–source voltage.
+
+  Enhancement-mode MOSFETs are the common switching elements in most MOS. These devices 
+  are off at zero gate–source voltage, NMOS and can be turned on by pulling the gate voltage 
+  higher than the source voltage, PMOS can be turned on by pulling the gate voltage lower 
+  than the source voltage. In most circuits, this means pulling an enhancement-mode 
+  MOSFET's gate voltage towards its drain voltage turns it ON
+
+  Refer to Circuit Symbols section.
+
+XXX pretty sure I want 
+- N channel MOSFET
+- enhancement mode
+- integrated free wheel diode ???
+
+=================================
+DONE
+=================================
+
+Bring Up stuff from basement
+
+organize resistors
+
+Start Purchasing, and keep good notes of where they are from
+
+=================================
+BACKUP INFO
+=================================
+
+110 To 220 Converters
+---------------------
+https://www.110220volts.com/ac-1000.html
+https://www.110220volts.com/up-downtransformer-step-up-down-voltage-converter-transformer.html
+
+Capacitors for first VM - SEARCH 2400uf 450v capacitor
+------------------------------------------------------
+https://www.mouser.com/Passive-Components/Capacitors/Aluminum-Electrolytic-Capacitors/Aluminum-Electrolytic-Capacitors-Screw-Terminal/_/N-75hqz?P=1z0wm4f
+   Aluminum Electrolytic Capacitors - Screw Terminal 450volts 2400uF 20% Screw Terminal
+   80-ALS70A242KF450   $29
+https://www.allelectronics.com/category/140300/capacitors/snap-in/1.html
+http://www.goldmine-elec-products.com/products.asp?dept=1222
+http://www.surplussales.com/Capacitors/Electrolytics/eap.html
+   EAP242X450X5R7PH  2400uf 450v  $42
+
+I already have
+---------------
+Variac
+Oscilloscope
+Panel Meters
+Signal Generator
+Stereo Amplifier
+Dummy Load Resistors
+Multimeter
+Soldering Iron, mag glass, solder
+Misc parts

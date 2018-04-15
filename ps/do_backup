@@ -1,0 +1,25 @@
+#!/bin/bash
+
+cd $HOME/proj_circsim/ps
+
+savedir=$1
+if [ "$savedir" = "" ]; then
+  echo "saveN expected"
+  exit
+fi
+
+fullsavedir=save/$1
+if [ -e $fullsavedir ]; then
+  echo "$fullsavedir already exists"
+  exit
+fi
+
+echo "making $fullsavedir and copying files to it"
+mkdir $fullsavedir
+cp * $fullsavedir
+
+echo "creating /tmp/ps.tar"
+tar -cf /tmp/ps.tar .
+
+echo "send /tmp/ps.tar to gcloud backup"
+backup_files  /tmp/ps.tar
