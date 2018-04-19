@@ -1,6 +1,69 @@
 =================================
+REACTANCE and IMPEDANCE
+=================================
+Inductive reactance is a property exhibited by an inductor, and inductive reactance exists based 
+on the fact that an electric current produces a magnetic field around it. In the context of an AC 
+circuit (although this concept applies any time current is changing), this magnetic field is constantly 
+changing as a result of current that oscillates back and forth. It is this change in magnetic field 
+that induces another electric current to flow in the same wire, in a direction such as to oppose the 
+flow of the current originally responsible for producing the magnetic field (known as Lenz's Law). 
+Hence, inductive reactance is an opposition to the change of current through an element.
+
+Capacitive and Inductive Reactance ...
+  XC = -1 / (2*pi*f*C)
+  XL = 2*pi*f*L
+
+And Current through an inductor with AC RMS Voltage A
+  IL = A / XL  = A / (2*pi*f*L)
+
+--- Impedanc ---
+Z = R + jX
+
+When both a capacitor and an inductor are placed in series in a circuit, their contributions 
+to the total circuit impedance are opposite. Capacitive reactance and inductive reactance 
+contribute to the total reactance as follows
+  X = 2pi*f*L - 1/(2*pi*f*C)
+Setting this to 0 means the circuit has no Reactance, and thus no average current. Giving
+the resonant frequency.
+
+xxxxxxxxxxxxxxxxxxxxxxx
+https://electronics.stackexchange.com/questions/80807/does-the-place-of-the-primary-matter-in-a-transformer
+suggests less windings on the outside
+
+check ferrite core article about the material
+
+toroids are epoxy coated
+
+try to understand specs for toroid
+
+=================================
+TRANSFORMERS               
+=================================
+
+SEARCH: Triple Insulated Winding Wire  OR Triple Insulated Wire
+
+http://powermagnetics.co.uk/pace-triple_isulated_wire.html
+- Furukawa triple insulated wire meets all the leading international safety codes and enables 
+  transformers to be manufactured to meet safety isolation standards without the need of 
+  margins and tape barriers.
+- The increased winding space permits smaller transformers to be designed and reduces manufacturing 
+  time and cost, Conductor diameters range from 0.2 mm to 1 mm.
+- TEX-E wire is now an acknowledged industry leader and in many applications offers significant 
+  advantages over other types of wire. Increasingly Design Engineers are recognising the benefits 
+  of TEX-E wire and are incorporating it into their transformer designs
+
+This company also has ferrite cores
+
+
+
+
+
+
+=================================
 TODO
 =================================
+
+Study transformers, how many windings, what type of core, etc.
 
 printouts
 - photocouple spec
@@ -16,8 +79,6 @@ simulate the schematic from chirkinustry
 
 Continue studying inverters
 - find H bridge schematic
-
-Study transformers, how many windings, what type of core, etc.
 
 Take pictures of the work progress
 
@@ -84,6 +145,12 @@ Fusor
 3x voltage multiplier
 output is 1100VDC
 caps and diodes need to be > 400V rating
+
+CAPACITORS
+Case Polarity
+Due to the presence of electrolyte in the capacitor, the aluminum can and stud mounting will 
+essentially be at the same polarity as the negative terminal. We recommend that the stud and 
+can be insulated (see accessories for insulating nuts).
 
 =================================
 INVERTER / TRANSFORMER NOTES
@@ -317,7 +384,7 @@ First VM
          240A  surge
 - Aluminum Electrolytic Capacitors - Screw Terminal 450volts 2400uF 20% Screw Terminal
      80-ALS70A242KF450, $28.84, x6
-         2500uf
+         2400uf
          450V
 - Resistors
   . 1M 2.5W 1%
