@@ -10,22 +10,22 @@ add capacitor  a2 a3 2400uf
 add wire       a3 a4
 add wire       b2 b3 
 add capacitor  b3 b4 2400uf
-add diode      a3 b3
-add diode      b4 a4
+add diode      b3 a3
+add diode      a4 b4
 
 add capacitor  a4 a5 2400uf
 add wire       a5 a6
 add wire       b4 b5 
 add capacitor  b5 b6 2400uf
-add diode      a5 b5
-add diode      b6 a6
+add diode      b5 a5
+add diode      a6 b6
 
 add capacitor  a6 a7 2400uf
 add wire       a7 a8
 add wire       b6 b7 
 add capacitor  b7 b8 2400uf
-add diode      a7 b7
-add diode      b8 a8
+add diode      b7 a7
+add diode      a8 b8
 
 add resistor   c1 c2 1250
 add wire       b1 c1 remote,green
@@ -37,19 +37,19 @@ set scale      165
 set scope_span_t 200ms
 set scope_mode continuous
 set scope_a voltage,-250,250,a1,b1,POWER
-set scope_b voltage,-1200,0,c2,c1,OUTPUT
-set scope_c voltage,0,500,a2,a3,CAP
-set scope_d voltage,0,500,b3,b4,CAP
-set scope_e voltage,0,500,a4,a5,CAP
-set scope_f voltage,0,500,b5,b6,CAP
-set scope_g voltage,0,500,a6,a7,CAP
-set scope_h voltage,0,500,b7,b8,CAP
-set scope_i voltage,0,500,b3,a3,DIODE
-set scope_j voltage,0,500,a4,b4,DIODE
-set scope_k voltage,0,500,b5,a5,DIODE
-set scope_l voltage,0,500,a6,b6,DIODE
-set scope_m voltage,0,500,b7,a7,DIODE
-set scope_n voltage,0,500,a8,b8,DIODE
+set scope_b voltage,0,1200,c2,c1,OUTPUT
+set scope_c voltage,0,500,a3,a2,CAP
+set scope_d voltage,0,500,b4,b3,CAP
+set scope_e voltage,0,500,a5,a4,CAP
+set scope_f voltage,0,500,b6,b5,CAP
+set scope_g voltage,0,500,a7,a6,CAP
+set scope_h voltage,0,500,b8,b7,CAP
+set scope_i voltage,0,500,a3,b3,DIODE
+set scope_j voltage,0,500,b4,a4,DIODE
+set scope_k voltage,0,500,a5,b5,DIODE
+set scope_l voltage,0,500,b6,a6,DIODE
+set scope_m voltage,0,500,a7,b7,DIODE
+set scope_n voltage,0,500,b8,a8,DIODE
 
 set component power
 

@@ -55,9 +55,33 @@ http://powermagnetics.co.uk/pace-triple_isulated_wire.html
 This company also has ferrite cores
 
 
+=================================
+ELECTROLYTIC CAPACITORS
+=================================
 
+An electrolitic capacitor does have a + and a - connection.
+They are NOT called cathode and anode, as they do with diodes.
+The + connection goes to the point with the highest potential (VCC or +V)
+The - connection goes to the lower potential (GND)
 
+=================================
+LED SERIES RESISTOR     
+=================================
 
+     V  -  Vled         18 - 1.8
+R = --------------  =  ------------- =  1600 ohms
+      Current             .01
+
+But the current might need to be 20ma  => ~ 1kohm
+
+Someone used a 2.2kohm resistor with 18v power
+
+The longer pin is the anode (positive) side of the led.
+  - but check this with the diode meter.
+
+http://www.techlib.com/reference/batteries.html
+  9v battery capacity  500 ma-hours
+    10mA drain  ==>  50 hours
 
 =================================
 TODO
