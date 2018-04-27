@@ -1,3 +1,6 @@
+CS problem clicking control pane 
+
+
 =================================
 REACTANCE and IMPEDANCE
 =================================
@@ -82,6 +85,14 @@ The longer pin is the anode (positive) side of the led.
 http://www.techlib.com/reference/batteries.html
   9v battery capacity  500 ma-hours
     10mA drain  ==>  50 hours
+
+My LEDs
+- 5v through 1k resistor => 3ma  okay to see the green led
+  7v                        5ma
+- with no resistor
+   1.9v 2ma
+   2.1v 34ma
+- with 500 ohm resistor  7v  =>  10ma
 
 =================================
 TODO
@@ -176,9 +187,48 @@ Due to the presence of electrolyte in the capacitor, the aluminum can and stud m
 essentially be at the same polarity as the negative terminal. We recommend that the stud and 
 can be insulated (see accessories for insulating nuts).
 
+THE 10M ohm voltage divider resistor I bought does not support the voltage. For
+a better resistor - 
+  https://www.mouser.com/Passive-Components/Resistors/Film-Resistors/_/N-7gz3w?P=1z0vkohZ1z0z819Z1yzml5fZ1yyjfxiZ1yzvvyzZ1yy18gtZ1z0wxeyZ1yzbppyZ1z0wiux
+but, probably should use my 50K wire wound resistor, as both a divider and bleeder.
+- don't know for sure that a bleeder is needed, maybe it looses voltage back to the VARIAC
+
+But, if the bleeder is needed:
+
+    1200V ---- 50Kohm ---- 500 ohm ---- ground
+                29W    |    .29W
+                      12V
+
+
+
 =================================
 INVERTER / TRANSFORMER NOTES
 =================================
+
+--- Construction ---
+
+Toshiba Photocoupler
+- Input 10 ma,  use 7V and 500 ohm resistor
+   - max is 20ma
+- Pins   (circle upper left)
+                      1      8   Vcc  20V
+     in anode (+)     2      7   Out
+     in cathode (-)   3      6
+                      4      5   Gnd
+
+     Vcc range  15 - 30 V
+- Input    7v --- R=500 --- diode ---- return     this is 10ma
+                           2     3
+
+
+TODO
+- test with mosfet 
+   - use bidirectional leds as indicators;  later these can be used at a higher voltage with
+     the appropriate resistence
+- figure out how to securly mount components
+   - draw the layout
+   - first construct with one breadboard and mosfet, and test
+- add other breadboards and mosftets and test with the 50Vdc and bi-diodes
 
 --- H Bridge ---
 
