@@ -37,7 +37,7 @@ set scale      165
 set scope_span_t 200ms
 set scope_mode continuous
 set scope_a voltage,-250,250,a1,b1,POWER
-set scope_b voltage,0,1200,c2,c1,OUTPUT
+set scope_b voltage,0,1500,c2,c1,OUTPUT
 set scope_c voltage,0,500,a3,a2,CAP
 set scope_d voltage,0,500,b4,b3,CAP
 set scope_e voltage,0,500,a5,a4,CAP
