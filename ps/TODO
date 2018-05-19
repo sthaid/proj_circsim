@@ -1,148 +1,53 @@
+NEXT STEPS
+-----------
+
+attach fuse to first vm
+
+retest HV VM output using a voltage divider, and my 1000V DC voltmeter
+
+Inverter
+- draw components layout for mosfet
+- put second primary winding on
+- test inverter with 50 VDC power supply, and a dummy load on the xformer
+- use gate resistor,  see stackexchange
+
+HV output sensors
+- voltage divider, and current sensor for output
+
+dummy load, 1kW, especially for HV output
+  possibilities:
+    https://www.mouser.com/Passive-Components/Resistors/Wirewound-Resistors/Wirewound-Resistors-Chassis-Mount/_/N-7fx9g?P=1z0wo9pZ1yzmno7
+    Mouser 284-HS100-10KF
+    Mouser 279-TE1000B1K2J   1kW  1.2kohms   $48.77
+
 CS problem clicking control pane 
 
-
 =================================
-REACTANCE and IMPEDANCE
-=================================
-Inductive reactance is a property exhibited by an inductor, and inductive reactance exists based 
-on the fact that an electric current produces a magnetic field around it. In the context of an AC 
-circuit (although this concept applies any time current is changing), this magnetic field is constantly 
-changing as a result of current that oscillates back and forth. It is this change in magnetic field 
-that induces another electric current to flow in the same wire, in a direction such as to oppose the 
-flow of the current originally responsible for producing the magnetic field (known as Lenz's Law). 
-Hence, inductive reactance is an opposition to the change of current through an element.
-
-Capacitive and Inductive Reactance ...
-  XC = -1 / (2*pi*f*C)
-  XL = 2*pi*f*L
-
-And Current through an inductor with AC RMS Voltage A
-  IL = A / XL  = A / (2*pi*f*L)
-
---- Impedanc ---
-Z = R + jX
-
-When both a capacitor and an inductor are placed in series in a circuit, their contributions 
-to the total circuit impedance are opposite. Capacitive reactance and inductive reactance 
-contribute to the total reactance as follows
-  X = 2pi*f*L - 1/(2*pi*f*C)
-Setting this to 0 means the circuit has no Reactance, and thus no average current. Giving
-the resonant frequency.
-
-xxxxxxxxxxxxxxxxxxxxxxx
-https://electronics.stackexchange.com/questions/80807/does-the-place-of-the-primary-matter-in-a-transformer
-suggests less windings on the outside
-
-check ferrite core article about the material
-
-toroids are epoxy coated
-
-try to understand specs for toroid
-
-=================================
-TRANSFORMERS               
+TITLE: DESIGN     
 =================================
 
-SEARCH: Triple Insulated Winding Wire  OR Triple Insulated Wire
-
-http://powermagnetics.co.uk/pace-triple_isulated_wire.html
-- Furukawa triple insulated wire meets all the leading international safety codes and enables 
-  transformers to be manufactured to meet safety isolation standards without the need of 
-  margins and tape barriers.
-- The increased winding space permits smaller transformers to be designed and reduces manufacturing 
-  time and cost, Conductor diameters range from 0.2 mm to 1 mm.
-- TEX-E wire is now an acknowledged industry leader and in many applications offers significant 
-  advantages over other types of wire. Increasingly Design Engineers are recognising the benefits 
-  of TEX-E wire and are incorporating it into their transformer designs
-
-This company also has ferrite cores
-
-
-=================================
-ELECTROLYTIC CAPACITORS
-=================================
-
-An electrolitic capacitor does have a + and a - connection.
-They are NOT called cathode and anode, as they do with diodes.
-The + connection goes to the point with the highest potential (VCC or +V)
-The - connection goes to the lower potential (GND)
-
-=================================
-LED SERIES RESISTOR     
-=================================
-
-     V  -  Vled         18 - 1.8
-R = --------------  =  ------------- =  1600 ohms
-      Current             .01
-
-But the current might need to be 20ma  => ~ 1kohm
-
-Someone used a 2.2kohm resistor with 18v power
-
-The longer pin is the anode (positive) side of the led.
-  - but check this with the diode meter.
-
-http://www.techlib.com/reference/batteries.html
-  9v battery capacity  500 ma-hours
-    10mA drain  ==>  50 hours
-
-My LEDs
-- 5v through 1k resistor => 3ma  okay to see the green led
-  7v                        5ma
-- with no resistor
-   1.9v 2ma
-   2.1v 34ma
-- with 500 ohm resistor  7v  =>  10ma
-
-=================================
-TODO
-=================================
-
-Study transformers, how many windings, what type of core, etc.
-
-printouts
-- photocouple spec
-- signal gen spec
-- mosfet spec
-
-try my signal generator, OR find one to buy
-
-simulate the schematic from chirkinustry
-- does it half the voltage?
-- circsum
-  - try to model switches, to simulate the mosfets
-
-Continue studying inverters
-- find H bridge schematic
-
-Take pictures of the work progress
-
-organize papers in folders
-
-=================================
-DESIGN     
-=================================
-
-Watt Meter
-   |
-   v
 Variac
-   | 150VAC RMS
-   | 210VAC Peak
-   | 420VAC Peak-Peak
+   | Output
+   | . 150 VAC RMS
+   | . 210 VAC Peak
+   | . 420 VAC Peak-Peak
    v
-60HZ voltage multiplier - 3x --> BJT Oscillator
-   |                                      |
-   | 1100 VDC @ 1000w                     | 
-   v                                      |
-H Bridge Inverter  <----------------------
+60HZ voltage multiplier - 3x
+   |                       
+   | 1100 VDC @ 1000w     
+   v                     
+H Bridge Inverter
    |
-   | 2200V  Peak-Peak Square-Wave   20khz
+   | 20khz to 50khz output
+   | note sure what the output voltage will be, could be
+   |  . +/- 1000v   OR
+   |  . +/- 500V
    v
 HF Transformer, self wound, 
    |
    | needs to output 8000V peak to peak 
-   | because this is what the 5x HF multiplier needs
+   |   because this is what the 5x HF multiplier needs
+   | 10X
    v 
 HF Voltage Multiplier  
    |
@@ -150,85 +55,22 @@ HF Voltage Multiplier
    v
 Fusor
 
-
-1) 60HZ multiplier
-  - compare to model
-  - test with dummy load at 1000W
-
-2) Inverter - create HF square wave
-   - Determine frequency needed for HF Multiplier
-     (need to determine capacitor values)
-   - build low voltage version
-
-3) Connect HF output to transformer
-   - reteset with dummy load configured for the higher voltage
-   - retest at 1000W
-
-4) Connect to HF multiplier
-   - measure output voltage, with meter and a scope
-   - will need 1Gohm resistor for divider
-   - also put a small (10ohm?) resistor in the return path,
-     to be used for current
-   - is a dummy load possible for this voltage?
-
-5) Test on the fusor
-
 =================================
-60HZ VM NOTES 
+TITLE: 60HZ VM NOTES 
 =================================
 
 3x voltage multiplier
-output is 1100VDC
-caps and diodes need to be > 400V rating
+- output is 1100VDC
+- aps and diodes need to be > 400V rating
 
-CAPACITORS
-Case Polarity
-Due to the presence of electrolyte in the capacitor, the aluminum can and stud mounting will 
-essentially be at the same polarity as the negative terminal. We recommend that the stud and 
-can be insulated (see accessories for insulating nuts).
-
-THE 10M ohm voltage divider resistor I bought does not support the voltage. For
-a better resistor - 
-  https://www.mouser.com/Passive-Components/Resistors/Film-Resistors/_/N-7gz3w?P=1z0vkohZ1z0z819Z1yzml5fZ1yyjfxiZ1yzvvyzZ1yy18gtZ1z0wxeyZ1yzbppyZ1z0wiux
-but, probably should use my 50K wire wound resistor, as both a divider and bleeder.
-- don't know for sure that a bleeder is needed, maybe it looses voltage back to the VARIAC
-
-But, if the bleeder is needed:
-
+Use Bleeder resistor as part of sensor voltage divider
     1200V ---- 50Kohm ---- 500 ohm ---- ground
                 29W    |    .29W
                       12V
 
-
-
 =================================
-INVERTER / TRANSFORMER NOTES
+TITLE: INVERTER / TRANSFORMER NOTES
 =================================
-
---- Construction ---
-
-Toshiba Photocoupler
-- Input 10 ma,  use 7V and 500 ohm resistor
-   - max is 20ma
-- Pins   (circle upper left)
-                      1      8   Vcc  20V
-     in anode (+)     2      7   Out
-     in cathode (-)   3      6
-                      4      5   Gnd
-
-     Vcc range  15 - 30 V
-- Input    7v --- R=500 --- diode ---- return     this is 10ma
-                           2     3
-
-
-TODO
-- test with mosfet 
-   - use bidirectional leds as indicators;  later these can be used at a higher voltage with
-     the appropriate resistence
-- figure out how to securly mount components
-   - draw the layout
-   - first construct with one breadboard and mosfet, and test
-- add other breadboards and mosftets and test with the 50Vdc and bi-diodes
 
 --- H Bridge ---
 
@@ -306,13 +148,22 @@ TLP358H,TLP358HF Recommended Operating Conditions
   stabilize the operation of a highgain linear amplifier. Otherwise, this photocoupler 
   may not switch properly. The bypass capacitor should be placed within 1 cm of each pin
 - Vf 1.57V  @ 10ma
-- Will need a resistor in series with input, I think.
 
---- Square Wave Generator ---
+--- TOSHIBA Photocoupler ---
 
-Purchased from Amazon
+- Input 10 ma,  use 7V and 500 ohm resistor
+   - max is 20ma
 
-- - - - - - - - - - - - - - - - - - - - 
+- Pins   (circle upper left)
+                      1      8   Vcc  20V
+     in anode (+)     2      7   Out
+     in cathode (-)   3      6
+                      4      5   Gnd
+
+     Vcc range  15 - 30 V
+
+- Input    7v --- R=500 --- diode ---- return     this is 10ma
+                           2     3
 
 --- IGBT ---
 
@@ -373,19 +224,121 @@ https://www.youtube.com/watch?v=YyBiZQAi4fY
 Hello again.I got these yesterday and You CAN get antiphase outputs after all.You connect one lead to output 2 and the other lead to the second hole from the top where the micro usb socket is.Also the output transistors are rated O.2 amps...you can use +ve line and the the pwr output to act as a current sink...as otherwise pwr to ground is limited to 30 milliamps .
 
 =================================
-TRANSFORMERs
+TITLE: TRANSFORMERS               
 =================================
 
-XXX TBD
+--- Triple Insulated Winding Wire Wire ---
+
+I did not use this wire.
+
+http://powermagnetics.co.uk/pace-triple_isulated_wire.html
+- Furukawa triple insulated wire meets all the leading international safety codes and enables 
+  transformers to be manufactured to meet safety isolation standards without the need of 
+  margins and tape barriers.
+- The increased winding space permits smaller transformers to be designed and reduces manufacturing 
+  time and cost, Conductor diameters range from 0.2 mm to 1 mm.
+- TEX-E wire is now an acknowledged industry leader and in many applications offers significant 
+  advantages over other types of wire. Increasingly Design Engineers are recognising the benefits 
+  of TEX-E wire and are incorporating it into their transformer designs
+
+--- 10KV Wire ---
+
+                    Capability      IntendedMax          Notes
+                    -----------     -----------          ------
+Primary Wire #18      10 amps            2A          1000 Watts @ 500 Vrms
+                                         3A          with no load
+Secondary Wire #26   1.3 amps          200ma         1000 Watts @ 5000 Vrms
+
+Capability from : https://en.wikipedia.org/wiki/American_wire_gauge
+
+--- Toroid ---
+
+Mouser #  871-B64290L0084X087
+   ID 66   mm
+   OD 102  mm
+   HEIGHT  15 mm
+   N87 Core Material
+
+Transformer N87 material  f<500khz   ui=2200
+  Reference: https://en.tdk.eu/tdk-en/529404/products/product-catalog/ferrites-and-accessories/epcos-ferrites-and-accessories/ferrite-materials
+
+Are Ferrites conductive?
+- Ferrites are ceramic compounds of the transition metals with oxygen, 
+  which are ferrimagnetic but nonconductive
+- However,  I saw a spec for a breakdown voltage.
+    https://en.tdk.eu/download/531586/2d679ff7e70f74dfb98dc2a4732cca7b/pdf-toroids-general-information.pdf
+    >2.0 kV (for >R 20)
+
+--- Calculating Number of Wraps ---
+
+First get inductance as a function of wraps:
+   http://hyperphysics.phy-astr.gsu.edu/hbase/magnetic/indtor.html
+      Toroid Radius    4.2 cm
+      Area             2.7 cm2
+      Ui               2200
+      Turns            20    1.13 mH
+                       25    1.76
+                       30    2.5
+                       40    4.5
+                       50    7.1
+
+   Tested with 20 wraps on my toroid, and measured 1.25 mH,
+   which is quite close to the value calculated above.
+
+Choose a desired primary current for when there is no load on secondary:
+  XL = 2*pi*f*L
+  IL = Vrms / XL  
+          Vrms  
+  IL = ----------
+       (2*pi*f*L)
+
+         Vrms
+  L = -----------
+      (2*pi*f*IL)
+
+           1000 
+  L = -----------------
+      (6.3 * 30000 * 3)
+
+  L = 1.7 mH   at 30khz , 3A
+  this is about 25 turns   <=====
+
+I bought 20 meters of secondary wire, and wound the toroid secondary
+  . 1 Turn on the Toroid is about 2.66 inches, for the first layer
+  . Assuming an average of 3 inches per wrap, 20 meters is about 260 wraps.
+  . Measured 160 mH
+  . Prior measurent for 20 wraps is 1.25 mH
+  . Estimate of number secondary wraps
+         sqrt(160 / 1.25) * 20   ===>  226 wraps
+
+So, I'm hoping for 10x transformer.  
+  . Primary should be 23 wraps, which is consistent with the 3 amps 
+    calculated above.
+
+Conclusion
+  . Primary  23 wraps
+  . Secondary 226 wraps
+  . Primary current, at 30khz, no load on secondary is a bit more than 3A
+
+Length of Primary wire
+  1 wrap = 4.33 inches
+  length = 99 inches for wraps    4.33 x 23
+           24  extra
+          ----
+          123"   = 10.3 ft    or 10 ft 4 inches
+
+   After wrapping primary, measured inductance:
+     - primary            1.62 mhH
+     - secondary is now   152 mH     (it was 160mH before winding the primary)
+
+Misc
+- https://electronics.stackexchange.com/questions/80807/does-the-place-of-the-primary-matter-in-a-transformer
+      suggests less windings on the outside
 - http://www.chirkindustry.com/hvt.htm
-  - has xformer  rated up to 50khz
-- transformer wire
-- HF ferrite core
-- equations
-- how to measure capacity of the core
+      HF transformers and schematics
 
 =================================
-HF VOLTAGE MULTIPLIER NOTES
+TITLE: HF VOLTAGE MULTIPLIER NOTES
 =================================
 
 The one I purchased from ebay:
@@ -398,7 +351,7 @@ The one I purchased from ebay:
 Make my own
   - 5x
   - needs 10 diodes,  at least 10KV rating
-  - need  10 diodes, approx 15000pf each
+  - need  10 caps, approx 15000pf each
     . I found hvstuff.com which has good price 10KV caps 4700pf;
       using these need three times number of caps - TOTAL = 30
   - circsim file is vm5x_hf 
@@ -406,22 +359,7 @@ Make my own
      . output into resistor load 1M is: -30kv  30ma  
 
 =================================
-SHOPPING LIST - NOT PURCHASED YET
-=================================
-
---- FIRST VM ---
-
-Inline Fuse for the output of the first VM, to protect the MOSFETs
-
-Dummy Load Resistors
-  https://www.mouser.com/Passive-Components/Resistors/Wirewound-Resistors/Wirewound-Resistors-Chassis-Mount/_/N-7fx9g?P=1z0wo9pZ1yzmno7
-    Mouser 284-HS100-10KF
-    Mouser 279-TE1000B1K2J   1kW  1.2kohms   $48.77
-  https://www.onlinecomponents.com/te-connectivity-cgs-brand-te1000b1k2j.html?p=43747290
-    onlinecomponents.com  TE1000B1K2J    Res Wirewound 1.2K Ohm 5% 1000W 
-
-=================================
-PURCHASED
+TITLE: PURCHASED
 =================================
 
 General
@@ -431,23 +369,6 @@ General
 - Capacitance/Inudcatnce Meter
 - Wire Butt Connectors
 - Adjustable DC Bench Power Supply, 50V 3A
-
-Inverter Parts
---------------
-Amazon ..
-- Icstation Digital 2 Channal PWM Square Wave Pulse Signal Generator 
-  Adjustable Frequency Duty Cycle 100% 1Hz-150KHz 
-- signal generator         
-- breadboards             
-- power supply connectors
-- power supply switches 
-- power supply (battery)
-- heat Shrink 
-
-MOUSER ....
-- TLP358H             Photocoupler
-- 863-NDUL09N150CG    MOSFET  1500V 9A    NCH
-- 80-C320C105K5N9170  Mouser  50volts 1uF 
 
 First VM
 --------
@@ -460,10 +381,37 @@ First VM
      80-ALS70A242KF450, $28.84, x6
          2400uf
          450V
-- Resistors
-  . 1M 2.5W 1%
-  . 10M 1.5W 1%
-  . 10K 3W 1%
+- diodes x6         78-VS-E4PH3006L-N3
+- fuse 1.5A 2500V   504-HVB-11/2
+- fuse clips  x2    504-BK/5956-16-R
+
+https://www.mouser.com/Circuit-Protection/Fuses/Specialty-Fuses/_/N-ba8be?P=1z0x81nZ1z0x782Z1z0x64tZ1z0x8giZ1y9knbuZ1yo1964Z1y9hveiZ1y9hvej
+
+Inverter
+--------
+
+Amazon ..
+- Icstation Digital 2 Channal PWM Square Wave Pulse Signal Generator 
+  Adjustable Frequency Duty Cycle 100% 1Hz-150KHz 
+- signal generator         
+- breadboards             
+- power supply connectors
+- power supply switches 
+- power supply (battery)
+- heat Shrink 
+Mouser ....
+- 757-TLP358HF        Photocoupler, Toshiba
+- 863-NDUL09N150CG    MOSFET  1500V 9A    NCH
+- 80-C320C105K5N9170  Mouser  50volts 1uF 
+
+Transformer
+-----------
+
+- toroid   871-B64290L0084X087
+
+- uxcell 26AWG 10KV Electric Copper Core Flexible Silicone Wire Cable 20M White 
+- uxcell 10M 32.8Ft 22AWG 10KV Electric Copper Core Flexible Silicone Wire Cable Red
+- uxcell 10M 32.8Ft 18AWG 10KV Electric Copper Core Flexible Silicone Wire Cable Red     RCVD
 
 Second VM
 ---------
@@ -478,7 +426,7 @@ Second VM
    . Your order # is: 100001185.
 
 =================================
-TRANSISTORS, DIODES, MOSFETS
+TITLE: THEORY - RESISTORS, DIODES, MOSFETS
 =================================
 
 http://www.explainthatstuff.com/howtransistorswork.html    TRANSISTORS / FETS
@@ -513,17 +461,72 @@ https://en.wikipedia.org/wiki/MOSFET         MOSFETS
   Refer to Circuit Symbols section.
 
 =================================
-DONE
+TITLE: THEORY - ELECTROLYTIC CAPACITORS
 =================================
 
-Bring Up stuff from basement
-
-organize resistors
-
-Start Purchasing, and keep good notes of where they are from
+An electrolitic capacitor does have a + and a - connection.
+They are NOT called cathode and anode, as they do with diodes.
+The + connection goes to the point with the highest potential (VCC or +V)
+The - connection goes to the lower potential (GND)
 
 =================================
-BACKUP INFO
+TITLE: THEORY - LED SERIES RESISTOR     
+=================================
+
+     V  -  Vled         18 - 1.8
+R = --------------  =  ------------- =  1600 ohms
+      Current             .01
+
+But the current might need to be 20ma  => ~ 1kohm
+
+Someone used a 2.2kohm resistor with 18v power
+
+The longer pin is the anode (positive) side of the led.
+  - but check this with the diode meter.
+
+http://www.techlib.com/reference/batteries.html
+  9v battery capacity  500 ma-hours
+    10mA drain  ==>  50 hours
+
+My LEDs
+- 5v through 1k resistor => 3ma  okay to see the green led
+  7v                        5ma
+- with no resistor
+   1.9v 2ma
+   2.1v 34ma
+- with 500 ohm resistor  7v  =>  10ma
+
+=================================
+TITLE: THEORY - REACTANCE and IMPEDANCE
+=================================
+
+Inductive reactance is a property exhibited by an inductor, and inductive reactance exists based 
+on the fact that an electric current produces a magnetic field around it. In the context of an AC 
+circuit (although this concept applies any time current is changing), this magnetic field is constantly 
+changing as a result of current that oscillates back and forth. It is this change in magnetic field 
+that induces another electric current to flow in the same wire, in a direction such as to oppose the 
+flow of the current originally responsible for producing the magnetic field (known as Lenz's Law). 
+Hence, inductive reactance is an opposition to the change of current through an element.
+
+Capacitive and Inductive Reactance ...
+  XC = -1 / (2*pi*f*C)
+  XL = 2*pi*f*L
+
+And Current through an inductor with AC RMS Voltage A
+  IL = A / XL  = A / (2*pi*f*L)
+
+--- Impedance ---
+Z = R + jX
+
+When both a capacitor and an inductor are placed in series in a circuit, their contributions 
+to the total circuit impedance are opposite. Capacitive reactance and inductive reactance 
+contribute to the total reactance as follows
+  X = 2pi*f*L - 1/(2*pi*f*C)
+Setting this to 0 means the circuit has no Reactance, and thus no average current. Giving
+the resonant frequency.
+
+=================================
+TITLE: BACKUP INFO
 =================================
 
 110 To 220 Converters
@@ -552,3 +555,12 @@ Dummy Load Resistors
 Multimeter
 Soldering Iron, mag glass, solder
 Misc parts
+
+Notes on One of the Chirk Schematics
+------------------------------------
+- capacitor calculations  (3rd cap may need to experiment with)
+   . 20khz,  is 50us period;   half the period is 25us
+   . T = R * C     R = 1000 ohms based on 1000V at 1A
+   . C = T / R   = 25e-6 / 1000 = 25e-9  = 25nf
+   . since larger is probably better, try  1uf
+   . caps 598-941C20W1KF  1uf 2000vdc   $12
