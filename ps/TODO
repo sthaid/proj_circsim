@@ -1,9 +1,19 @@
 NEXT STEPS
 -----------
 
+more purchases
+- terminal strips          ORDERED
+- solder iron tips          ORDERED
+- 1g ohm resistor 1.6 watts
+    http://www.high-voltage-resistors.net/index.aspx?pageid=610652&prodid=3460081
+    https://www.ebay.com/itm/5W-1G-Ohm-High-Voltage-Bar-Glass-Glaze-Film-Resistor/321596518753?epid=1838601689&hash=item4ae0a57161:g:8jwAAOSwkrFagBun
+- container for hv vm
+- mineral oil
+
 attach fuse to first vm
 
 retest HV VM output using a voltage divider, and my 1000V DC voltmeter
+- what is max output?
 
 Inverter
 - draw components layout for mosfet
@@ -69,7 +79,7 @@ Use Bleeder resistor as part of sensor voltage divider
                       12V
 
 =================================
-TITLE: INVERTER / TRANSFORMER NOTES
+TITLE: INVERTER 
 =================================
 
 --- H Bridge ---
@@ -331,11 +341,22 @@ Length of Primary wire
      - primary            1.62 mhH
      - secondary is now   152 mH     (it was 160mH before winding the primary)
 
+Test Results
+  Input to Transformer       Output from HF VM        Factor
+      +/- 7V @ 30 khz            550 vdc               79
+      +/- 11v @ 30 khz           928 vdc               84
+
+  Theoretically   +/- 500V transformer input   ==>  40kv
+
 Misc
 - https://electronics.stackexchange.com/questions/80807/does-the-place-of-the-primary-matter-in-a-transformer
       suggests less windings on the outside
 - http://www.chirkindustry.com/hvt.htm
       HF transformers and schematics
+- Amplifier output with 30khz  1.2V input from sig gen
+    volume  28   +/- 1v
+    volume  74   +/- 20v
+    volume  max  +/- 25v
 
 =================================
 TITLE: HF VOLTAGE MULTIPLIER NOTES
