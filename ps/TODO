@@ -1,34 +1,144 @@
 NEXT STEPS
 -----------
 
-more purchases
-- terminal strips          ORDERED
-- solder iron tips          ORDERED
-- 1g ohm resistor 1.6 watts
-    http://www.high-voltage-resistors.net/index.aspx?pageid=610652&prodid=3460081
-    https://www.ebay.com/itm/5W-1G-Ohm-High-Voltage-Bar-Glass-Glaze-Film-Resistor/321596518753?epid=1838601689&hash=item4ae0a57161:g:8jwAAOSwkrFagBun
-- container for hv vm
-- mineral oil
+--------------------  MAY 27 -----------------------
 
-attach fuse to first vm
+unsolder my ohmite resistors
 
-retest HV VM output using a voltage divider, and my 1000V DC voltmeter
-- what is max output?
+connect the panel meters
+- where is the 4 cable wire?
 
-Inverter
-- draw components layout for mosfet
-- put second primary winding on
-- test inverter with 50 VDC power supply, and a dummy load on the xformer
-- use gate resistor,  see stackexchange
+start on HF VM layout
+- get resistor from basement
+- start to assemble, use screws for ballast resistor
 
-HV output sensors
-- voltage divider, and current sensor for output
+container order                                    ORDER DETAILS
+  Cambro 32CW135 Camwear 1/3 Size Clear Food Pan - 2 1/2" Deep (21432CWCL)
+  Cambro 42CW135 Camwear 1/4 Size Clear Food Pan - 2 1/2" Deep (21442CWCL)
+  Cambro 30CWC135 Camwear 1/3 Size Clear Polycarbonate Flat Lid (21430CWCCL)
+  Cambro 40CWC135 Camwear 1/4 Size Clear Polycarbonate Flat Lid (21440CWC
+  The deeeper containers would be 
+    34CW135   1/3 size
+    44CW135   1/4 size  AMAZON-PRIME https://www.amazon.com/Cambro-Camwear-44CW135-4-Inch-Clear/dp/B00125UIM2/ref=sr_1_1?ie=UTF8&qid=1527438000&sr=8-1&keywords=44CW135
 
-dummy load, 1kW, especially for HV output
-  possibilities:
-    https://www.mouser.com/Passive-Components/Resistors/Wirewound-Resistors/Wirewound-Resistors-Chassis-Mount/_/N-7fx9g?P=1z0wo9pZ1yzmno7
-    Mouser 284-HS100-10KF
-    Mouser 279-TE1000B1K2J   1kW  1.2kohms   $48.77
+how to convert first vm to 2x                       DONE
+
+evaluate new voltages and transformer gain          DONE
+
+get 40kv wire                                       HAVE ALREADY
+
+dummy load construction, screws okay ?              YES
+
+new fuse                                            ORDERED
+  576-0507008.MXP     FUSE
+    Cartridge Fuses 650VDC 8A Cartridge Fuse
+    Medium / Normal Blow
+    $5.40
+    .25" dia,  1.25" len
+  504-5682-41         CLIP
+    1/4 in (6.35 mm)
+  284-HS75-1.0F   
+    Wirewound Resistors - Chassis Mount 75W 1.0 ohm1%
+
+pending orders                                      PENDING ORDERS
+  mouser: fuses, clips, 1ohm resistor
+  webstaurants:  containers               est. 5/30
+  ste oil: mineral oil                    est 5/31
+  uxcell (amazon): dummy load resistors
+
+organize favorites                                 DONE
+
+move email to folder                               DONE
+
+--------------------  MAY 27 -----------------------
+
+Converted 60HZ VM to 2x
+
+            VDC
+Variac    VM Output     (NO LOAD ON VM OUTPUT)
+------    ---------
+15            68
+60           353
+108          650        this is 120VAC output from variac
+Max          900
+
+--------------------  MAY 27 -----------------------
+
+Target 30KV at 1KW
+
+1) VARIAC 120 VAC OUTPUT at 10 AMP fuse
+
+2) FIRST VM - VM2x 60HZ 
+   - 120 V RMS input = 170 V peak
+   - Resistor 350 ohms
+   - output approx:  1000W @ 600 VDC
+   - MOSFET Drain-Source Voltage Max 1500V
+            Drain Current Max        9A
+            Drain Current Package    6A
+            Drain Current Pulse      18A
+   - FUSE NEEDS TO BE > 600VDC  and approx 3 amps    (1800 watts)
+   
+3) TRANSFROMER and MOSFETS
+   - IN 600 VDC
+   - OUT 4000V peak
+   - Turn Ratio = 6.666     <=== currently turn ratio is 10, may need to adjust
+                                  USING CURRENT TURN RATIO OF 10, the input would be
+                                  400 VDC (instead of 600).  So the VARIAC would be
+                                  2/3 of 120VRMS (80 Vrms);  and the max power 
+                                  that the VARIAC could deliver is 0800 watts.
+
+4) SECOND VM - VM5x_HF
+   - RESISTOR 1M
+   - IN 4000V peak input at 30khz    (8000V peak to peak)
+   - OUT 1.0KW   at -32kv    at 33ma
+
+--------------------  MAY 27 -----------------------
+
+Target 40KV at 1KW
+
+1) VARIAC 120 VAC OUTPUT at 10 AMP fuse
+
+2) FIRST VM - VM2x 60HZ 
+   - 120 V RMS input = 170 V peak
+   - Resistor 350 ohms
+   - output approx:  1000W @ 600 VDC
+   - MOSFET Drain-Source Voltage Max 1500V
+            Drain Current Max        9A
+            Drain Current Package    6A
+            Drain Current Pulse      18A
+   - FUSE NEEDS TO BE > 600VDC  and approx 3 amps    (1800 watts)
+   
+3) TRANSFROMER and MOSFETS
+   - IN 600 VDC
+   - OUT 4800V peak
+   - Turn Ratio = 8.0
+
+4) SECOND VM - VM5x_HF
+   - RESISTOR 1.6M
+   - IN 4800V peak input at 30khz    (9600 V peak to peak)
+   - OUT 1.1KW   at -42kv    at 26ma
+   
+--------------------  MAY 24  ---------------------
+
+TEST RESULTS
+
+1) bench power supply at 17.7 VDC
+   inverter freq 30 khz
+   output voltage   -2000 VDC
+
+2) 60hz VM
+   divider is 100:1
+
+   Variac       Voltage       Divider
+   ------       -------       -------
+      7           17           0.17
+     15          100           1.0
+     38          300           3.0
+     60          500           5.0
+     81          700           7.0
+    114         1000          10.0
+
+--------------------  MISC TODO  --------------------
 
 CS problem clicking control pane 
 
@@ -234,7 +344,7 @@ https://www.youtube.com/watch?v=YyBiZQAi4fY
 Hello again.I got these yesterday and You CAN get antiphase outputs after all.You connect one lead to output 2 and the other lead to the second hole from the top where the micro usb socket is.Also the output transistors are rated O.2 amps...you can use +ve line and the the pwr output to act as a current sink...as otherwise pwr to ground is limited to 30 milliamps .
 
 =================================
-TITLE: TRANSFORMERS               
+TITLE: INVERTER TRANSFORMER
 =================================
 
 --- Triple Insulated Winding Wire Wire ---
@@ -383,6 +493,14 @@ Make my own
 TITLE: PURCHASED
 =================================
 
+XXX
+
+more purchases - MOVE TO PURCHASES SECTION
+- terminal strips          ORDERED
+- solder iron tips          ORDERED
+- mineral oil              ORDERED
+
+
 General
 -------
 - Watt Meter
@@ -390,6 +508,7 @@ General
 - Capacitance/Inudcatnce Meter
 - Wire Butt Connectors
 - Adjustable DC Bench Power Supply, 50V 3A
+- XXX add other items, hookup wire, terminal blocks ...
 
 First VM
 --------
@@ -411,11 +530,13 @@ https://www.mouser.com/Circuit-Protection/Fuses/Specialty-Fuses/_/N-ba8be?P=1z0x
 Inverter
 --------
 
+XXX combine this section and next, and cleanup
+
 Amazon ..
 - Icstation Digital 2 Channal PWM Square Wave Pulse Signal Generator 
   Adjustable Frequency Duty Cycle 100% 1Hz-150KHz 
 - signal generator         
-- breadboards             
+- breadboard
 - power supply connectors
 - power supply switches 
 - power supply (battery)
@@ -585,3 +706,7 @@ Notes on One of the Chirk Schematics
    . C = T / R   = 25e-6 / 1000 = 25e-9  = 25nf
    . since larger is probably better, try  1uf
    . caps 598-941C20W1KF  1uf 2000vdc   $12
+
+1G Ohm HV Resistor
+------------------
+http://www.high-voltage-resistors.net/index.aspx?pageid=610652&prodid=3460081

@@ -1,0 +1,72 @@
+# 5x voltage multiplier
+clear_all
+
+add power      a1  b1 4000v,30000
+add wire       a1  a2
+add wire       b1  b2 
+ground b1
+
+add capacitor  a2 a3 14100pf
+add wire       a3 a4
+add wire       b2 b3 
+add capacitor  b3 b4 14100pf
+add diode      a3 b3
+add diode      b4 a4
+
+add capacitor  a4 a5 14100pf
+add wire       a5 a6
+add wire       b4 b5 
+add capacitor  b5 b6 14100pf
+add diode      a5 b5
+add diode      b6 a6
+
+add capacitor  a6 a7 14100pf
+add wire       a7 a8
+add wire       b6 b7 
+add capacitor  b7 b8 14100pf
+add diode      a7 b7
+add diode      b8 a8
+
+add capacitor  a8 a9 14100pf
+add wire       a9 a10
+add wire       b8 b9 
+add capacitor  b9 b10 14100pf
+add diode      a9 b9
+add diode      b10 a10
+
+add capacitor  a10 a11 14100pf
+add wire       a11 a12
+add wire       b10 b11
+add capacitor  b11 b12 14100pf
+add diode      a11 b11
+add diode      b12 a12
+
+add resistor   c1 c2 1M
+add wire       b1 c1 remote,green
+add wire       b12 c2 remote,red
+
+set center     b7,-380,170  
+set scale      110
+
+set scope_span_t 1ms
+set scope_mode continuous
+set scope_a voltage,-5000,5000,a1,b1,POWER
+set scope_b voltage,-50000,0,c2,c1,OUTPUT
+set scope_c voltage,0,10000,b3,a3,DIODE-1
+set scope_d voltage,0,10000,a4,b4,DIODE-2
+set scope_e voltage,0,10000,b11,a11,DIODE-N-1
+set scope_f voltage,0,10000,a12,b12,DIODE,N
+set scope_g voltage,0,10000,a2,a3,CAP
+set scope_h voltage,0,10000,b3,b4,CAP
+set scope_i voltage,0,10000,a4,a5,CAP
+set scope_j voltage,0,10000,b5,b6,CAP
+set scope_k voltage,0,10000,a6,a7,CAP
+set scope_l voltage,0,10000,b7,b8,CAP
+set scope_m voltage,0,10000,a8,a9,CAP
+set scope_n voltage,0,10000,b9,b10,CAP
+set scope_o voltage,0,10000,a10,a11,CAP
+set scope_p voltage,0,10000,b11,b12,CAP
+
+set component power
+
+run 5

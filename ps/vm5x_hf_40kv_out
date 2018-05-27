@@ -1,7 +1,7 @@
 # 5x voltage multiplier
 clear_all
 
-add power      a1  b1 4000v,20000
+add power      a1  b1 4800v,30000
 add wire       a1  a2
 add wire       b1  b2 
 ground b1
@@ -41,7 +41,7 @@ add capacitor  b11 b12 14100pf
 add diode      a11 b11
 add diode      b12 a12
 
-add resistor   c1 c2 1000000
+add resistor   c1 c2 1.6M
 add wire       b1 c1 remote,green
 add wire       b12 c2 remote,red
 
