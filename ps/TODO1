@@ -1,0 +1,95 @@
+=====================================================
+TEST OF HV TRANSFORMER AND VOLTAGE MULTIPLIER
+=====================================================
+
+SignalGen -> StereoAmp -> 10x Transformer -> 5x VM -> Meter
+
+
+                                -------------------------
+  stereo ---)|(-----------------|-- BLK                 |
+            )|(                 |   in                  |
+            )|(                 |                       |
+  stereo ---)|( T1              |       5X VM           |
+            )|(                 |                       |
+            )|(                 |   in             out  |
+   n/c -----)|(-----------------|-- WHITE          BLK -|------
+                      |         -------------------------     |
+                     R1                                       R2
+                      |                                       R3
+                      |                                       |
+                     GND                                      GND
+
+
+T1 - HV transformer 
+
+R1 - 100 ohm, 10W, for current measurement
+
+R2/R3 - 100Meg/100K for x1000 voltage dividier,
+        voltage measured across R3;  1v equiv 1kv
+
+Signal Generator set to 30khz, 1vpp
+Stereo set to Tape - Output set to 40V P-P
+VM output approx 2 KV.
+
+=====================================================
+SIGNAL GENERATOR LOAD TEST
+=====================================================
+
+Freq set to 30KHZ
+
+Voltage         Load              Actual P-P
+Readout         Resistance        Voltage Out
+--------        ----------        -----------
+
+15 V            47 ohm            7 V
+
+15 V            100 ohm           10 V 
+
+=====================================================
+SELECTING TOROID FOR PUSH PULL AMP INPUT
+=====================================================
+
+Toroid Coating Code
+ P - Parylene
+ L - Epoxy
+ A - uncoated
+
+New Toroid
+  OD  63 mm               R = (63 + 38) / 2 / 2 = 25mm = 2.5 cm
+  ID  38 mm               A = ((63 - 38) / 2) * 25 = 312.5mm2 = 3.1 cm2
+  H   25 mm
+  N87  u = 2200
+
+Desired Impedance = 100 ohm at 30 khz
+
+          XL             100
+   L = ------------  = -----------  = .53 mH
+       2 * pi * f      6.3 * 30000
+       
+http://hyperphysics.phy-astr.gsu.edu/hbase/magnetic/indtor.html
+   R = 2.5
+   N = 10           ===> .54 mH  (which is about what is needed for primary)
+   A = 3.1
+   u = 2200
+
+
+=====================================================
+ZENER DIODES
+=====================================================
+
+           ------------------
+           |                |
+          500v              R  300k ohm
+           |                |
+           |                Zener Diode  4v
+           |                |
+           ------------------
+
+   R power = E^2 / R  = .833 Watts
+
+   I think my resistors are rated at about 300 volts, so 
+   2 150k in series should suffice.
+
+   Current in the above circuit is  E / R =  1.6 ma
+
+

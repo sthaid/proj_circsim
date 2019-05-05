@@ -1,147 +1,3 @@
-NEXT STEPS
------------
-
---------------------  MAY 27 -----------------------
-
-unsolder my ohmite resistors
-
-connect the panel meters
-- where is the 4 cable wire?
-
-start on HF VM layout
-- get resistor from basement
-- start to assemble, use screws for ballast resistor
-
-container order                                    ORDER DETAILS
-  Cambro 32CW135 Camwear 1/3 Size Clear Food Pan - 2 1/2" Deep (21432CWCL)
-  Cambro 42CW135 Camwear 1/4 Size Clear Food Pan - 2 1/2" Deep (21442CWCL)
-  Cambro 30CWC135 Camwear 1/3 Size Clear Polycarbonate Flat Lid (21430CWCCL)
-  Cambro 40CWC135 Camwear 1/4 Size Clear Polycarbonate Flat Lid (21440CWC
-  The deeeper containers would be 
-    34CW135   1/3 size
-    44CW135   1/4 size  AMAZON-PRIME https://www.amazon.com/Cambro-Camwear-44CW135-4-Inch-Clear/dp/B00125UIM2/ref=sr_1_1?ie=UTF8&qid=1527438000&sr=8-1&keywords=44CW135
-
-how to convert first vm to 2x                       DONE
-
-evaluate new voltages and transformer gain          DONE
-
-get 40kv wire                                       HAVE ALREADY
-
-dummy load construction, screws okay ?              YES
-
-new fuse                                            ORDERED
-  576-0507008.MXP     FUSE
-    Cartridge Fuses 650VDC 8A Cartridge Fuse
-    Medium / Normal Blow
-    $5.40
-    .25" dia,  1.25" len
-  504-5682-41         CLIP
-    1/4 in (6.35 mm)
-  284-HS75-1.0F   
-    Wirewound Resistors - Chassis Mount 75W 1.0 ohm1%
-
-pending orders                                      PENDING ORDERS
-  mouser: fuses, clips, 1ohm resistor
-  webstaurants:  containers               est. 5/30
-  ste oil: mineral oil                    est 5/31
-  uxcell (amazon): dummy load resistors
-
-organize favorites                                 DONE
-
-move email to folder                               DONE
-
---------------------  MAY 27 -----------------------
-
-Converted 60HZ VM to 2x
-
-            VDC
-Variac    VM Output     (NO LOAD ON VM OUTPUT)
-------    ---------
-15            68
-60           353
-108          650        this is 120VAC output from variac
-Max          900
-
---------------------  MAY 27 -----------------------
-
-Target 30KV at 1KW
-
-1) VARIAC 120 VAC OUTPUT at 10 AMP fuse
-
-2) FIRST VM - VM2x 60HZ 
-   - 120 V RMS input = 170 V peak
-   - Resistor 350 ohms
-   - output approx:  1000W @ 600 VDC
-   - MOSFET Drain-Source Voltage Max 1500V
-            Drain Current Max        9A
-            Drain Current Package    6A
-            Drain Current Pulse      18A
-   - FUSE NEEDS TO BE > 600VDC  and approx 3 amps    (1800 watts)
-   
-3) TRANSFROMER and MOSFETS
-   - IN 600 VDC
-   - OUT 4000V peak
-   - Turn Ratio = 6.666     <=== currently turn ratio is 10, may need to adjust
-                                  USING CURRENT TURN RATIO OF 10, the input would be
-                                  400 VDC (instead of 600).  So the VARIAC would be
-                                  2/3 of 120VRMS (80 Vrms);  and the max power 
-                                  that the VARIAC could deliver is 0800 watts.
-
-4) SECOND VM - VM5x_HF
-   - RESISTOR 1M
-   - IN 4000V peak input at 30khz    (8000V peak to peak)
-   - OUT 1.0KW   at -32kv    at 33ma
-
---------------------  MAY 27 -----------------------
-
-Target 40KV at 1KW
-
-1) VARIAC 120 VAC OUTPUT at 10 AMP fuse
-
-2) FIRST VM - VM2x 60HZ 
-   - 120 V RMS input = 170 V peak
-   - Resistor 350 ohms
-   - output approx:  1000W @ 600 VDC
-   - MOSFET Drain-Source Voltage Max 1500V
-            Drain Current Max        9A
-            Drain Current Package    6A
-            Drain Current Pulse      18A
-   - FUSE NEEDS TO BE > 600VDC  and approx 3 amps    (1800 watts)
-   
-3) TRANSFROMER and MOSFETS
-   - IN 600 VDC
-   - OUT 4800V peak
-   - Turn Ratio = 8.0
-
-4) SECOND VM - VM5x_HF
-   - RESISTOR 1.6M
-   - IN 4800V peak input at 30khz    (9600 V peak to peak)
-   - OUT 1.1KW   at -42kv    at 26ma
-   
---------------------  MAY 24  ---------------------
-
-TEST RESULTS
-
-1) bench power supply at 17.7 VDC
-   inverter freq 30 khz
-   output voltage   -2000 VDC
-
-2) 60hz VM
-   divider is 100:1
-
-   Variac       Voltage       Divider
-   ------       -------       -------
-      7           17           0.17
-     15          100           1.0
-     38          300           3.0
-     60          500           5.0
-     81          700           7.0
-    114         1000          10.0
-
---------------------  MISC TODO  --------------------
-
-CS problem clicking control pane 
-
 =================================
 TITLE: DESIGN     
 =================================
@@ -448,7 +304,7 @@ Length of Primary wire
           123"   = 10.3 ft    or 10 ft 4 inches
 
    After wrapping primary, measured inductance:
-     - primary            1.62 mhH
+     - primary            1.62 mH
      - secondary is now   152 mH     (it was 160mH before winding the primary)
 
 Test Results
@@ -488,84 +344,6 @@ Make my own
   - circsim file is vm5x_hf 
      . input                          :   4kv @ 20kHz         
      . output into resistor load 1M is: -30kv  30ma  
-
-=================================
-TITLE: PURCHASED
-=================================
-
-XXX
-
-more purchases - MOVE TO PURCHASES SECTION
-- terminal strips          ORDERED
-- solder iron tips          ORDERED
-- mineral oil              ORDERED
-
-
-General
--------
-- Watt Meter
-- Multimeter
-- Capacitance/Inudcatnce Meter
-- Wire Butt Connectors
-- Adjustable DC Bench Power Supply, 50V 3A
-- XXX add other items, hookup wire, terminal blocks ...
-
-First VM
---------
-- Diodes - General Purpose, Power, Switching 600V 30A FRED Pt TO-247 LL 2L
-     78-VS-E4PH3006L-N3, Surge 240A, $1.99, x6
-         600V
-         30A
-         240A  surge
-- Aluminum Electrolytic Capacitors - Screw Terminal 450volts 2400uF 20% Screw Terminal
-     80-ALS70A242KF450, $28.84, x6
-         2400uf
-         450V
-- diodes x6         78-VS-E4PH3006L-N3
-- fuse 1.5A 2500V   504-HVB-11/2
-- fuse clips  x2    504-BK/5956-16-R
-
-https://www.mouser.com/Circuit-Protection/Fuses/Specialty-Fuses/_/N-ba8be?P=1z0x81nZ1z0x782Z1z0x64tZ1z0x8giZ1y9knbuZ1yo1964Z1y9hveiZ1y9hvej
-
-Inverter
---------
-
-XXX combine this section and next, and cleanup
-
-Amazon ..
-- Icstation Digital 2 Channal PWM Square Wave Pulse Signal Generator 
-  Adjustable Frequency Duty Cycle 100% 1Hz-150KHz 
-- signal generator         
-- breadboard
-- power supply connectors
-- power supply switches 
-- power supply (battery)
-- heat Shrink 
-Mouser ....
-- 757-TLP358HF        Photocoupler, Toshiba
-- 863-NDUL09N150CG    MOSFET  1500V 9A    NCH
-- 80-C320C105K5N9170  Mouser  50volts 1uF 
-
-Transformer
------------
-
-- toroid   871-B64290L0084X087
-
-- uxcell 26AWG 10KV Electric Copper Core Flexible Silicone Wire Cable 20M White 
-- uxcell 10M 32.8Ft 22AWG 10KV Electric Copper Core Flexible Silicone Wire Cable Red
-- uxcell 10M 32.8Ft 18AWG 10KV Electric Copper Core Flexible Silicone Wire Cable Red     RCVD
-
-Second VM
----------
-- Diodes
-   . PRHVP2A-20 Single Phase High Voltage Rectifier Diode 20000V 20KV 2A J [10Pcs]  
-     Total for all 10 is $16.72
-- Capacitors - need at least 30 4700pf
-   . http://hvstuff.com/high-voltage-capacitors/ceramic/disc?capacitance=49&rated_voltage=170
-   . High voltage ceramic disc capacitors operated at half near rated voltage in open air. Rated 
-     for full voltage when operated under oil, inert gas or encapsulated by expoxy.
-   . $0.95 each qty=36 : $34.20 +  $28 S&H = $62.20
-   . Your order # is: 100001185.
 
 =================================
 TITLE: THEORY - RESISTORS, DIODES, MOSFETS
@@ -666,6 +444,61 @@ contribute to the total reactance as follows
   X = 2pi*f*L - 1/(2*pi*f*C)
 Setting this to 0 means the circuit has no Reactance, and thus no average current. Giving
 the resonant frequency.
+
+=================================
+TITLE: SOME PURCHASES
+=================================
+
+First VM
+--------
+- Diodes - General Purpose, Power, Switching 600V 30A FRED Pt TO-247 LL 2L
+     78-VS-E4PH3006L-N3, Surge 240A, $1.99, x6
+         600V
+         30A
+         240A  surge
+- Aluminum Electrolytic Capacitors - Screw Terminal 450volts 2400uF 20% Screw Terminal
+     80-ALS70A242KF450, $28.84, x6
+         2400uf
+         450V
+- diodes x6         78-VS-E4PH3006L-N3
+
+Inverter
+--------
+
+Amazon ..
+- Icstation Digital 2 Channal PWM Square Wave Pulse Signal Generator 
+  Adjustable Frequency Duty Cycle 100% 1Hz-150KHz 
+- signal generator         
+- breadboard
+- power supply connectors
+- power supply switches 
+- power supply (battery)
+- heat Shrink 
+Mouser ....
+- 757-TLP358HF        Photocoupler, Toshiba
+- 863-NDUL09N150CG    MOSFET  1500V 9A    NCH
+- 80-C320C105K5N9170  Mouser  50volts 1uF 
+
+Transformer
+-----------
+
+- toroid   871-B64290L0084X087
+
+- uxcell 26AWG 10KV Electric Copper Core Flexible Silicone Wire Cable 20M White 
+- uxcell 10M 32.8Ft 22AWG 10KV Electric Copper Core Flexible Silicone Wire Cable Red
+- uxcell 10M 32.8Ft 18AWG 10KV Electric Copper Core Flexible Silicone Wire Cable Red     RCVD
+
+Second VM
+---------
+- Diodes
+   . PRHVP2A-20 Single Phase High Voltage Rectifier Diode 20000V 20KV 2A J [10Pcs]  
+     Total for all 10 is $16.72
+- Capacitors - need at least 30 4700pf
+   . http://hvstuff.com/high-voltage-capacitors/ceramic/disc?capacitance=49&rated_voltage=170
+   . High voltage ceramic disc capacitors operated at half near rated voltage in open air. Rated 
+     for full voltage when operated under oil, inert gas or encapsulated by expoxy.
+   . $0.95 each qty=36 : $34.20 +  $28 S&H = $62.20
+   . Your order # is: 100001185.
 
 =================================
 TITLE: BACKUP INFO
