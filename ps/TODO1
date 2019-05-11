@@ -92,4 +92,18 @@ ZENER DIODES
 
    Current in the above circuit is  E / R =  1.6 ma
 
+=====================================================
+SIGNAL GENERATOR -> AMPLIFIER 
+=====================================================
+
+Signal Generator   30Khz  sine   1v p2p
+
+Amplifier  TAPE Setting
+
+Amp-Vol   Amp-Out
+-------   -------
+
+  69      20 V P-P    7 VRMS
+  73      30 V P-P   11 VRMS
+  MAX     74 V P-P   26 VRMS
 
