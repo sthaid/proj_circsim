@@ -107,3 +107,35 @@ Amp-Vol   Amp-Out
   73      30 V P-P   11 VRMS
   MAX     74 V P-P   26 VRMS
 
+=====================================================
+OUTPUT TRANSFER 
+=====================================================
+
+Current in Primary
+------------------
+
+    u = 2200   Relative Permeability   (relative to magnetic constant u0 = 12.566E-7)
+    N = 30     turns
+    A = 2.7    cm2
+    R = 4.2    cm
+
+    u * N^2 * A     (2200 * 1.26E-6) * 30^2 * (2.7 / 10000)
+L = ------------  = ---------------------------------------  = .00255 H = 2.55 mH
+    2 * PI * R         6.28 * (4.2 / 100)
+
+     VRMS  = 400    volts
+     f     = 30000  hertz
+     L     = .00255 H   (computed)
+
+     L     = .0026      (measured)
+
+       VRMS                     400
+IL = ---------------  =  ----------------------  = .83 Amps
+     2 * PI * f * L       6.28 * 30000 * .00255
+
+
+Wound Secondary, approx 30 turns
+--------------------------------
+
+Pri L  = 2.76 mH   end-to-end   (measured)
+Sec L  = 2.42 mH                (measured)
