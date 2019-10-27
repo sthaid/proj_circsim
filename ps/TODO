@@ -241,6 +241,7 @@ Transformer N87 material  f<500khz   ui=2200
 Are Ferrites conductive?
 - Ferrites are ceramic compounds of the transition metals with oxygen, 
   which are ferrimagnetic but nonconductive
+    https://en.wikipedia.org/wiki/Ferrite_core
 - However,  I saw a spec for a breakdown voltage.
     https://en.tdk.eu/download/531586/2d679ff7e70f74dfb98dc2a4732cca7b/pdf-toroids-general-information.pdf
     >2.0 kV (for >R 20)

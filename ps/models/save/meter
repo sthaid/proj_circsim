@@ -1,0 +1,19 @@
+# meter
+clear_all
+
+add power      a1  b1 5000v,20000
+add wire       a2  a3 
+add wire       b1  b2 
+add wire       b2  b3 
+ground b1
+
+add diode      a1  a2
+add resistor   a2  b2  10M
+add capacitor  a3  b3  15nf
+
+set scope_span_t .1ms
+set scope_mode continuous
+set scope_a voltage,-5000,5000,a1,b1,POWER
+set scope_b current,0,1ma,a2,b2,CURRENT
+
+run  .1ms
