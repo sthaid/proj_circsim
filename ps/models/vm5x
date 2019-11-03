@@ -2,9 +2,24 @@
 #
 # RESULTS
 #   input  : 3800v peak at 20khz
-#   output : -35kv  at  7ma  =>  250 watts
-#   voltage accross caps is all < 10kv
+#   load R : 1.25M
+#   output : 29.3kv  at 23.4ma  => 712 watt
+#   voltage accross caps is all < 10kv  :  YES
 #
+#   input  : 3800v peak at 20khz
+#   load R : 2.5M
+#   output : -33.1kv  at 13.2ma  =>  440 watts
+#   voltage accross caps is all < 10kv  :  ???
+#
+#   input  : 3800v peak at 20khz
+#   load R : 5M
+#   output : -35kv  at  7ma  =>  250 watts
+#   voltage accross caps is all < 10kv  : YES
+#
+#   input  : 3800v peak at 20khz
+#   load R : 50M
+#   output : -37.7kv  at .75ma  => 28 watts
+#   voltage accross caps is all < 10kv  : YES
 
 clear_all
 
