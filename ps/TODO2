@@ -93,8 +93,6 @@ BUILT TRANSFORMER
 
 Secondary Bobbin: 23 layers / 39 turns per layer ==> approx 900 turns total
 
-Primary : XXX tbd
-
 =========================================================
 PEAK VOLTAGE METERS
 =========================================================
@@ -116,45 +114,94 @@ This measures 10KV
                |       |
      -------------------
 
+=========================================================
+BLUETOOTH METER OUTPUT
+=========================================================
+
+[RPI_DATA haid@raspberrypi ~]$ gatttool -b 98:84:E3:CD:B8:68  --char-read --handle 0x2d --listen
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+Characteristic value/descriptor: 10 2e 00 f4 ff 
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+Notification handle = 0x002e value: 2b 30 30 30 31 20 34 31 00 80 40 00 0d 0a 
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
+^C
+
+=========================================================
+HIGH VOLTABE OUTPUT TABLE
+=========================================================
+
+    IN FROM SIG-GEN     HV OUTPUT
+    ---------------     ---------
+        4.0                 24 KV
+        4.5                 27
+        5.0                 31
+        5.5                 34
+        6.0                 37   ==>    pri=60  sec=3.9 kv  vm-out=37.0 kv  watt-meter=105
+        6.5                 39
+
+space between coils approc 1/2 to 5/8 inch
 
 =========================================================
 TODO
 =========================================================
 
-Buy parts for 100 volt and 1000 volt peak meters.
-
-Parts needed for 1000 Volt meter
-  - 1.0 ma meter
-  - 1kv diode
-  - 1 Megohm         I^2 * R  =  1 watt
-  - 10 nf / 1 kv
-
-Parts needed for 1000 Volt meter
-  - 1.0 ma meter
-  - 100v diode
-  - 100k ohm       I^2 * R  = .1 watt
-  - 100 nf / 100 volt
-  
-Parts needed for 30Kv meter
-  - use the bluetooth meter that I have, and the 1 Gigohm resistor
-  - need new leads for the meter 
-  - what is the range to use on the meter    I = E / R  = 30e3 / 1e9  = 30 microamps
-
 Write the software to access the bluetooth meter from computer
- XXX find my notes on this
+  https://github.com/inflex/owon-b35
 
-Add coils to primary and compare voltage characteristics, using 25 kohm load
+current monitoring ????
+
+Use pyrex container for safety
+  will need slightly bigger if will do this
+
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+
+-------------
+---- DONE ---
+-------------
 
 VM
 - Build new base for VM
 - test the vm using just the AUDIO amp input and the 100 / 1kv meters
-    - and put a load on it
-    - if it outputs 500 volts then   E^2 / R  = 500^2 / 10K  = 25 watts
-                                              = 500^2 / 1K   = 250 watts
-    - BUY this resistor ??
+- also test with a 1 Megohm load resistor, and compare results to model pgm
 
+Parts needed for 30Kv meter
+  - use the bluetooth meter that I have, and the 1 Gigohm resistor
+  - what is the range to use on the meter    I = E / R  = 30e3 / 1e9  = 30 microamps
+
+
+---- DONE - BUYING ----
+
+Raspberry PI
+
+Hookup Wire
 Buy 
 - parts for meters above
 - meter leads
-- load resistor for tesing VM
 
+---- DONE - ANALOG METERS ----
+
+Buy parts for 100 volt and 1000 volt peak meters.
+    Parts needed for 1000 Volt meter
+      - 1.0 ma meter                                     ORDERED
+      - 1kv diode                                        ORDERED
+      - 1 Megohm         I^2 * R  =  1 watt              HAVE IT
+      - 10 nf / 1 kv                                     ORDERED
+    Parts needed for 100 Volt meter
+      - 1.0 ma meter                                     ORDERED
+      - 100v diode                                       ORDERED
+      - 100k ohm       I^2 * R  = .1 watt                HAVE IT
+      - 100 nf / 100 volt                                ORDERED
+
+---- DONE - ASSEMBYL ----
+
+VM5x
+- wiring for ballast resistor and the 1 Gig resistor
