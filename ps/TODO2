@@ -133,6 +133,8 @@ Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a
 Notification handle = 0x002e value: 2b 30 30 30 30 20 34 31 00 80 40 00 0d 0a 
 ^C
 
+Refer to https://github.com/inflex/owon-b35 for sample software.
+
 =========================================================
 HIGH VOLTABE OUTPUT TABLE
 =========================================================
@@ -148,60 +150,3 @@ HIGH VOLTABE OUTPUT TABLE
 
 space between coils approc 1/2 to 5/8 inch
 
-=========================================================
-TODO
-=========================================================
-
-Write the software to access the bluetooth meter from computer
-  https://github.com/inflex/owon-b35
-
-current monitoring ????
-
-Use pyrex container for safety
-  will need slightly bigger if will do this
-
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-
--------------
----- DONE ---
--------------
-
-VM
-- Build new base for VM
-- test the vm using just the AUDIO amp input and the 100 / 1kv meters
-- also test with a 1 Megohm load resistor, and compare results to model pgm
-
-Parts needed for 30Kv meter
-  - use the bluetooth meter that I have, and the 1 Gigohm resistor
-  - what is the range to use on the meter    I = E / R  = 30e3 / 1e9  = 30 microamps
-
-
----- DONE - BUYING ----
-
-Raspberry PI
-
-Hookup Wire
-Buy 
-- parts for meters above
-- meter leads
-
----- DONE - ANALOG METERS ----
-
-Buy parts for 100 volt and 1000 volt peak meters.
-    Parts needed for 1000 Volt meter
-      - 1.0 ma meter                                     ORDERED
-      - 1kv diode                                        ORDERED
-      - 1 Megohm         I^2 * R  =  1 watt              HAVE IT
-      - 10 nf / 1 kv                                     ORDERED
-    Parts needed for 100 Volt meter
-      - 1.0 ma meter                                     ORDERED
-      - 100v diode                                       ORDERED
-      - 100k ohm       I^2 * R  = .1 watt                HAVE IT
-      - 100 nf / 100 volt                                ORDERED
-
----- DONE - ASSEMBYL ----
-
-VM5x
-- wiring for ballast resistor and the 1 Gig resistor
