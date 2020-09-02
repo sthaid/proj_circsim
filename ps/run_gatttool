@@ -1,0 +1,2 @@
+
+gatttool -b 98:84:E3:CD:B8:68  --char-read --handle 0x2d --listen
