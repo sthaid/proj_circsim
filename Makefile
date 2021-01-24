@@ -29,8 +29,8 @@ DEP=$(SRC_MODEL:.c=.d)
 all: $(TARGETS)
 
 model: $(OBJ_MODEL) 
-	$(CC) -pthread -lrt -lm -lreadline -lpng -ljpeg -lSDL2 -lSDL2_ttf -lSDL2_mixer $(CFLAGS_PROFILING) \
-              -o $@ $(OBJ_MODEL)
+	$(CC) -o $@ $(OBJ_MODEL) $(CFLAGS_PROFILING) \
+            -pthread -lrt -lm -lreadline -lpng -ljpeg -lSDL2 -lSDL2_ttf -lSDL2_mixer
 
 -include $(DEP)
 
